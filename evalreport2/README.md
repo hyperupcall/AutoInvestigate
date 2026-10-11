@@ -53,7 +53,7 @@ is charted.
 
 | Flag | Meaning |
 | --- | --- |
-| `--model ID` | Model id (default `openai/gpt-4.1-mini`, or `EVALREPORT_MODEL`). |
+| `--model ID` | Model id (default `meta-llama/llama-3.1-8b-instruct`). |
 | `--out PATH` | Output HTML path (default `index.html`). |
 | `--compare` | Also run the general-purpose baseline. |
 | `--demo` | Offline deterministic run; no API key required. |
@@ -63,8 +63,11 @@ is charted.
 ## Configuration
 
 The API key comes from the single root `.env` (`../.env`): `OPENROUTER_API_KEY`
-(falling back to `OPENAI_API_KEY`). All calls go through OpenRouter. The model can be
-overridden with `EVALREPORT_MODEL` or `--model`.
+(falling back to `OPENAI_API_KEY`). All calls go through OpenRouter.
+
+The model is a global in `evaluate.py` (`MODEL = "meta-llama/llama-3.1-8b-instruct"`,
+OpenRouter's "Meta: Llama 3.1 8B Instruct") — it is **not** read from `.env`. Override
+it per-run with `--model`.
 
 ## Output
 

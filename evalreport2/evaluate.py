@@ -37,7 +37,10 @@ load_dotenv(ROOT / ".env")
 
 APP_TITLE = "Outshift Research Intelligence"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = os.getenv("EVALREPORT_MODEL", "openai/gpt-4.1-mini")
+
+# Model is a global here, not read from .env. OpenRouter id for
+# "Meta: Llama 3.1 8B Instruct".
+MODEL = "meta-llama/llama-3.1-8b-instruct"
 DEFAULT_IDEA = (
     "Evaluate homomorphic encryption for privacy-preserving enterprise AI "
     "analytics. Determine whether it is feasible for a small proof of concept and "
@@ -807,7 +810,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument("idea", nargs="*", help="The idea text. Omit to use the default example.")
     parser.add_argument("--idea-file", type=Path, help="Read the idea text from a file.")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model id (default: {DEFAULT_MODEL}).")
+    parser.add_argument("--model", default=MODEL, help=f"Model id (default: {MODEL}).")
     parser.add_argument("--out", type=Path, default=Path("index.html"), help="Output HTML path (default: index.html).")
     parser.add_argument("--compare", action="store_true", help="Also run the general-purpose baseline.")
     parser.add_argument("--demo", action="store_true", help="Offline deterministic run; no API key needed.")
