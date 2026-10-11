@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
 from .service import Service
+from .web import render_evaluations
 
 # Origins allowed to call this API from a browser (the frontend served on its own
 # port). Override with AF_CORS_ORIGINS (comma-separated).
@@ -53,6 +54,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self._cors()
         self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_html(self, status: int, document: str) -> None:
+        body = document.encode("utf-8")
+        self.send_response(status)
+        self._cors()
+        self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -105,6 +115,8 @@ class Handler(BaseHTTPRequestHandler):
         path = path.rstrip("/") or "/"
 
         if method == "GET" and path == "/":
+            return self._send_html(200, self._render_home())
+        if method == "GET" and path == "/info":
             return self._send_json(200, self._info())
         if method == "GET" and path == "/health":
             return self._send_json(200, {"status": "ok"})
@@ -165,6 +177,11 @@ class Handler(BaseHTTPRequestHandler):
 
         raise ApiError(404, f"no route for {method} {path}")
 
+    def _render_home(self) -> str:
+        ideas = self.service.list_ideas()
+        plans_by_idea = {p["idea_id"]: p for p in self.service.list_plans()}
+        return render_evaluations(ideas, plans_by_idea, self._info())
+
     def _post_ideas(self) -> None:
         body = self._read_json()
         if not isinstance(body, dict):
@@ -187,7 +204,8 @@ class Handler(BaseHTTPRequestHandler):
             "name": "Artifact Factory",
             "version": "0.1.0",
             "routes": [
-                "GET /", "GET /health", "POST /ideas", "GET /ideas",
+                "GET / (HTML dashboard)", "GET /info", "GET /health",
+                "POST /ideas", "GET /ideas",
                 "GET /ideas/{id}", "GET /plans", "GET /plans/{id}",
                 "POST /plans/{id}/implement", "GET /jobs", "GET /jobs/{id}",
                 "GET /artifacts/{id}", "GET /artifacts/{id}/download",

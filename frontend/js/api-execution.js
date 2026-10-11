@@ -72,6 +72,8 @@
       } catch (e) { /* try the next one */ }
     }
     if (!info.live) { info.base = ''; return; }
+    const factoryView = document.getElementById('artifact-factory-view');
+    if (factoryView) factoryView.href = (info.base || '') + '/';
     Hack.store.notify();
     if (Hack.actions) Hack.actions.showToast('Artifact Factory connected: execution is real.', 'ok');
   }

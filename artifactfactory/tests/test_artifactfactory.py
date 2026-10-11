@@ -114,6 +114,11 @@ class HttpTests(unittest.TestCase):
         with urllib.request.urlopen(url, timeout=10) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
 
+    def _get_raw(self, path):
+        url = f"http://127.0.0.1:{self.port}{path}"
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            return resp.status, resp.headers.get("Content-Type", ""), resp.read().decode("utf-8")
+
     def _post(self, path, payload):
         url = f"http://127.0.0.1:{self.port}{path}"
         data = json.dumps(payload).encode("utf-8")
@@ -172,6 +177,24 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(json.loads(resp.read())["id"], plan_id)
         finally:
             conn.close()
+
+    def test_home_lists_evaluations(self):
+        self._post("/ideas", {"text": "A homomorphic encryption toolkit."})
+        status, content_type, body = self._get_raw("/")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("A homomorphic encryption toolkit.", body)
+
+    def test_home_is_empty_before_any_evaluation(self):
+        status, content_type, body = self._get_raw("/")
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("No evaluations yet", body)
+
+    def test_info_route_returns_service_json(self):
+        status, body = self._get("/info")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["service"], "artifactfactory")
 
     def test_http_smoke(self):
         status, body = self._get("/health")

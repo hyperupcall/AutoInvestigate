@@ -31,6 +31,10 @@ python3 artifactfactory/daemon.py
 
 Both print the listening URL (default `http://127.0.0.1:8080`).
 
+Open that URL in a browser for a plain dashboard listing every evaluation (idea)
+the factory has been given, with its plan and artifact status. The frontend's
+header has an **Artifact Factory** button that opens the same page.
+
 ## Configuration
 
 | Env var | CLI flag | Default | Meaning |
@@ -72,7 +76,8 @@ configured bucket/prefix.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/` | Service info + route list |
+| GET | `/` | HTML dashboard: every evaluation (idea) the factory was given |
+| GET | `/info` | Service info + route list (JSON) |
 | GET | `/health` | `{"status": "ok"}` |
 | POST | `/ideas` | Create an idea (and a plan if validated) |
 | GET | `/ideas` | List ideas |

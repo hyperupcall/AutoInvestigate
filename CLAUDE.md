@@ -142,6 +142,24 @@ single `window.Hack` namespace. Open `frontend/index.html` directly, or serve it
 **Settings is a popup**, opened from the **Settings** button in the header (not a
 sidebar). The same content is also available as a standalone `frontend/settings.html`.
 
+A **Full view** link sits next to Settings in the header. It opens the site rendered
+by the backend server (the `web` service, `http://localhost:8090/live` — the live
+view) in a new tab, so it is easy to reach after `docker compose up`. Its `href`
+defaults to `http://localhost:8090/live` and is repointed by `api-backend.js` to the
+detected backend (`window.EVAL_API`, same origin, or `localhost:8090`).
+
+An **Artifact Factory** link sits next to Full view. It opens the Artifact Factory
+daemon's own web page (`http://localhost:8080/` by default) in a new tab — a plain
+HTML dashboard listing every evaluation (idea) the factory has been given, with its
+plan and artifact status. Its `href` is repointed by `api-execution.js` to the
+detected factory (`window.AF_API`, same origin, or `localhost:8080`). The daemon's
+JSON service info moved from `GET /` to `GET /info`; all other routes are unchanged.
+
+A **Model info** button sits next to Settings in the header. It opens a popup listing
+the models the app uses, each linked to its OpenRouter page with its input/output
+price per 1M tokens. The list lives in `frontend/js/model-info.js` (the single source
+of truth for the settings dropdown too).
+
 ### Column 1 — Idea Generation (a level tree)
 
 - **Level 0** is the seed box `(A)`. Type an idea and press **Generate**. The seed
@@ -213,6 +231,7 @@ frontend/
   css/styles.css          all styling (light, minimal)
   js/
     util.js               DOM + misc helpers (el, preserveView, seeded RNG, …)
+    model-info.js         the models used, with OpenRouter links + prices
     mock-data.js          fixtures: groups, archetypes, prompts, text templates
     mock-report.js        sample evaluation report (evaluation-report.schema.json)
     mock-backend.js       ← the MOCKED backend (swap for real calls)
@@ -224,6 +243,7 @@ frontend/
       execution.js        column 3 (blank)
       settings.js         settings content (shared by popup + page)
       settingsModal.js    settings popup
+      modelInfoModal.js   "Model info" popup (models, links, prices)
       modal.js            the two-tab popup (cluster status / evaluation)
       toast.js            notifications
     app.js                bootstrap

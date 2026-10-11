@@ -58,6 +58,7 @@
     ui: {
       modal: { open: false, runId: null, tab: 'cluster', agentSelection: {} },
       settingsOpen: false,
+      modelInfoOpen: false,
       toast: null,
     },
   };

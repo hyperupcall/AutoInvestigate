@@ -9,12 +9,8 @@
   const actions = Hack.actions;
   const D = Hack.mockData;
 
-  // Only these models may be used (see CHEAP_MODELS.md). OpenRouter ids.
-  const MODELS = [
-    'meta-llama/llama-3.1-8b-instruct',
-    'google/gemma-3-4b-it',
-    'openai/gpt-oss-120b',
-  ];
+  // Only these models may be used (see CHEAP_MODELS.md). One source of truth: model-info.js.
+  const MODELS = Hack.modelInfo.MODELS.map((m) => m.id);
 
   /** Only the cheap models are offered; a configured backend model is folded in when it is one of them. */
   function modelOptions() {

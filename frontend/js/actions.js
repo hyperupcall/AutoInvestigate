@@ -403,6 +403,17 @@
     store.notify();
   }
 
+  /* --------------------------- model info popup --------------------------- */
+  function openModelInfo() {
+    state.ui.modelInfoOpen = true;
+    store.notify();
+  }
+
+  function closeModelInfo() {
+    state.ui.modelInfoOpen = false;
+    store.notify();
+  }
+
   /* ----------------------------- settings ----------------------------- */
   function updateSettings(patch) {
     Object.assign(state.settings, patch);
@@ -480,6 +491,8 @@
     selectModalAgent,
     openSettings,
     closeSettings,
+    openModelInfo,
+    closeModelInfo,
     updateSettings,
     addGroupPerspective,
     removeGroupPerspective,
