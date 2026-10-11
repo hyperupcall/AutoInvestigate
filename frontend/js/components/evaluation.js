@@ -53,7 +53,6 @@
         refs.targets.appendChild(el('div', { class: 'eval-target' }, [
           el('p', { class: 'eval-target-text', text: truncate(item.text, 180) }),
           el('div', { class: 'eval-target-foot' }, [
-            el('span', { class: 'muted small', text: 'Level ' + item.level }),
             el('div', { class: 'eval-target-actions' }, [
               el('button', { class: 'mini-btn', title: 'Remove from queue', text: '✕', onclick: () => actions.removeQueuedIdea(item.id) }),
               el('button', { class: 'btn small primary', text: 'Start Deeper Research', onclick: () => actions.startQueuedEvaluation(item.id) }),

@@ -9,7 +9,7 @@
 (function () {
   const Hack = (window.Hack = window.Hack || {});
   Hack.components = Hack.components || {};
-  const { el, clear, truncate, formatTime } = Hack.util;
+  const { el, svgEl, clear, truncate, formatTime, wrapText } = Hack.util;
   const store = Hack.store;
   const actions = Hack.actions;
 
@@ -104,8 +104,13 @@
       el('span', { class: 'muted small', text: `${run.events.length} events` }),
     ]));
 
-    // The agent cluster roster — what is in the cluster right now.
-    body.appendChild(renderRoster(run));
+    // Per-group graphs: agents as circles, click one to see its output.
+    const groups = run.cluster || [];
+    if (!groups.length) {
+      body.appendChild(el('div', { class: 'empty-state small' }, [el('p', { class: 'muted', text: 'No cluster yet.' })]));
+    } else {
+      groups.forEach((g) => body.appendChild(renderGroupGraph(run, g)));
+    }
 
     // The streamed activity log.
     const log = el('div', { class: 'thinking-log', 'data-scroll-key': 'cluster-log' });
@@ -129,29 +134,133 @@
     return body;
   }
 
-  function renderRoster(run) {
-    const groups = run.cluster || [];
-    if (!groups.length) {
-      return el('div', { class: 'empty-state small' }, [el('p', { class: 'muted', text: 'No cluster yet.' })]);
-    }
-    return el('div', { class: 'cluster-roster' }, [
-      el('div', { class: 'cluster-roster-title', text: 'Agent cluster' }),
-      ...groups.map((g) => el('div', { class: 'cluster-group' }, [
-        el('div', { class: 'cluster-group-head' }, [
-          el('span', { class: 'cluster-group-name', text: g.name }),
-          el('span', { class: 'cluster-style', text: g.style }),
-          el('span', { class: 'muted small', text: `${g.agents.length} agents` }),
-        ]),
-        el('div', { class: 'cluster-agents' }, g.agents.map((a) => el('div', { class: 'cluster-agent' }, [
-          el('div', { class: 'cluster-agent-head' }, [
-            el('span', { class: 'cluster-agent-name', text: a.name }),
-            el('span', { class: 'cluster-agent-model', text: a.model }),
-          ]),
-          a.question ? el('p', { class: 'cluster-agent-q', text: a.question }) : null,
-          a.who_they_are ? el('p', { class: 'cluster-agent-who muted small', text: a.who_they_are }) : null,
-        ]))),
-      ])),
+  /* --------------------------- cluster graph --------------------------- */
+  function renderGroupGraph(run, group) {
+    const selectedId = (store.state.ui.modal.agentSelection || {})[group.id] || null;
+    const activeId = activeAgentId(run);
+
+    return el('div', { class: 'cluster-graph-group' }, [
+      el('div', { class: 'cluster-group-head' }, [
+        el('span', { class: 'cluster-group-name', text: group.name }),
+        el('span', { class: 'cluster-style', text: group.style }),
+        el('span', { class: 'muted small', text: `${group.agents.length} agents` }),
+      ]),
+      renderGraphSvg(group, selectedId, activeId),
+      renderAgentOutput(run, group, selectedId),
     ]);
+  }
+
+  function renderGraphSvg(group, selectedId, activeId) {
+    const W = 520;
+    const H = 300;
+    const cx = W / 2;
+    const cy = H / 2;
+    const n = group.agents.length;
+    const R = Math.min(W, H) / 2 - 62;
+
+    const nodes = group.agents.map((a, i) => {
+      const angle = -Math.PI / 2 + (i * 2 * Math.PI / Math.max(1, n));
+      return { a, angle, x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) };
+    });
+
+    const children = [];
+
+    // Edges: every pair, so the group reads as one communicating cluster.
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const a = nodes[i];
+        const b = nodes[j];
+        const hot = [a.a.id, b.a.id].some((id) => id === selectedId || id === activeId);
+        children.push(svgEl('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'graph-edge' + (hot ? ' hot' : '') }));
+      }
+    }
+
+    nodes.forEach((node) => {
+      const isSel = node.a.id === selectedId;
+      const isActive = node.a.id === activeId;
+      const g = svgEl('g', {
+        class: 'graph-node' + (isSel ? ' selected' : '') + (isActive ? ' active' : ''),
+        onclick: () => actions.selectModalAgent(group.id, node.a.id),
+      }, [
+        svgEl('title', { text: node.a.name }),
+        svgEl('circle', { cx: node.x, cy: node.y, r: 24, class: 'graph-circle' }),
+        svgEl('text', { x: node.x, y: node.y + 4, class: 'graph-initials', 'text-anchor': 'middle', text: initials(node.a.name) }),
+      ]);
+
+      const lines = wrapText(node.a.name, 16);
+      const right = Math.cos(node.angle) >= 0;
+      const lx = node.x + (right ? 32 : -32);
+      const anchor = right ? 'start' : 'end';
+      const startY = node.y - (lines.length - 1) * 6 + 4;
+      lines.forEach((ln, k) => {
+        g.appendChild(svgEl('text', { x: lx, y: startY + k * 12, class: 'graph-label', 'text-anchor': anchor, text: ln }));
+      });
+      children.push(g);
+    });
+
+    return svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'cluster-graph-svg', preserveAspectRatio: 'xMidYMid meet' }, children);
+  }
+
+  function renderAgentOutput(run, group, selectedId) {
+    if (!selectedId) {
+      return el('div', { class: 'agent-output empty' }, [
+        el('p', { class: 'muted small', text: 'Click an agent above to see its output.' }),
+      ]);
+    }
+    const agent = group.agents.find((a) => a.id === selectedId);
+    if (!agent) return el('div', { class: 'agent-output empty' });
+
+    const events = run.events.filter((ev) =>
+      ev.groupId === group.id && ev.agent_id === selectedId && (ev.kind === 'turn' || ev.kind === 'evaluation')
+    );
+
+    return el('div', { class: 'agent-output' }, [
+      el('div', { class: 'agent-output-head' }, [
+        el('span', { class: 'agent-output-name', text: agent.name }),
+        el('span', { class: 'cluster-agent-model', text: agent.model }),
+      ]),
+      el('div', { class: 'agent-output-meta' }, [
+        agent.question ? el('p', { class: 'muted small', text: agent.question }) : null,
+        agent.who_they_are ? el('p', { class: 'muted small', text: agent.who_they_are }) : null,
+      ]),
+      el('div', { class: 'agent-output-items' }, events.length
+        ? events.map((ev) => renderAgentEvent(ev))
+        : [el('p', { class: 'muted small', text: 'No output yet.' })]),
+    ]);
+  }
+
+  function renderAgentEvent(ev) {
+    if (ev.kind === 'turn') {
+      return el('div', { class: 'agent-output-item' }, [
+        el('div', { class: 'agent-output-item-head' }, [
+          el('span', { class: 'event-kind', text: `turn ${ev.turn}` }),
+          el('span', { class: 'event-time', text: formatTime(ev.ts) }),
+        ]),
+        el('p', { class: 'event-text', text: ev.text }),
+      ]);
+    }
+    return el('div', { class: 'agent-output-item' }, [
+      el('div', { class: 'agent-output-item-head' }, [
+        el('span', { class: 'event-kind', text: `evaluation · round ${ev.round}` }),
+        el('span', { class: 'event-time', text: formatTime(ev.ts) }),
+      ]),
+      renderVerdictLine(ev),
+      renderScoreChips(ev.template_scores),
+      renderRoleScores(ev.role_scores),
+      el('p', { class: 'event-text', text: ev.text }),
+    ]);
+  }
+
+  function activeAgentId(run) {
+    for (let i = run.events.length - 1; i >= 0; i -= 1) {
+      if (run.events[i].agent_id) return run.events[i].agent_id;
+    }
+    return null;
+  }
+
+  function initials(name) {
+    const parts = String(name || '').split(/\s+/).filter(Boolean);
+    return parts.slice(0, 2).map((p) => p[0].toUpperCase()).join('');
   }
 
   function renderEvent(run, ev) {

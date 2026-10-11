@@ -52,6 +52,39 @@
     while (node.firstChild) node.removeChild(node.firstChild);
   }
 
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  /** Like el(), but for SVG elements (createElementNS). */
+  function svgEl(tag, attrs, children) {
+    const node = document.createElementNS(SVG_NS, tag);
+    if (attrs) {
+      for (const key of Object.keys(attrs)) {
+        const value = attrs[key];
+        if (value == null || value === false) continue;
+        if (key === 'text') node.textContent = value;
+        else if (key.startsWith('on') && typeof value === 'function') {
+          node.addEventListener(key.slice(2).toLowerCase(), value);
+        } else node.setAttribute(key, value);
+      }
+    }
+    append(node, children);
+    return node;
+  }
+
+  /** Greedy word-wrap into lines of at most `maxChars` characters. */
+  function wrapText(value, maxChars) {
+    const words = String(value == null ? '' : value).split(/\s+/).filter(Boolean);
+    const lines = [];
+    let line = '';
+    for (const w of words) {
+      if (!line) line = w;
+      else if ((line + ' ' + w).length <= maxChars) line += ' ' + w;
+      else { lines.push(line); line = w; }
+    }
+    if (line) lines.push(line);
+    return lines.length ? lines : [''];
+  }
+
   function escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
@@ -147,7 +180,7 @@
   }
 
   Hack.util = {
-    uid, el, append, clear, escapeHtml, truncate, sleep,
+    uid, el, svgEl, append, clear, escapeHtml, truncate, sleep, wrapText,
     formatTime, timeAgo, hashString, mulberry32, makeRng, preserveView,
   };
 })();

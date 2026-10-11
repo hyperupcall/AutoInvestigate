@@ -170,7 +170,7 @@ a { color: blue; }
 .eval-targets, .eval-runs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
 .eval-target { border: 1px solid silver; padding: 8px; }
 .eval-target-text { font-size: 13px; }
-.eval-target-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.eval-target-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .eval-target-actions { display: flex; align-items: center; gap: 6px; }
 .queue-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
@@ -301,20 +301,32 @@ a { color: blue; }
 .cluster-body { display: flex; flex-direction: column; gap: 10px; }
 .cluster-status-bar { display: flex; align-items: center; justify-content: space-between; }
 
-.cluster-roster { border: 1px solid silver; padding: 8px; }
-.cluster-roster-title { font-size: 12px; color: gray; margin-bottom: 6px; }
-.cluster-group { border-top: 1px solid gainsboro; padding-top: 6px; margin-top: 6px; }
-.cluster-group:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.cluster-graph-group { border: 1px solid silver; padding: 8px; }
 .cluster-group-head { display: flex; align-items: baseline; gap: 8px; }
 .cluster-group-name { font-weight: 600; font-size: 13px; }
 .cluster-style { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 4px; }
-.cluster-agents { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
-.cluster-agent { border: 1px solid gainsboro; padding: 6px; }
-.cluster-agent-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
-.cluster-agent-name { font-size: 12.5px; font-weight: 600; }
 .cluster-agent-model { font-size: 11px; color: gray; font-family: monospace; }
-.cluster-agent-q { font-size: 12px; margin-top: 2px; }
-.cluster-agent-who { margin-top: 2px; }
+
+.cluster-graph-svg { width: 100%; height: 300px; display: block; margin-top: 4px; }
+.graph-edge { stroke: gainsboro; stroke-width: 1; }
+.graph-edge.hot { stroke: gray; }
+.graph-circle { fill: white; stroke: gray; stroke-width: 1; }
+.graph-node { cursor: pointer; }
+.graph-node:hover .graph-circle { fill: whitesmoke; }
+.graph-node.selected .graph-circle { fill: aliceblue; stroke: blue; }
+.graph-node.active .graph-circle { stroke: darkorange; stroke-width: 2; }
+.graph-initials { font-size: 12px; font-weight: 600; fill: black; }
+.graph-label { font-size: 11px; fill: black; }
+
+.agent-output { border-top: 1px solid gainsboro; margin-top: 8px; padding-top: 8px; }
+.agent-output-head { display: flex; align-items: baseline; gap: 8px; }
+.agent-output-name { font-weight: 600; font-size: 13px; }
+.agent-output-meta { margin: 4px 0; }
+.agent-output-items { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; }
+.agent-output-item { border-left: 3px solid silver; padding-left: 8px; }
+.agent-output-item-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+
+.cluster-body .thinking-log { height: 320px; }
 
 .round-divider { margin: 8px 0 4px; font-size: 12px; color: gray; border-bottom: 1px dotted gainsboro; }
 .kind-evaluation { background: whitesmoke; }

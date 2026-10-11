@@ -266,7 +266,7 @@
 
   /* ------------------------------ modal ------------------------------ */
   function openModal(runId, tab) {
-    state.ui.modal = { open: true, runId, tab: tab || 'cluster' };
+    state.ui.modal = { open: true, runId, tab: tab || 'cluster', agentSelection: {} };
     store.notify();
   }
 
@@ -277,6 +277,13 @@
 
   function setModalTab(tab) {
     state.ui.modal.tab = tab;
+    store.notify();
+  }
+
+  /** Select which agent's output to show in a group's graph panel. */
+  function selectModalAgent(groupId, agentId) {
+    if (!state.ui.modal.agentSelection) state.ui.modal.agentSelection = {};
+    state.ui.modal.agentSelection[groupId] = agentId;
     store.notify();
   }
 
@@ -359,6 +366,7 @@
     openModal,
     closeModal,
     setModalTab,
+    selectModalAgent,
     openSettings,
     closeSettings,
     updateSettings,

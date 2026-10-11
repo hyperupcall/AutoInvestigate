@@ -60,10 +60,12 @@ Pages:
 - Each queued idea has its own **Start Deeper Research** button, which starts the run
   and moves the idea into the **Research runs** list.
 - Click a run to open a large popup with two tabs:
-  - **Cluster Status** — what is in the agent cluster (groups, agents, models,
-    questions, who they are) plus the live stream of what each agent is saying:
-    discussion turns, evaluations, summaries, cross-group analysis, the stop-or-go
-    decision and the verdict.
+  - **Cluster Status** — each group is drawn as a **graph**: one circle per agent
+    with the agent's name beside it (the agent currently speaking is highlighted).
+    Clicking a circle shows that agent's output — its discussion turns and
+    evaluations — in a panel under the graph. Below the graphs is the live stream
+    of the whole run: discussion turns, evaluations, summaries, cross-group
+    analysis, the stop-or-go decision and the verdict.
   - **Evaluation** — the finished report, shaped like
     `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, final
     verdict, cross-group disagreements/agreements, per-group scores/verdicts/

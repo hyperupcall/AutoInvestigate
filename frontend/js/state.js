@@ -39,7 +39,7 @@
 
     /* Transient UI */
     ui: {
-      modal: { open: false, runId: null, tab: 'cluster' },
+      modal: { open: false, runId: null, tab: 'cluster', agentSelection: {} },
       settingsOpen: false,
       toast: null,
     },
