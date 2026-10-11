@@ -25,7 +25,7 @@ CSP = ("script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blo
        "child-src 'none'; object-src 'none'; worker-src 'none'; manifest-src 'none'")
 NETWORK = re.compile(r"\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts|navigator\.serviceWorker)\b")
 
-# The house look, taken from frontend/css/styles.css: system font, black on white, 1px silver borders, square corners,
+# The house look, from frontend/css/styles.css and documentation/FRONTEND_STYLE.md: system font, black on white, 1px silver borders, square corners,
 # no shadows or gradients, named colors used sparingly. Injected first in every page so prototypes match the app;
 # the page's own styles can still build on it.
 HOUSE_CSS = """*{box-sizing:border-box}
@@ -105,6 +105,9 @@ minimal. This stylesheet is injected into your page automatically, so use its cl
   icons, hero banners, big headlines or decorative illustrations. Headings stay 13-15px.
 - Color only carries meaning (status, selection, one data series highlighted); everything else is black, gray,
   silver, gainsboro, whitesmoke or white. Charts: gray and black strokes, at most one accent color.
+- HTML5 named colors only (black, gray, silver, gainsboro, whitesmoke, white, aliceblue, blue, green, red,
+  darkorange), never hex or rgb. A color is always paired with a word, so meaning never depends on color alone.
+- No CSS transitions or decorative animation; state changes are instant. .btn.primary is bold, not a filled block.
 - Exception: if the product itself is inherently visual (a game, a drawing or design tool, a consumer brand
   experience, a children's app), color and richer visuals are allowed inside the product's content area only; the
   header and controls still follow the house style.
