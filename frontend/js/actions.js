@@ -345,6 +345,7 @@
       const { idea, plan } = await execBackend.createIdea({
         text: ex.ideaText, title: ex.title,
         metadata: ex.evaluationRunId ? { evaluation_run_id: ex.evaluationRunId } : undefined,
+        options: { artifacts: ['mvp_prototype'] }, // Execute builds one clickable prototype of the idea
       });
       if (state.execution !== ex) return; // the column was reset while we waited
       ex.plan = plan;
@@ -394,6 +395,10 @@
   /** Download URL for a built artifact (a data: URL in mock mode). */
   function artifactDownloadUrl(artifactId) {
     return execBackend.artifactUrl(artifactId);
+  }
+
+  function artifactViewUrl(artifactId) {
+    return execBackend.viewUrl ? execBackend.viewUrl(artifactId) : null;
   }
 
   /* --------------------------- settings popup --------------------------- */
@@ -489,6 +494,7 @@
     clearExecution,
     buildArtifacts,
     artifactDownloadUrl,
+    artifactViewUrl,
     openModal,
     closeModal,
     setModalTab,

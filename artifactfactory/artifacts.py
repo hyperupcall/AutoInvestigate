@@ -4,7 +4,7 @@ import re
 import tarfile
 from typing import Any, Dict, List
 
-from . import evaluation
+from . import evaluation, mvp
 from .models import Artifact, new_id
 
 
@@ -330,7 +330,30 @@ class LiteratureReviewBuilder(ArtifactBuilder):
         )
 
 
+class MvpPrototypeBuilder(ArtifactBuilder):
+    """A clickable, self-contained prototype page of the idea (what Execute -> builds; see mvp.py)."""
+    type = "mvp_prototype"
+
+    def build(self, ctx, spec):
+        name = spec.get("name") or slugify(ctx.plan.get("title") or ctx.idea.get("text"))
+        base = ctx.key(self.type, name)
+        idea = ctx.idea.get("text") or ctx.plan.get("title") or name
+        rep = evaluation.report_for(ctx)
+        page, generated, note = mvp.generate(idea, rep)
+        readme = (
+            f"# Prototype: {ctx.plan.get('title') or name}\n\n"
+            "Open `index.html` in a browser. It is a self-contained, clickable prototype with demo data; it loads "
+            "nothing from the network.\n\n"
+            + (f"Built from evaluation run `{rep['run']['id']}`: {(rep.get('verdict') or {}).get('headline', '')}\n"
+               if rep else "Built from the idea text (no evaluation report was available).\n")
+            + ("" if generated else f"\nThe interactive version could not be generated ({note}); this is a plain page.\n")
+        )
+        files = [self._w(ctx, f"{base}/index.html", page), self._w(ctx, f"{base}/README.md", readme)]
+        return self.record(ctx, spec, base, files)
+
+
 BUILDERS = {
+    MvpPrototypeBuilder.type: MvpPrototypeBuilder(),
     SourceRepositoryBuilder.type: SourceRepositoryBuilder(),
     NpmPackageBuilder.type: NpmPackageBuilder(),
     DockerImageBuilder.type: DockerImageBuilder(),

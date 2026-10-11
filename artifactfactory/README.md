@@ -4,6 +4,16 @@ A small, self-contained Python daemon that turns a **validated research idea**
 into a set of tangible implementation artifacts. It is the backend for the
 frontend's third column ("Idea Execution").
 
+> **Execute → builds an interactive prototype (`mvp_prototype`).** One self-contained HTML page (`mvp.py`):
+> a clickable product screen for the idea's narrow first version, with demo data, a step-through workflow, live
+> SVG/canvas visualizations and the evaluation panel's concerns built in (approval steps, cost, privacy...).
+> It is generated from the idea and, when `metadata.evaluation_run_id` is set, from that run's report. External
+> resources and network APIs are stripped, a strict Content-Security-Policy is injected, and
+> `GET /artifacts/{id}/view` serves it with the same policy plus `sandbox allow-scripts`; the frontend shows it
+> in a sandboxed iframe. Model: `AF_MVP_MODEL` (default `anthropic/claude-haiku-5.5`, about 40 s and under a
+> cent). If generation fails, a plain page with the idea and verdict is built instead. The frontend asks only for
+> this type (`options.artifacts = ["mvp_prototype"]`); the API's default plan is unchanged.
+>
 > **Two artifact types are real when the idea comes from an evaluation run.** If the idea's
 > `metadata.evaluation_run_id` is set (the frontend's **Execute →** sends it), `evaluation.py` fetches that
 > run's report from the evaluation backend (`AF_EVAL_API`, default `http://localhost:8090`; `http://web:8090`

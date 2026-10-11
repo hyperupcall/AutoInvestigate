@@ -54,16 +54,16 @@ def report_for(ctx) -> Optional[Dict[str, Any]]:
     return ctx._evaluation_report
 
 
-def chat(prompt: str, max_tokens: int = 1500) -> Optional[str]:
+def chat(prompt: str, max_tokens: int = 1500, model: Optional[str] = None, timeout: int = 90) -> Optional[str]:
     key = os.environ.get("OPENROUTER_API_KEY", "")
     if not key:
         return None
-    body = {"model": MODEL, "max_tokens": max_tokens, "reasoning": {"effort": "none"},
+    body = {"model": model or MODEL, "max_tokens": max_tokens, "reasoning": {"effort": "none"},
             "messages": [{"role": "user", "content": prompt}]}
     req = urllib.request.Request(OPENROUTER, data=json.dumps(body).encode(), method="POST", headers={
         "Authorization": f"Bearer {key}", "Content-Type": "application/json", "X-Title": "Artifact Factory"})
     try:
-        with urllib.request.urlopen(req, timeout=90) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.load(r)
         return (data["choices"][0]["message"].get("content") or "").strip() or None
     except (urllib.error.URLError, KeyError, ValueError, OSError):

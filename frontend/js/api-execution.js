@@ -57,6 +57,11 @@
     return getJSON('/plans').then((r) => r.plans || []);
   }
 
+  /** The prototype page, served by the factory with a strict no-network policy (null when on the mock). */
+  function viewUrl(artifactId) {
+    return info.live ? `${info.base}/artifacts/${artifactId}/view` : null;
+  }
+
   function artifactUrl(artifactId) {
     return info.live ? `${info.base}/artifacts/${artifactId}/download` : fallback.artifactUrl(artifactId);
   }
@@ -84,6 +89,7 @@
   mock.getPlan = getPlan;
   mock.listPlans = listPlans;
   mock.artifactUrl = artifactUrl;
+  mock.viewUrl = viewUrl;
   Hack.apiExecution = { detect, info };
   window.addEventListener('load', detect);
 })();
