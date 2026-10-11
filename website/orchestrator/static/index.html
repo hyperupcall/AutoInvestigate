@@ -117,7 +117,7 @@ code{font-family:monospace;font-size:12px}
   <select id="runs" title="Open a past evaluation"></select>
   <select id="speed" title="Replay speed"><option value="1">1x</option><option value="2" selected>2x</option><option value="4">4x</option><option value="8">8x</option><option value="0">instant</option></select>
   <button id="replay" title="Play the selected evaluation from the start">Replay</button>
-  <a href="/settings">Settings</a>
+  <button id="settings-btn" title="Models, keys, groups and MCP servers">Settings</button>
 </div>
 
 <div id="now" class="idle"><div class="dot"></div><div><div id="nowt">No evaluation selected</div><div id="nows">Pick a past evaluation from the list above, or start one from the app.</div></div></div>
@@ -372,6 +372,7 @@ function replay() {
 }
 
 $('replay').onclick = replay;
+$('settings-btn').onclick = () => Hack.actions.openSettings();
 $('runs').onchange = e => e.target.value && openRun(e.target.value, false);
 (async () => {
   const st = await (await fetch('/api/status')).json();

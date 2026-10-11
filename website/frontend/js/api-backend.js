@@ -134,7 +134,7 @@
     info.settings = server;
     info.models = models;
     s.summarizerModel = server.stages.summarizer.model;
-    s.evaluationModel = 'per agent (see backend /settings)';
+    s.evaluationModel = 'per agent (see settings)';
     s.deliberationSeconds = Math.max(6, Math.min(60, server.deliberation_seconds));
     s.mode = s.mode || server.mode || 'quick';
     s.groupPerspectives = server.groups.map((g) => ({

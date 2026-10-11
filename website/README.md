@@ -29,7 +29,6 @@ Then open:
 |---|---|
 | http://localhost:8090/ | the AutoInvestigate frontend (`frontend/`), with real evaluations |
 | http://localhost:8090/live | three live chat columns, stage tracker, replay (good for demos) |
-| http://localhost:8090/settings | models, keys, agents per group, deliberation time, cost cap |
 
 `../run.sh` (frontend on port 8000) also works: the frontend finds this backend at `localhost:8090`.
 
@@ -46,7 +45,7 @@ Stop: `docker compose down` (from the repo root). Logs: `docker compose logs -f 
 | Web search | none (arXiv list only) | `:online` models search the web |
 | Cost | about $0.03 | about $0.15 |
 
-Switch in /settings, in the frontend's settings popup, or per run: `POST /api/evaluate {"idea": "...", "overrides": {"mode": "deep"}}`.
+Switch in the frontend's settings popup, or per run: `POST /api/evaluate {"idea": "...", "overrides": {"mode": "deep"}}`.
 
 ## arXiv sources
 
@@ -54,7 +53,7 @@ The research and private-equity groups get 6-8 relevant arXiv papers (title, aut
 them as `[arXiv:ID]`. A cheap model writes 3 keyword queries, the papers come from OpenAlex restricted to arXiv
 (the arXiv API itself rate-limits shared networks hard, so it is only the fallback), a cheap model keeps the most
 relevant, and results are cached per idea in `data/sources_cache.json`. The report's `sources` section lists the
-papers, who cited each, and any citation of an id that was not in the list. Toggle per group in /settings.
+papers, who cited each, and any citation of an id that was not in the list. Toggle per group in the settings popup.
 
 ## MCP servers (agents can use tools)
 
@@ -71,7 +70,7 @@ call fails, the agent answers without tools. The Smithery key comes from `SMITH_
 (see `../.env.example`); a stored `mcp.api_key` is only a fallback. Other settings: `mcp.enabled`,
 `mcp.timeout_seconds`, `mcp.max_tool_calls`. The frontend shows the same catalog in the Settings popup.
 
-Add or remove a server for any agent on the `/settings` page: each agent row has an "MCP servers" line with a chip
+Add or remove a server for any agent in the settings popup: each agent row has an "MCP servers" line with a chip
 per server (✕ to remove) and a dropdown to add another. Save, and the next run uses it.
 
 ## What happens in an evaluation

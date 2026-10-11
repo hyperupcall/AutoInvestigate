@@ -85,7 +85,7 @@ bold "Done"
 cat <<MSG
   App (AutoInvestigate frontend)   http://localhost:8090/
   Live three-column view           http://localhost:8090/live
-  Settings (models, agents, keys)  http://localhost:8090/settings
+  Settings (models, agents, keys)  the Settings popup in the app header
   Logs                              docker compose logs -f agent_host web   (from the repo root)
   Stop everything                   docker compose down                     (from the repo root)
 MSG

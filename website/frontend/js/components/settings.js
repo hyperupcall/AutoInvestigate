@@ -1,10 +1,10 @@
 /* components/settings.js — the settings form, shown in the Settings popup.
  *
- * When the backend is reachable it renders the backend's real settings (the same
- * fields as the backend /settings page: mode, sources, keys, stages, MCP servers,
- * groups and agents) and saves them with PUT /api/settings, so the popup is the
- * one place to configure everything. Without a backend it falls back to the
- * in-memory mock settings (models, prompts, group perspectives). */
+ * When the backend is reachable it renders the backend's real settings (mode,
+ * sources, keys, stages, MCP servers, groups and agents) and saves them with
+ * PUT /api/settings, so the popup is the one place to configure everything.
+ * Without a backend it falls back to the in-memory mock settings (models,
+ * prompts, group perspectives). */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
   Hack.components = Hack.components || {};
@@ -343,9 +343,7 @@
     const S = ensureDraft();
     const wrap = el('div', { class: 'settings-content' });
     wrap.appendChild(el('p', { class: 'muted small' }, [
-      'These are the backend settings; Save applies to the next evaluation. ',
-      el('a', { href: (Hack.backendInfo.base || '') + '/settings', target: '_blank', rel: 'noopener', text: 'open the bare-HTML page' }),
-      '.',
+      'These are the backend settings; Save applies to the next evaluation.',
     ]));
     wrap.appendChild(renderGeneral(S));
     wrap.appendChild(renderStage(S, 'summarizer', 'Summarizer (pros and cons per group)'));

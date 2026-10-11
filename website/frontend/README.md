@@ -109,8 +109,8 @@ live view (`/live`, the **Agent View**) renders the same navbar too — it pulls
 ### Settings (popup)
 
 Opened from the header **Settings** button. It is the **one** place to configure the
-app: when the backend is connected it renders the backend's real settings (the same
-fields as the backend `/settings` page) and saves them with `PUT /api/settings` —
+app: when the backend is connected it renders the backend's real settings and saves
+them with `PUT /api/settings` —
 mode, arXiv sources, deliberation time, cost cap, web
 search, the per-stage token/effort table, the summarizer / judge / reality-check
 models and keys, the MCP settings, and the group perspectives (name, discussion

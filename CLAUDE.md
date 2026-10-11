@@ -93,8 +93,10 @@ The pipeline should be simple and use **models configured by the user**.
 - The same idea string is fed into each **GROUP PERSPECTIVE**.
 - Group perspectives are an **array of objects**, each with an `agents` property.
   Each agent has a `model` and an `api_key`.
-- Models are configurable via the frontend; the spec asks for a **`/settings` page
-  that is as bare HTML as possible** (JS only where needed).
+- Models are configurable via the frontend. The spec originally asked for a
+  **`/settings` page that is as bare HTML as possible**; that page has been removed —
+  the frontend **Settings popup** is the one settings surface (it saves via
+  `PUT /api/settings`).
 
 **Default group perspectives:**
 
@@ -242,10 +244,9 @@ read from `SMITH_API_KEY` in the root `.env` (`deliberation/settings.py` `mcp_ke
 stored `mcp.api_key` is only a fallback. Other settings: `mcp.enabled`,
 `mcp.timeout_seconds`, `mcp.max_tool_calls`.
 
-**Editing:** add or remove a server for any agent on the backend `/settings` page —
+**Editing:** add or remove a server for any agent in the frontend's Settings popup —
 each agent row has an "MCP servers" line with a chip per server (✕ to remove) and a
-dropdown to add another. Save, and the next run uses it. The frontend's Settings
-popup then reflects it (it syncs from the backend).
+dropdown to add another. Save, and the next run uses it.
 
 ### Column 1 — Idea Generation (a level tree)
 
@@ -307,7 +308,7 @@ popup then reflects it (it syncs from the backend).
 ### Settings (popup)
 
 One settings surface. When the backend is connected the popup renders the backend's
-real settings — the same fields as the backend `/settings` page — and saves them with
+real settings and saves them with
 `PUT /api/settings`: mode, arXiv sources, deliberation
 time, cost cap, web search, the per-stage token/effort table, the summarizer / judge /
 final / reality-check models and keys, the MCP settings, the MCP server catalog, and the group

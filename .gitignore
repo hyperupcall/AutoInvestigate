@@ -130,6 +130,9 @@ _artifactfactory-data/
 *.pem
 *.key
 
+# Deploy SSH keys (generated locally; never commit)
+deploy/keys/
+
 # ---------------------------------------------------------------------------
 # Editors / IDEs
 # ---------------------------------------------------------------------------

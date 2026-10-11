@@ -12,8 +12,7 @@
   POST /api/settings/reset                back to defaults
   GET  /api/models                        OpenRouter text models with prices (cached)
   GET  /api/prompt?path=prompts/...       read a prompt file
-Pages: /  the AutoInvestigate frontend (when mounted at FRONTEND_DIR), /live  the three-column live view,
-       /settings  the bare settings page.
+Pages: /  the AutoInvestigate frontend (when mounted at FRONTEND_DIR), /live  the three-column live view.
 """
 import asyncio
 import json
@@ -198,8 +197,6 @@ class Handler(BaseHTTPRequestHandler):
         q = dict(p.split("=", 1) for p in query.split("&") if "=" in p)
         if path in ("/live", "/live/"):
             return self._file(STATIC, "index.html")
-        if path in ("/settings", "/settings/"):
-            return self._file(STATIC, "settings.html")
         if path == "/" and not os.path.isfile(os.path.join(FRONTEND, "index.html")):
             return self._file(STATIC, "index.html")  # no frontend mounted: the live view is the home page
         if path == "/api/status":

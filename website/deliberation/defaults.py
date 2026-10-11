@@ -213,7 +213,7 @@ LIBRARY_MODELS = ["meta-llama/llama-3.1-8b-instruct", "google/gemma-3-4b-it", "o
 
 
 def archetype_library() -> list[dict]:
-    """Extra customer archetypes that can be added to the market group from /settings."""
+    """Extra customer archetypes that can be added to the market group from the settings popup."""
     out = []
     for i, path in enumerate(sorted(glob.glob(os.path.join(ROOT, "prompts/market/archetypes/*.md")))):
         rel = os.path.relpath(path, ROOT)

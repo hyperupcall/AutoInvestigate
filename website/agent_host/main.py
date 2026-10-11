@@ -1,5 +1,5 @@
 """Agent host (supervisor): runs one process per configured agent, restarts any that die, and starts
-new ones when agents are added in /settings (the settings file is re-read every few seconds)."""
+new ones when agents are added in the settings popup (the settings file is re-read every few seconds)."""
 import asyncio
 import logging
 import sys
