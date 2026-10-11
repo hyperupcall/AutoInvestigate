@@ -121,6 +121,10 @@ coverage/
 _artifacts/
 _artifactfactory-data/
 
+# Runtime dirs moved aside when a root process (e.g. `docker compose up` without
+# run.sh) created them root-owned and the app could not write to them.
+*.root-owned/
+
 # ---------------------------------------------------------------------------
 # Environment / secrets
 # ---------------------------------------------------------------------------

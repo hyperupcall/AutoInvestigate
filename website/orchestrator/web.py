@@ -2,6 +2,7 @@
 
   POST /api/evaluate   {"idea": "...", "overrides": {"deliberation_seconds": 20, "summarizer_model": "..."}}
   POST /api/stop       {"run_id": "..."}  (no run_id: stop every running evaluation)
+  POST /api/finalize   {"run_id": "..."}  (no run_id: every running evaluation) stop the swarm and write the verdict
   GET  /api/status                        {"running": bool, "run_id": newest running, "running_ids": [...]}
   GET  /api/runs                          past and current runs, newest first
   GET  /api/runs/<id>/events?since=N      our raw events after index N
@@ -262,6 +263,15 @@ class Handler(BaseHTTPRequestHandler):
                 if (target in (None, rid)) and not f.done():
                     f.cancel()
             return self._send(200, {"ok": True})
+        if self.path == "/api/finalize":
+            # Graceful stop: the swarm stops and the run writes its final verdict (unlike /api/stop, which cancels).
+            target = self._body().get("run_id")
+            n = 0
+            for rid, (run, f) in list(RUNS.items()):
+                if (target in (None, rid)) and not f.done():
+                    LOOP.call_soon_threadsafe(run.request_stop, "user", "the user forced the swarm to stop and finalize")
+                    n += 1
+            return self._send(200, {"ok": True, "finalizing": n})
         if self.path == "/api/settings/reset":
             if os.path.exists(settings.path()):
                 os.remove(settings.path())

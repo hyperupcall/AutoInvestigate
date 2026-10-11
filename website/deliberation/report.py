@@ -145,6 +145,7 @@ def build(events: list[dict]) -> dict:
     end = next((e for e in reversed(events) if e["kind"] == "run_end"), None)
     sg = next((e for e in events if e["kind"] == "stop_go"), None)
     rc = next((e for e in events if e["kind"] == "reality_check"), None)
+    cx = next((e for e in reversed(events) if e["kind"] == "complex_final"), None)
     fin = next((e for e in events if e["kind"] == "final"), None)
     analysis = next((e for e in reversed(events) if e["kind"] == "analysis"), None)
     groups_meta = start.get("groups") or []
@@ -241,6 +242,9 @@ def build(events: list[dict]) -> dict:
         "reality_check": {"verdict": rc["verdict"], "confidence": rc.get("confidence"), "category": rc.get("category", "none"),
                           "summary": rc["summary"], "blockers": rc.get("blockers", []),
                           "assumptions": rc.get("assumptions", []), "model": rc.get("model")} if rc else None,
+        "complex": {"enabled": cx.get("enabled"), "decision": cx.get("decision"), "stopped_by": cx.get("stopped_by"),
+                    "rounds": cx.get("rounds"), "stop_votes": cx.get("stop_votes"), "max_seconds": cx.get("max_seconds"),
+                    "stewards": cx.get("stewards", []), "history": cx.get("history", [])} if cx else None,
         "agntcy": {"transport": "SLIM", "protocol": "A2A", "slim_groups_opened": sum(1 for _ in slim),
                    "endpoints": [f"deliberation/agents/{a['id']}" for g in groups_meta for a in g["agents"]]},
         "analysis": {k: analysis.get(k) for k in ("model", "verified_quotes", "dropped_quotes", "dropped_items")} if analysis else None,

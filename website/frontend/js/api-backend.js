@@ -57,6 +57,13 @@
         rounds: [], scores: {}, verdict_counts: {}, disagreements: [], stop_go: null, verdict: null,
       })),
       cross_group: { disagreements: [], agreements: [] }, stop_go: null, verdict: null,
+      complex: s.complex ? {
+        enabled: s.complex.enabled, decision: null, stopped_by: null, rounds: 0,
+        stop_votes: s.complex.stop_votes, max_seconds: s.complex.max_seconds,
+        stewards: (s.complex.stewards || []).map((st) => ({ id: st.id, name: st.name, objective: st.objective, model: st.model,
+                                                          decision: null, confidence: null, reason: null, signals: [] })),
+        history: [],
+      } : null,
       agntcy: { transport: 'SLIM', protocol: 'A2A', slim_groups_opened: 0,
                 endpoints: groups.flatMap((g) => g.agents.map((a) => `deliberation/agents/${a.id}`)) },
       analysis: null,
@@ -72,6 +79,10 @@
         cancelled = true;
         clearTimeout(timer);
         if (handle.runId) post('/api/stop', { run_id: handle.runId }).catch(() => {});
+      },
+      finalize() {
+        // Graceful stop: the swarm stops and the run writes its final verdict (unlike cancel).
+        if (handle.runId) post('/api/finalize', { run_id: handle.runId }).catch(() => {});
       },
     };
     const fail = (msg) => { onEvent({ phase: 'Error', kind: 'phase', text: msg, ts: Date.now() }); onDone(buildReport(ideaText, groupIds)); };
@@ -122,6 +133,10 @@
         status: r.status === 'done' ? 'done' : 'cancelled', events: ev.events, report,
         cluster: report.groups.map((g) => ({ id: g.id, name: g.name, style: g.style,
           agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question, who_they_are: a.who_they_are })) })),
+        complex: report.complex ? {
+          agents: (report.complex.stewards || []).map((s) => ({ id: s.id, name: s.name, model: s.model, objective: s.objective })),
+          decision: report.complex.decision, stoppedBy: report.complex.stopped_by, report: report.complex,
+        } : null,
         startedAt: Date.parse(r.started), finishedAt: Date.parse(report.run.finished_at || r.started),
         currentPhase: 'Complete', currentAgent: '', _handle: null,
       });
@@ -154,6 +169,7 @@
 
   const saveSettings = (s) => put('/api/settings', s);
   const resetSettings = () => post('/api/settings/reset', {});
+  const forceFinalize = (runId) => post('/api/finalize', { run_id: runId });
 
   async function detect() {
     const candidates = window.EVAL_API !== undefined ? [window.EVAL_API] : ['', 'http://localhost:8090'];
@@ -181,6 +197,6 @@
   mock.buildReport = buildReport;
   mock.startEvaluation = startEvaluation;
   Hack.agentViewUrl = agentViewUrl;
-  Hack.apiBackend = { detect, loadPastRuns, refreshSettings, saveSettings, resetSettings, agentViewUrl, info };
+  Hack.apiBackend = { detect, loadPastRuns, refreshSettings, saveSettings, resetSettings, forceFinalize, agentViewUrl, info };
   window.addEventListener('load', detect);
 })();

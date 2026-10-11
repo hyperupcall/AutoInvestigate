@@ -92,7 +92,7 @@ live view (`/live`, the **Agent View**) renders the same navbar too — it pulls
   (duplicates are blocked; remove a queued idea with ✕ or **Clear queued**).
 - Each queued idea has its own **Start Deeper Research** button, which starts the run
   and turns the entry into a run card in the same list.
-- Click a run to open a large popup with two tabs:
+- Click a run to open a large popup with three tabs:
   - **Evaluation Swarm** — each group is drawn as a **graph**: one circle per agent
     with the agent's name beside it (the agent currently speaking is highlighted).
     Clicking a circle shows that agent's stream — a **summary** of each of its
@@ -100,10 +100,15 @@ live view (`/live`, the **Agent View**) renders the same navbar too — it pulls
     panel under the graph. Below the graphs is the live stream of the whole run:
     summarized turns, evaluations, summaries, cross-group analysis, the stop-or-go
     decision and the verdict.
+  - **Evaluation Complex** — the three **stewards** that watch the swarm in parallel
+    (Usefulness, Convergence, ROI), drawn the same way: one circle per steward, click
+    to read its reasoning, with each assessment round's votes streamed below. A
+    **Force stop & finalize** button stops the swarm now and writes the verdict from
+    what exists.
   - **Evaluation** — the finished report, shaped like
-    `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, final
-    verdict, cross-group disagreements/agreements, per-group scores/verdicts/
-    disagreements, AGNTCY transport and the disagreement analysis, plus a
+    `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, the Evaluation
+    Complex's decision, final verdict, cross-group disagreements/agreements, per-group
+    scores/verdicts/disagreements, AGNTCY transport and the disagreement analysis, plus a
     collapsible **Raw JSON** view.
 
 ### Settings (popup)
@@ -112,8 +117,9 @@ Opened from the header **Settings** button. It is the **one** place to configure
 app: when the backend is connected it renders the backend's real settings and saves
 them with `PUT /api/settings` —
 mode, arXiv sources, deliberation time, cost cap, web
-search, the per-stage token/effort table, the summarizer / judge / reality-check
-models and keys, the MCP settings, and the group perspectives (name, discussion
+search, the per-stage token/effort table, the summarizer / judge / final / reality-check
+models and keys, the Evaluation Complex (the three stewards, the time limit and the stop
+votes), the MCP settings, and the group perspectives (name, discussion
 style, arXiv use, and each agent's model, key, reasoning effort, prompt and MCP
 servers). Without a backend it falls back to the in-memory mock settings (models,
 prompts, group perspectives).
@@ -158,10 +164,12 @@ handle.cancel();
 
 Event kinds streamed to `onEvent`: `phase`, `cluster`, `group-start`,
 `round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
-`cross-group`, `stop-go`, `verdict`. The **Evaluation Swarm** tab renders these live;
-the **Evaluation** tab renders the final `report`. The report fixture
-(`js/mock-report.js`) is generated from `20261011-014311-b2e9.json` and conforms to
-`evaluation-report.schema.json`.
+`cross-group`, `stop-go`, `verdict`, plus the Evaluation Complex's
+`complex-cluster`, `complex-turn`, `complex-verdict`, `complex-stop`,
+`complex-final`. The **Evaluation Swarm** tab renders the swarm events live, the
+**Evaluation Complex** tab renders the complex events, and the **Evaluation** tab
+renders the final `report`. The report fixture (`js/mock-report.js`) is generated
+from `20261011-014311-b2e9.json` and conforms to `evaluation-report.schema.json`.
 
 ## Files
 

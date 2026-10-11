@@ -62,7 +62,8 @@
     if (info && info.live && info.settings) {
       const s = info.settings;
       const configured = s.groups.flatMap((g) => g.agents.map((a) => a.model))
-        .concat([s.sources.model, s.stages.summarizer.model, s.stages.judge.model, s.stages.final.model, s.stages.reality_check.model]);
+        .concat([s.sources.model, s.stages.summarizer.model, s.stages.judge.model, s.stages.final.model, s.stages.reality_check.model])
+        .concat(((s.complex || {}).stewards || []).map((st) => st.model));
       return [...new Set([...base, ...configured.filter(Boolean)])];
     }
     return base;
@@ -186,6 +187,36 @@
         field('Model', modelSelect(cfg.model, (e) => { cfg.model = e.target.value; })),
         field('API key', keyInput(cfg.api_key, (e) => { cfg.api_key = e.target.value; })),
       ]),
+    ]);
+  }
+
+  /** The Evaluation Complex: three stewards that watch the swarm in parallel and decide whether it should
+   *  continue or stop. They share one goal but optimize for different things (see orchestrator/complex.py). */
+  function renderComplex(S) {
+    const cx = S.complex || (S.complex = { enabled: true, max_seconds: 300, interval_seconds: 45, stop_votes: 2, stewards: [] });
+    const stewards = cx.stewards || (cx.stewards = []);
+    return section('Evaluation Complex (three stewards watching the swarm)', [
+      el('p', { class: 'muted small', text: 'Three agents run in parallel to the swarm and decide whether it should continue or stop. They share one goal but optimize for different things, so they disagree. When enough vote stop, or the time limit is reached, the swarm stops and writes its verdict.' }),
+      el('div', { class: 'field inline' }, [
+        el('label', {}, [checkbox(cx.enabled, (e) => { cx.enabled = e.target.checked; }), ' Run the Evaluation Complex alongside the swarm']),
+      ]),
+      el('div', { class: 'field-row' }, [
+        field('Force stop after (seconds)', numberInput(cx.max_seconds, (e) => { cx.max_seconds = Number(e.target.value); }, { min: 30, max: 3600 })),
+        field('Re-assess every (seconds)', numberInput(cx.interval_seconds, (e) => { cx.interval_seconds = Number(e.target.value); }, { min: 5, max: 600 })),
+        field('Stop votes needed', numberInput(cx.stop_votes, (e) => { cx.stop_votes = Number(e.target.value); }, { min: 1, max: Math.max(1, stewards.length) })),
+      ]),
+      el('div', { class: 'groups' }, stewards.map((st) => el('div', { class: 'group-card' }, [
+        el('div', { class: 'group-head' }, [
+          el('span', { class: 'cluster-group-name', text: st.name || st.id }),
+          el('span', { class: 'muted small', text: st.objective || '' }),
+        ]),
+        el('div', { class: 'field-row' }, [
+          field('Model', modelSelect(st.model, (e) => { st.model = e.target.value; })),
+          field('Reasoning effort', effortSelect(st.reasoning_effort, (v) => { st.reasoning_effort = v || 'low'; })),
+          field('API key', keyInput(st.api_key, (e) => { st.api_key = e.target.value; })),
+        ]),
+        el('p', { class: 'muted small', text: 'Prompt: ' + (st.prompt || '') }),
+      ]))),
     ]);
   }
 
@@ -349,7 +380,8 @@
     wrap.appendChild(renderStage(S, 'summarizer', 'Summarizer (pros and cons per group)'));
     wrap.appendChild(renderStage(S, 'judge', 'Stop-or-go judge'));
     wrap.appendChild(renderStage(S, 'final', 'Final report writer (the comprehensive verdict)'));
-    wrap.appendChild(renderStage(S, 'reality_check', 'Reality check (does the idea make sense, before the groups run)'));
+    wrap.appendChild(renderStage(S, 'reality_check', 'Reality check (does the idea make sense, before the groups run)'))
+    wrap.appendChild(renderComplex(S));
     wrap.appendChild(renderMcp(S));
     wrap.appendChild(section('Group perspectives', [
       el('div', { class: 'groups' }, S.groups.map((g) => renderGroup(S, g))),

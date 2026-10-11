@@ -36,3 +36,27 @@ def test_reality_check_event_translates():
 
 def test_current_phase():
     assert compat.current(_ev())["phase"]
+
+
+def test_complex_events_translate():
+    ev = _ev()
+    t = ev[0]["t"]
+    ev.insert(2, {"kind": "complex_start", "t": t, "stewards": [
+        {"id": "usefulness", "name": "Usefulness Steward", "model": "m", "objective": "useful?"}],
+        "max_seconds": 300, "interval_seconds": 45, "stop_votes": 2})
+    ev.insert(3, {"kind": "complex_assess", "t": t, "round": 1, "steward": "usefulness",
+                  "name": "Usefulness Steward", "model": "m", "decision": "continue", "confidence": 60,
+                  "reason": "still working", "signals": ["x"], "if_continue": "y", "cost": 0.001})
+    ev.insert(4, {"kind": "complex_verdict", "t": t, "round": 1, "decision": "continue",
+                  "votes": {"stop": 0, "continue": 1},
+                  "stewards": {"usefulness": {"decision": "continue", "confidence": 60, "reason": "r"}},
+                  "rationale": "0 of 1", "elapsed": 10, "spent": 0.01})
+    ev.insert(5, {"kind": "complex_stop", "t": t, "by": "votes", "reason": "enough"})
+    ev.insert(6, {"kind": "complex_final", "t": t, "enabled": True, "decision": "stop", "stopped_by": "votes",
+                  "rounds": 1, "stop_votes": 2, "max_seconds": 300, "stewards": [], "history": []})
+    ui = compat.ui_events(ev)
+    kinds = [e["kind"] for e in ui]
+    assert {"complex-cluster", "complex-turn", "complex-verdict", "complex-stop", "complex-final"} <= set(kinds)
+    turn = next(e for e in ui if e["kind"] == "complex-turn")
+    assert turn["agent_id"] == "usefulness" and turn["decision"] == "continue" and turn["confidence"] == 60
+    assert next(e for e in ui if e["kind"] == "complex-final")["report"]["decision"] == "stop"

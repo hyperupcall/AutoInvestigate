@@ -12,6 +12,7 @@ import asyncio
 from deliberation import openrouter as orr
 from deliberation import prompts, settings
 from deliberation.openrouter import BudgetExceeded
+from orchestrator.complex import Complex
 from orchestrator.run import Run, transcript_text
 
 
@@ -70,6 +71,20 @@ def reality_block(rc: dict | None) -> str:
         lines.append("Real-world blockers: " + "; ".join(rc["blockers"]))
     if rc.get("assumptions"):
         lines.append("Assumptions that may be false: " + "; ".join(rc["assumptions"]))
+    return "\n".join(lines)
+
+
+def complex_block(run: "Run") -> str:
+    """The Evaluation Complex's verdicts as text for the final prompt."""
+    cx = getattr(run, "complex", None)
+    rep = cx.report if cx else None
+    if not rep:
+        return "The Evaluation Complex did not run."
+    lines = [f"Decision: {rep.get('decision') or 'none'} (stopped by {rep.get('stopped_by') or 'n/a'}, "
+             f"{rep.get('rounds', 0)} assessment(s))."]
+    for s in rep.get("stewards", []):
+        lines.append(f"- {s.get('name', s.get('id'))} ({s.get('objective', '')}): "
+                     f"{s.get('decision') or 'no vote'} — {s.get('reason') or ''}")
     return "\n".join(lines)
 
 
@@ -170,7 +185,7 @@ async def conclude(run: Run, groups: list[dict], summaries: dict[str, str], sg: 
                             EVALUATIONS=evaluations_block(groups, getattr(run, "latest_evals", {})),
                             DISCUSSION=discussion_block(run, groups), SOURCES=sources_block(run),
                             STOP_GO=sg_text, REALITY_CHECK=reality_block(getattr(run, "reality_check", None)),
-                            GROUP_IDS='", "'.join(ids))
+                            COMPLEX=complex_block(run), GROUP_IDS='", "'.join(ids))
 
     def validate(o):
         if not isinstance(o.get("overall"), dict) or "headline" not in o["overall"]:
@@ -205,7 +220,10 @@ async def round_(run: Run, groups: list[dict], n: int, prior: str, summaries_tex
             for g, t in zip(groups, ts)])
     ss = await asyncio.gather(*[summarize(run, g, f"summary_{n}", t, e) for g, t, e in zip(groups, ts, es)])
     run.latest_evals = {g["id"]: e for g, e in zip(groups, es)}  # the final writer reads these (see conclude)
-    return {g["id"]: s for g, s in zip(groups, ss)}
+    run.summaries = {g["id"]: s for g, s in zip(groups, ss)}  # the Evaluation Complex reads these
+    if run.complex:
+        run.complex.note_round()  # a swarm round landed: the stewards assess again
+    return run.summaries
 
 
 async def pipeline(run: Run) -> str:
@@ -215,17 +233,29 @@ async def pipeline(run: Run) -> str:
         await run.start()
         groups = run.s["groups"]
         run.reality_check = await reality_check(run)
+        # The Evaluation Complex watches the swarm in parallel for the whole run (see orchestrator/complex.py).
+        run.complex = Complex(run)
+        if run.complex.enabled:
+            run.complex_task = asyncio.ensure_future(run.complex.run_forever())
         s1 = await round_(run, groups, 1, "", "")
+        if run.complex_stop.is_set():  # the stewards stopped the swarm: write the verdict from what exists
+            return await _finish_now(run, groups, s1)
         shared1 = summaries_block(groups, s1)
         prior2 = ("Every group has finished a first discussion and evaluation. Their summaries:\n\n" + shared1 +
                   "\n\nDiscuss again in light of these. Respond to the other groups' points where they bear on your role.")
         s2 = await round_(run, groups, 2, prior2, shared1)
+        if run.complex_stop.is_set():
+            return await _finish_now(run, groups, s2)
         latest = s2
         early = None
         if run.quick:  # write the verdict and the analysis while stop-or-go is decided; used only if it says stop
             early = (asyncio.ensure_future(conclude(run, groups, s2, None, log=False)),
                      asyncio.ensure_future(_analysis(run, log=False)))
         sg = await stop_or_go(run, groups, s2)
+        if run.complex_stop.is_set():
+            for t in early or ():
+                t.cancel()
+            return await _finish_now(run, groups, s2)
         if early and sg["decision"] == "stop":
             fin, an = await asyncio.gather(*early, return_exceptions=True)
             if isinstance(fin, BaseException):
@@ -242,6 +272,11 @@ async def pipeline(run: Run) -> str:
             prior3 = ("This is the final discussion round. The latest summaries from every group:\n\n" + shared2 +
                       "\n\nQuestions to settle in this round: " + (sg.get("if_go_resolve") or "the open disagreements above"))
             latest = await round_(run, groups, 3, prior3, shared2)
+            if run.complex_stop.is_set():
+                return await _finish_now(run, groups, latest)
+        # The complex is done watching: stop it and log its report before the verdict (the final writer reads it).
+        _stop_complex(run)
+        _finalize_complex(run)
         # The verdict and the disagreement analysis (for the JSON report) run at the same time.
         done = await asyncio.gather(conclude(run, groups, latest, sg), _analysis(run), return_exceptions=True)
         if isinstance(done[0], BaseException):
@@ -251,15 +286,44 @@ async def pipeline(run: Run) -> str:
         run.log("note", text=str(e))
     except asyncio.CancelledError:
         status = "cancelled"
+        _stop_complex(run)
+        _finalize_complex(run)
         run.log("run_end", status=status, calls=run.budget.calls)
         _export(run)
         raise
     except Exception as e:  # keep a readable record of what failed
         status = "error"
         run.log("note", text=f"Run failed: {type(e).__name__}: {e}"[:400])
+    finally:
+        _stop_complex(run)
+        _finalize_complex(run)
     run.log("run_end", status=status, calls=run.budget.calls)
     _export(run)
     return status
+
+
+async def _finish_now(run: Run, groups: list[dict], summaries: dict[str, str]) -> str:
+    """The Evaluation Complex stopped the swarm: log its report and write the verdict from what exists."""
+    _stop_complex(run)
+    _finalize_complex(run)
+    run.log("stage_start", stage="final")
+    done = await asyncio.gather(conclude(run, groups, summaries, None), _analysis(run), return_exceptions=True)
+    if isinstance(done[0], BaseException):
+        raise done[0]
+    return await _finish(run, "done")
+
+
+def _stop_complex(run: Run) -> None:
+    """Cancel the complex's background task (it is done watching). Safe to call more than once."""
+    task = getattr(run, "complex_task", None)
+    if task and not task.done():
+        task.cancel()
+
+
+def _finalize_complex(run: Run) -> None:
+    """Log the complex's own report once (idempotent)."""
+    if getattr(run, "complex", None):
+        run.complex.finalize()
 
 
 async def _analysis(run: Run, log: bool = True):

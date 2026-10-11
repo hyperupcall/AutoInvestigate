@@ -19,9 +19,16 @@ class FakeRun:
         self.budget = types.SimpleNamespace(calls=0)
         self.transcripts = {}
         self.quick = False
+        self.complex_stop = asyncio.Event()
+        self.complex = None
+        self.complex_task = None
+        self.summaries = {}
 
     def log(self, kind, **f):
         self.events.append(kind)
+
+    def request_stop(self, by, detail=""):
+        self.complex_stop.set()
 
     async def start(self):
         self.calls.append("start")
@@ -97,3 +104,41 @@ def test_quick_mode_uses_the_early_verdict_when_stop(monkeypatch):
     assert seen.count("stop_go") == 1 and seen.count(("final", ["market", "research"])) == 1
     ev = run.events
     assert ev.index("final") > ev.index("run_end") - 3 and "final" in ev   # verdict logged after the decision, before the end
+
+
+class FakeComplex:
+    """A complex that votes to stop as soon as it starts, so the swarm is cut short after round 1."""
+
+    def __init__(self, run):
+        self.run = run
+        self.enabled = True
+        self.report = None
+
+    def note_round(self):
+        pass
+
+    async def run_forever(self):
+        self.run.complex_stop.set()
+
+    def finalize(self):
+        self.report = {"decision": "stop", "stopped_by": "votes", "rounds": 1, "stewards": []}
+        self.run.log("complex_final", **self.report)
+        return self.report
+
+
+def test_complex_stop_cuts_the_swarm_short_and_still_finishes(monkeypatch):
+    seen = []
+    rc, s, sg, c = fake_stage("go", seen)
+    monkeypatch.setattr(P, "reality_check", rc)
+    monkeypatch.setattr(P, "summarize", s)
+    monkeypatch.setattr(P, "stop_or_go", sg)
+    monkeypatch.setattr(P, "conclude", c)
+    monkeypatch.setattr(P, "Complex", FakeComplex)
+    run = FakeRun()
+    assert asyncio.run(P.pipeline(run)) == "done"
+    delib = [x for x in run.calls if x.startswith("deliberation_")]
+    assert len(delib) == len(GROUPS)          # only round 1 ran; the complex stopped the swarm
+    assert seen.count("stop_go") == 0          # stop-or-go never ran
+    assert seen[-1] == ("final", ["market", "research"])  # still finished with every group's conclusion
+    ev = run.events
+    assert "complex_final" in ev and ev.index("complex_final") < ev.index("run_end")  # report logged before the end

@@ -3,7 +3,8 @@ our raw run log. The finished report needs no translation: the frontend reads sc
 directly (GET /api/runs/<id>/report).
 
 Event kinds, in order: phase, cluster, reality-check, group-start, round-start, turn, missed, evaluation, failed,
-summary, cross-group, stop-go, verdict.
+summary, cross-group, stop-go, verdict, plus the Evaluation Complex: complex-cluster, complex-turn, complex-verdict,
+complex-stop, complex-final.
 """
 import re
 from datetime import datetime
@@ -38,7 +39,27 @@ def ui_events(events: list[dict]) -> list[dict]:
         k, n, gid = e["kind"], _round(e.get("stage")), e.get("group")
         g = groups.get(gid, {"name": gid, "consensus": "converge"})
         common = {"group": g.get("name"), "groupId": gid}
-        if k == "run_start":
+        if k == "complex_start":
+            add(e, phase="Complex", kind="complex-cluster",
+                text=f"Evaluation Complex: {len(e.get('stewards', []))} stewards watching the swarm in parallel.",
+                agents=[{"id": s["id"], "name": s.get("name", s["id"]), "model": s.get("model"),
+                         "objective": s.get("objective", "")} for s in e.get("stewards", [])])
+        elif k == "complex_assess":
+            add(e, phase="Complex", kind="complex-turn", round=e.get("round"), agent_id=e.get("steward"),
+                name=e.get("name"), model=e.get("model"), text=e.get("reason", ""),
+                decision=e.get("decision"), confidence=e.get("confidence"),
+                signals=e.get("signals", []), if_continue=e.get("if_continue", ""))
+        elif k == "complex_verdict":
+            add(e, phase="Complex", kind="complex-verdict", round=e.get("round"), decision=e.get("decision"),
+                votes=e.get("votes"), rationale=e.get("rationale"), stewards=e.get("stewards"),
+                elapsed=e.get("elapsed"), spent=e.get("spent"))
+        elif k == "complex_stop":
+            add(e, phase="Complex", kind="complex-stop", by=e.get("by"), reason=e.get("reason"))
+        elif k == "complex_final":
+            add(e, phase="Complex", kind="complex-final",
+                report={key: e.get(key) for key in ("enabled", "decision", "stopped_by", "rounds",
+                                                    "stop_votes", "max_seconds", "stewards", "history")})
+        elif k == "run_start":
             add(e, phase="Setup", kind="phase", text="Opening SLIM groups and registering agents over A2A.")
             add(e, phase="Setup", kind="cluster",
                 text=f"{len(groups)} groups · {sum(len(x['agents']) for x in groups.values())} agents · transport SLIM · protocol A2A",
