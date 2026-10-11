@@ -31,7 +31,7 @@ def load() -> dict:
     except FileNotFoundError:
         return s
     for k, v in stored.items():
-        if k in ("max_tokens", "reasoning_effort", "stages", "sources") and isinstance(v, dict):
+        if k in ("max_tokens", "reasoning_effort", "stages", "sources", "complex") and isinstance(v, dict):
             for kk, vv in v.items():
                 s[k][kk] = {**(s[k].get(kk) or {}), **vv} if isinstance(vv, dict) else vv
         else:
@@ -69,6 +69,29 @@ def validate(s: dict) -> list[str]:
         errs.append("mcp.timeout_seconds must be between 1 and 120")
     if not 0 <= int(mcp.get("max_tool_calls") or 0) <= 8:
         errs.append("mcp.max_tool_calls must be between 0 and 8")
+    cx = s.get("complex") or {}
+    if not isinstance(cx.get("enabled"), bool):
+        errs.append("complex.enabled must be true/false")
+    if not 30 <= int(cx.get("max_seconds") or 0) <= 3600:
+        errs.append("complex.max_seconds must be between 30 and 3600")
+    if not 5 <= int(cx.get("interval_seconds") or 0) <= 600:
+        errs.append("complex.interval_seconds must be between 5 and 600")
+    stewards = cx.get("stewards") or []
+    if not 1 <= len(stewards) <= 5:
+        errs.append("complex needs 1 to 5 stewards")
+    if not 1 <= int(cx.get("stop_votes") or 0) <= max(1, len(stewards)):
+        errs.append("complex.stop_votes must be between 1 and the number of stewards")
+    sids = set()
+    for st in stewards:
+        if st.get("id") in sids:
+            errs.append(f"complex: duplicate steward id {st.get('id')}")
+        sids.add(st.get("id"))
+        if not str(st.get("model", "")).strip():
+            errs.append(f"complex/{st.get('id')}: model is required")
+        if st.get("reasoning_effort") not in EFFORTS:
+            errs.append(f"complex/{st.get('id')}: invalid reasoning_effort")
+        if not os.path.isfile(os.path.join(ROOT, st.get("prompt", ""))):
+            errs.append(f"complex/{st.get('id')}: prompt file not found")
     known_mcp = {m["id"] for m in MCP_CATALOG}
     ids = set()
     if not s.get("groups"):
@@ -115,6 +138,10 @@ def save(new: dict) -> list[str]:
         new.setdefault("mcp", {})["api_key"] = old.get("mcp", {}).get("api_key", "")
     for stage, cfg in new.get("stages", {}).items():
         _keep_masked(cfg, old.get("stages", {}).get(stage, {}))
+    for st in (new.get("complex") or {}).get("stewards", []):
+        old_st = next((x for x in (old.get("complex") or {}).get("stewards", []) if x.get("id") == st.get("id")), {})
+        _keep_masked(st, old_st)
+        st["name"] = st.get("name") or st["id"]
     old_agents = {(g["id"], a["id"]): a for g in old["groups"] for a in g["agents"]}
     for g in new.get("groups", []):
         for a in g.get("agents", []):
@@ -142,6 +169,8 @@ def public_view(s: dict) -> dict:
     v["mcp"]["api_key_env"] = bool(os.getenv(MCP_KEY_ENV, "").strip())  # the key comes from .env
     for cfg in v["stages"].values():
         cfg["api_key"] = _mask(cfg.get("api_key", ""))
+    for st in (v.get("complex") or {}).get("stewards", []):
+        st["api_key"] = _mask(st.get("api_key", ""))
     for g in v["groups"]:
         for a in g["agents"]:
             a["api_key"] = _mask(a.get("api_key", ""))

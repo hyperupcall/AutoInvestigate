@@ -25,7 +25,8 @@
   const STREAM_MAX_ITEMS = 40;     // per-agent stream: newest N outputs
   const STREAM_MAX_CHARS = 24000;  // per-agent stream: newest N characters
 
-  const isTailKey = (key) => key === 'cluster-log' || key.startsWith('agent-stream:');
+  const isTailKey = (key) => key === 'cluster-log' || key === 'complex-log'
+    || key.startsWith('agent-stream:') || key.startsWith('complex-stream:');
 
   /** A stable key for one streamed event, so an expanded thought stays open
    *  across the re-renders that happen as new events arrive. */
@@ -125,7 +126,9 @@
     const dialog = el('div', { class: 'modal report-modal', onclick: (e) => e.stopPropagation() }, [
       renderHead(run),
       renderTabs(modal.tab),
-      modal.tab === 'cluster' ? renderCluster(run, modal.tab) : renderEvaluation(run, modal.tab),
+      modal.tab === 'cluster' ? renderCluster(run, modal.tab)
+        : modal.tab === 'complex' ? renderComplex(run, modal.tab)
+        : renderEvaluation(run, modal.tab),
     ]);
 
     // Remember where each scrollable pane was before we rebuild the DOM.
@@ -181,6 +184,9 @@
             })
           : null,
         run.status === 'running'
+          ? el('button', { class: 'btn small', text: 'Force stop & finalize', title: 'Stop the swarm now and write the final verdict', onclick: () => actions.forceFinalize(run.id) })
+          : null,
+        run.status === 'running'
           ? el('button', { class: 'btn small', text: 'Cancel run', title: 'Stop this run', onclick: () => actions.cancelEvaluation(run.id) })
           : null,
         el('button', { class: 'icon-btn', title: 'Close', text: '✕', onclick: () => actions.closeModal() }),
@@ -191,6 +197,7 @@
   function renderTabs(active) {
     const tabs = [
       { id: 'cluster', label: 'Evaluation Swarm' },
+      { id: 'complex', label: 'Evaluation Complex' },
       { id: 'evaluation', label: 'Evaluation' },
     ];
     return el('div', { class: 'modal-tabs' }, tabs.map((t) =>
@@ -225,6 +232,7 @@
     let lastPhase = null;
     for (let i = start; i < run.events.length; i += 1) {
       const ev = run.events[i];
+      if (String(ev.kind || '').startsWith('complex-')) continue;  // the complex has its own tab
       if (ev.phase !== lastPhase) {
         lastPhase = ev.phase;
         log.appendChild(el('div', { class: 'phase-divider' }, [el('span', { text: ev.phase })]));
@@ -294,7 +302,7 @@
 
   /** One circle per agent, arranged on a ring, with names beside them and
    *  edges between everyone. Clicking a circle opens that agent's stream. */
-  function renderGroupGraph(run, group, bucket, selectedId) {
+  function renderGroupGraph(run, group, bucket, selectedId, liveId) {
     const agents = group.agents || [];
     const n = agents.length;
     const W = 580, H = 300, cx = W / 2, cy = H / 2, R = 84, r = 22;
@@ -302,7 +310,7 @@
       const ang = (-90 + (360 / Math.max(n, 1)) * i) * (Math.PI / 180);
       return { agent: a, ang, x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
     });
-    const spoken = (id) => (bucket.byAgent[id] || []).some((ev) => ev.kind === 'turn' || ev.kind === 'evaluation');
+    const spoken = (id) => (bucket.byAgent[id] || []).some((ev) => ev.kind === 'turn' || ev.kind === 'evaluation' || ev.kind === 'complex-turn');
 
     // Edges: everyone can hear everyone. Solid once both ends have spoken.
     const edges = [];
@@ -319,7 +327,7 @@
     const nodeEls = nodes.map((node) => {
       const a = node.agent;
       const isSelected = a.id === selectedId;
-      const isLive = run.status === 'running' && run.currentAgent === a.id;
+      const isLive = run.status === 'running' && (liveId || run.currentAgent) === a.id;
       const cls = 'graph-node' + (isSelected ? ' selected' : '') + (isLive ? ' live' : '') + (spoken(a.id) ? ' spoken' : '');
       const label = labelPlacement(node, r, a.name);
       return svg('g', { class: cls, onclick: () => selectAgent(group.id, a.id) }, [
@@ -533,9 +541,171 @@
           el('span', { class: 'event-kind', text: 'Verdict' }),
           renderVerdict(ev.verdict),
         ]);
+      case 'complex-cluster':
+        return el('div', { class: 'event-row kind-phase', text: ev.text });
+      case 'complex-turn':
+        return el('div', { class: 'event-row kind-evaluation' }, [
+          el('div', { class: 'event-meta' }, [
+            el('span', { class: 'event-agent', text: ev.name || ev.agent_id }),
+            el('span', { class: 'event-role', text: ev.model || '' }),
+            ev.decision ? el('span', { class: 'complex-vote ' + (ev.decision === 'stop' ? 'stop' : 'go'), text: ev.decision }) : null,
+            ev.confidence != null ? el('span', { class: 'event-role', text: ev.confidence + '%' }) : null,
+            el('span', { class: 'event-time', text: formatTime(ev.ts) }),
+          ]),
+          ...renderThought(run, ev),
+        ]);
+      case 'complex-verdict':
+        return el('div', { class: 'event-row kind-decision' }, [
+          el('span', { class: 'event-kind', text: `Complex vote · round ${ev.round}` }),
+          renderComplexVerdict(run, ev),
+        ]);
+      case 'complex-stop':
+        return el('div', { class: 'event-row kind-decision' }, [
+          el('span', { class: 'event-kind', text: 'Complex stop' }),
+          el('p', { class: 'event-text', text: ev.reason || '' }),
+        ]);
+      case 'complex-final':
+        return el('div', { class: 'event-row kind-conclusion' }, [
+          el('span', { class: 'event-kind', text: 'Complex report' }),
+          el('p', { class: 'event-text', text: `Decision: ${(ev.report && ev.report.decision) || '—'}${ev.report && ev.report.stopped_by ? ' (stopped by ' + ev.report.stopped_by + ')' : ''}` }),
+        ]);
       default:
         return el('div', { class: 'event-row', text: ev.text || ev.kind });
     }
+  }
+
+  /* ========================= Evaluation Complex ========================= */
+  /** The Evaluation Complex: three stewards that watch the swarm in parallel and vote continue or stop. Shown
+   *  like the swarm: one circle per steward, click to read its reasoning, with the votes streamed below. */
+  function renderComplex(run, tab) {
+    const body = el('div', { class: 'modal-body cluster-body', 'data-scroll-key': 'modal-body:' + tab });
+    const cx = run.complex;
+    if (!cx || !(cx.agents || []).length) {
+      body.appendChild(el('div', { class: 'empty-state small' }, [
+        el('p', { class: 'muted', text: 'The Evaluation Complex is not running for this evaluation.' }),
+      ]));
+      return body;
+    }
+    const cxEvents = run.events.filter((ev) => String(ev.kind || '').startsWith('complex-'));
+    const elapsed = ((run.finishedAt || Date.now()) - run.startedAt) / 1000;
+    body.appendChild(el('div', { class: 'cluster-status-bar' }, [
+      el('span', { class: 'muted small', text: 'Three stewards watch the swarm in parallel and vote continue or stop. Click one to read its reasoning.' }),
+      el('span', { class: 'muted small', text: `${cxEvents.length} events · ${formatDuration(elapsed)}` }),
+    ]));
+    body.appendChild(renderComplexBanner(run, cx));
+    body.appendChild(renderComplexGraph(run, cx, cxEvents));
+    if (run.status === 'running') {
+      body.appendChild(el('div', { class: 'complex-actions' }, [
+        el('button', { class: 'btn small', title: 'Stop the swarm now and write the final verdict', text: 'Force stop & finalize', onclick: () => actions.forceFinalize(run.id) }),
+      ]));
+    }
+    const log = el('div', { class: 'thinking-log', 'data-scroll-key': 'complex-log' });
+    if (!cxEvents.length) {
+      log.appendChild(el('div', { class: 'event-row kind-muted', text: run.status === 'running' ? 'The stewards have not assessed yet.' : 'The stewards produced no output.' }));
+    }
+    cxEvents.forEach((ev) => log.appendChild(renderEvent(run, ev)));
+    if (run.status === 'running') {
+      log.appendChild(el('div', { class: 'event-row kind-live' }, [
+        el('span', { class: 'spinner small' }),
+        el('span', { text: 'The stewards are watching the swarm…' }),
+      ]));
+    }
+    body.appendChild(log);
+    return body;
+  }
+
+  function renderComplexBanner(run, cx) {
+    const d = cx.decision;
+    const cls = d === 'stop' ? 'stopped' : d === 'continue' ? 'extra' : 'hold';
+    const label = d === 'stop' ? 'Stop' : d === 'continue' ? 'Continue' : (run.status === 'running' ? 'Watching…' : 'No decision');
+    const note = cx.stoppedBy ? `stopped by ${cx.stoppedBy}` : (run.status === 'running' ? 'the swarm is still running' : '');
+    const stewards = (cx.report && cx.report.stewards) || cx.agents;
+    return el('div', { class: 'decision-banner ' + cls }, [
+      el('div', { class: 'decision-head' }, [
+        el('span', { class: 'decision-label', text: 'Evaluation Complex' }),
+        el('span', { class: 'decision-value', text: label }),
+        note ? el('span', { class: 'decision-confidence', text: note }) : null,
+      ]),
+      el('div', { class: 'complex-votes' }, stewards.map((s) => el('div', { class: 'complex-vote-row' }, [
+        el('span', { class: 'complex-vote-name', text: s.name }),
+        el('span', { class: 'complex-vote ' + (s.decision === 'stop' ? 'stop' : s.decision === 'continue' ? 'go' : ''), text: s.decision || '—' }),
+        el('span', { class: 'muted small', text: s.reason || s.objective || '' }),
+      ]))),
+    ]);
+  }
+
+  function renderComplexGraph(run, cx, cxEvents) {
+    const bucket = { events: cxEvents, byAgent: {} };
+    cxEvents.forEach((ev) => { if (ev.agent_id) (bucket.byAgent[ev.agent_id] = bucket.byAgent[ev.agent_id] || []).push(ev); });
+    const group = { id: 'complex', name: 'Evaluation Complex', agents: cx.agents };
+    const selectedId = selectedAgentByGroup['complex'] || (cx.agents[0] && cx.agents[0].id);
+    const selected = cx.agents.find((a) => a.id === selectedId) || cx.agents[0] || null;
+    const lastTurn = [...cxEvents].reverse().find((ev) => ev.kind === 'complex-turn');
+    const liveId = run.status === 'running' && lastTurn ? lastTurn.agent_id : '';
+    return el('div', { class: 'cluster-group-block' }, [
+      el('div', { class: 'cluster-group-head' }, [
+        el('span', { class: 'cluster-group-name', text: 'Evaluation Complex' }),
+        el('span', { class: 'cluster-style', text: 'parallel' }),
+        el('span', { class: 'muted small', text: `${cx.agents.length} stewards` }),
+      ]),
+      el('div', { class: 'cluster-graph-wrap' }, [
+        renderGroupGraph(run, group, bucket, selectedId, liveId),
+        renderComplexStream(run, selected, selected ? (bucket.byAgent[selected.id] || []) : []),
+      ]),
+    ]);
+  }
+
+  function renderComplexStream(run, agent, agentEvents) {
+    if (!agent) return el('div', { class: 'agent-stream empty-state small' }, [el('p', { class: 'muted', text: 'No stewards.' })]);
+    const items = agentEvents.filter((ev) => ev.kind === 'complex-turn');
+    const chars = items.reduce((n, ev) => n + ((ev.text || '').length), 0);
+    const head = el('div', { class: 'agent-stream-head' }, [
+      el('div', { class: 'agent-stream-name', text: agent.name }),
+      el('div', { class: 'agent-stream-model', text: agent.model || '' }),
+      el('div', { class: 'agent-stream-stats muted small', text: `${items.length} assessment${items.length === 1 ? '' : 's'} · ${formatCount(chars)} chars` }),
+    ]);
+    const about = el('div', { class: 'agent-stream-about' }, [
+      agent.objective ? el('p', { class: 'cluster-agent-q', text: agent.objective }) : null,
+    ]);
+    const body = el('div', { class: 'agent-stream-body', 'data-scroll-key': 'complex-stream:' + agent.id });
+    if (!items.length) {
+      body.appendChild(el('p', { class: 'muted small', text: run.status === 'running' ? 'Nothing yet — this steward has not voted.' : 'This steward produced no output.' }));
+    } else {
+      items.forEach((ev) => body.appendChild(renderComplexTurn(run, ev)));
+    }
+    return el('div', { class: 'agent-stream' }, [head, about, body]);
+  }
+
+  function renderComplexTurn(run, ev) {
+    return el('div', { class: 'stream-item kind-evaluation' }, [
+      el('div', { class: 'event-meta' }, [
+        el('span', { class: 'event-role', text: `assessment ${ev.round}` }),
+        ev.decision ? el('span', { class: 'complex-vote ' + (ev.decision === 'stop' ? 'stop' : 'go'), text: ev.decision }) : null,
+        ev.confidence != null ? el('span', { class: 'event-role', text: ev.confidence + '%' }) : null,
+        el('span', { class: 'event-time', text: formatTime(ev.ts) }),
+      ]),
+      ...renderThought(run, ev),
+      ev.signals && ev.signals.length ? el('ul', { class: 'complex-signals' }, ev.signals.map((s) => el('li', { text: s }))) : null,
+    ]);
+  }
+
+  function complexName(run, id) {
+    const a = ((run.complex && run.complex.agents) || []).find((x) => x.id === id);
+    return a ? a.name : id;
+  }
+
+  function renderComplexVerdict(run, ev) {
+    return el('div', { class: 'complex-verdict' }, [
+      ev.rationale ? el('p', { class: 'event-text', text: ev.rationale }) : null,
+      el('div', { class: 'complex-votes' }, Object.keys(ev.stewards || {}).map((id) => {
+        const s = ev.stewards[id] || {};
+        return el('div', { class: 'complex-vote-row' }, [
+          el('span', { class: 'complex-vote-name', text: complexName(run, id) }),
+          el('span', { class: 'complex-vote ' + (s.decision === 'stop' ? 'stop' : 'go'), text: s.decision || '—' }),
+          el('span', { class: 'muted small', text: s.reason || '' }),
+        ]);
+      })),
+    ]);
   }
 
   /* ============================== Evaluation ============================== */
@@ -565,6 +735,9 @@
 
     // Stop-or-go banner.
     if (report.stop_go) body.appendChild(renderStopGoBanner(report.stop_go));
+
+    // Evaluation Complex (three stewards that watched the swarm in parallel).
+    if (report.complex) body.appendChild(renderComplexReport(report.complex));
 
     // Final report (the comprehensive verdict written for the submitter).
     if (report.verdict) body.appendChild(renderFinalReport(report.verdict));
@@ -657,6 +830,26 @@
         el('div', { class: 'decision-col' }, [el('h4', { text: 'Cons' }), el('ul', {}, (sg.cons || []).map((c) => el('li', { text: c })))]),
       ]),
       sg.resolve_next ? el('p', { class: 'muted small', text: 'Extra round had to settle: ' + sg.resolve_next }) : null,
+    ]);
+  }
+
+  /* The Evaluation Complex: three stewards that watched the swarm in parallel and voted continue or stop. */
+  function renderComplexReport(cx) {
+    if (!cx) return null;
+    const d = cx.decision;
+    const cls = d === 'stop' ? 'stopped' : d === 'continue' ? 'extra' : 'hold';
+    const label = d === 'stop' ? 'Stop' : d === 'continue' ? 'Continue' : 'No decision';
+    return el('div', { class: 'decision-banner ' + cls }, [
+      el('div', { class: 'decision-head' }, [
+        el('span', { class: 'decision-label', text: 'Evaluation Complex' }),
+        el('span', { class: 'decision-value', text: label }),
+        el('span', { class: 'decision-confidence', text: `${cx.rounds || 0} assessment(s)${cx.stopped_by ? ' · stopped by ' + cx.stopped_by : ''}` }),
+      ]),
+      el('div', { class: 'complex-votes' }, (cx.stewards || []).map((s) => el('div', { class: 'complex-vote-row' }, [
+        el('span', { class: 'complex-vote-name', text: s.name }),
+        el('span', { class: 'complex-vote ' + (s.decision === 'stop' ? 'stop' : s.decision === 'continue' ? 'go' : ''), text: s.decision || '—' }),
+        el('span', { class: 'muted small', text: s.reason || '' }),
+      ]))),
     ]);
   }
 

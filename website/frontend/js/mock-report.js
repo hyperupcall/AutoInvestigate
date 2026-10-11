@@ -2036,6 +2036,66 @@
     ],
     "model": "openai/gpt-oss-120b"
   },
+  "complex": {
+    "enabled": true,
+    "decision": "stop",
+    "stopped_by": "votes",
+    "rounds": 3,
+    "stop_votes": 2,
+    "max_seconds": 300,
+    "stewards": [
+      {
+        "id": "usefulness",
+        "name": "Usefulness Steward",
+        "objective": "Is there a useful or implementable result in what the collectives produced?",
+        "model": "openai/gpt-oss-120b",
+        "decision": "continue",
+        "confidence": 55,
+        "reason": "The research group named a concrete prototype, a BFV sum over 100,000 integers with SEAL or OpenFHE, and a 4 to 6 week path, so there is something buildable. No workload or buyer is named yet, so one more round could still turn it into a usable target.",
+        "signals": [
+          "A named prototype: BFV aggregation with SEAL, Lattigo or OpenFHE",
+          "A 4 to 6 week estimate for a bare prototype",
+          "No named customer or workload"
+        ]
+      },
+      {
+        "id": "convergence",
+        "name": "Convergence Steward",
+        "objective": "Would another round actually change anything (information gain)?",
+        "model": "openai/gpt-oss-120b",
+        "decision": "stop",
+        "confidence": 78,
+        "reason": "Round 2 repeated round 1. The research and business groups both landed on the same missing piece, a named workload, and the market group split by customer type as expected. Another round would restate the same gap.",
+        "signals": [
+          "Round 2 added no new facts",
+          "Both specialist groups named the same missing workload",
+          "The market group's split is by design, not a live question"
+        ]
+      },
+      {
+        "id": "roi",
+        "name": "ROI Steward",
+        "objective": "Is another round worth its cost in time and money?",
+        "model": "openai/gpt-oss-120b",
+        "decision": "stop",
+        "confidence": 72,
+        "reason": "Two rounds cost about $0.15 and the last one added little. The verdict is already clear enough to write, and the remaining budget buys polish, not a decision.",
+        "signals": [
+          "About $0.15 spent of the $1 cap",
+          "Round 2 added little over round 1",
+          "The groups are polishing, not deciding"
+        ]
+      }
+    ],
+    "history": [
+      {"round": 1, "decision": "continue", "votes": {"stop": 0, "continue": 3}, "elapsed_seconds": 41,
+       "stewards": {"usefulness": {"decision": "continue", "confidence": 60, "reason": "The groups are still working out what could be built."}, "convergence": {"decision": "continue", "confidence": 65, "reason": "Round 1 is still producing new points."}, "roi": {"decision": "continue", "confidence": 70, "reason": "Early, and the budget is barely touched."}}},
+      {"round": 2, "decision": "continue", "votes": {"stop": 1, "continue": 2}, "elapsed_seconds": 96,
+       "stewards": {"usefulness": {"decision": "continue", "confidence": 58, "reason": "A prototype path appeared; the target is still open."}, "convergence": {"decision": "stop", "confidence": 62, "reason": "Round 2 mostly repeated round 1."}, "roi": {"decision": "continue", "confidence": 60, "reason": "One more round is still cheap."}}},
+      {"round": 3, "decision": "stop", "votes": {"stop": 2, "continue": 1}, "elapsed_seconds": 158,
+       "stewards": {"usefulness": {"decision": "continue", "confidence": 55, "reason": "Buildable, but no named workload yet."}, "convergence": {"decision": "stop", "confidence": 78, "reason": "The same gap is restated; more talk will not close it."}, "roi": {"decision": "stop", "confidence": 72, "reason": "The last round added little for its cost."}}}
+    ]
+  },
   "agntcy": {
     "transport": "SLIM",
     "protocol": "A2A",

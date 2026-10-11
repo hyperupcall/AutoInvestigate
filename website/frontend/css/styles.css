@@ -430,6 +430,17 @@ a.link-btn { text-decoration: none; }
 .decision-col ul, .pros-cons ul { margin: 0; padding-left: 18px; }
 .decision-col li, .pros-cons li { font-size: 12.5px; }
 
+/* Evaluation Complex: the three stewards that watch the swarm in parallel */
+.complex-actions { display: flex; justify-content: flex-end; }
+.complex-votes { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.complex-vote-row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+.complex-vote-name { font-weight: 600; min-width: 150px; }
+.complex-vote { font-size: 11px; border: 1px solid silver; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+.complex-vote.go { color: green; border-color: green; }
+.complex-vote.stop { color: red; border-color: red; }
+.complex-signals { margin: 4px 0 0 16px; font-size: 12px; color: gray; }
+.complex-verdict { margin-top: 4px; }
+
 .result-group { border: 1px solid silver; padding: 10px; }
 .result-group-head h4 { font-size: 13px; }
 .result-summary { font-size: 13px; }

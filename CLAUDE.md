@@ -148,6 +148,17 @@ The pipeline should be simple and use **models configured by the user**.
 **Prompts** must be configurable via a file on the filesystem and selectable in
 settings.
 
+**Evaluation Complex** (added): three **steward** agents run in parallel to the swarm for the whole run and decide
+whether it should continue or stop. They share one goal but optimize for different things, so they genuinely disagree:
+**Usefulness** (is there a useful or implementable result?), **Convergence** (would another round change anything —
+information gain?), and **ROI** (is another round worth its cost in time and money?). They re-assess after each swarm
+round and on a timer, each writing a `continue`/`stop` vote with a reason. When `complex.stop_votes` of them vote stop,
+the swarm stops and the run writes its final verdict from what exists; a time limit (`complex.max_seconds`) and the
+user (`POST /api/finalize`) can also force the stop. The complex lives in `orchestrator/complex.py`, its prompts in
+`prompts/system/complex_*.md`, its settings in the `complex` block, and its votes/report in the report's `complex`
+section. It streams to the frontend as `complex-cluster` / `complex-turn` / `complex-verdict` / `complex-stop` /
+`complex-final` events (the **Evaluation Complex** tab).
+
 ---
 
 ## 4. Frontend UI (as built)
@@ -297,7 +308,7 @@ dropdown to add another. Save, and the next run uses it.
 - Queued ideas and runs share **one regular list** (no separate "Queued" / "Research
   runs" sections). A running run can be **cancelled** (from its card or the popup
   header); any run can be **hidden** with ✕, and **Hide finished** clears all
-  completed/cancelled runs. Clicking a run opens a large popup with **two tabs**:
+  completed/cancelled runs. Clicking a run opens a large popup with **three tabs**:
   - **Evaluation Swarm** — each group is drawn as a **graph**: one circle per agent
     with the agent's name beside it (the agent currently speaking is highlighted).
     Clicking a circle shows that agent's stream — a **summary** of each of its
@@ -305,6 +316,10 @@ dropdown to add another. Save, and the next run uses it.
     panel under the graph. Below the graphs is the live stream of the whole run:
     summarized turns, evaluations, summaries, cross-group analysis, the stop-or-go
     decision and the verdict, as the backend emits them.
+  - **Evaluation Complex** — the three stewards that watch the swarm in parallel
+    (Usefulness, Convergence, ROI), drawn the same way: one circle per steward, click to
+    read its reasoning, with each assessment round's votes streamed below. A **Force stop
+    & finalize** button stops the swarm now and writes the verdict from what exists.
   - **Evaluation** — the finished report, shaped exactly like
     `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, the **final report**
     (headline, recommendation, executive summary, case for/against, ordered plan, kill
@@ -367,7 +382,7 @@ website/frontend/
       infoModal.js        "Information" popup (about, connections, models, links)
       runConfigModal.js   per-run group picker (Start Deeper Research)
       variationsModal.js  "Create variations" popup (generate, regenerate, pick)
-      modal.js            the two-tab popup (evaluation swarm / evaluation)
+      modal.js            the three-tab popup (evaluation swarm / evaluation complex / evaluation)
       toast.js            notifications
     app.js                bootstrap
   artifactfactory.html    Artifact Factory dashboard (served by the factory at GET /)
@@ -440,8 +455,10 @@ handle.cancel();
 
 Event kinds streamed to `onEvent`: `phase`, `cluster`, `reality-check`,
 `group-start`, `round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
-`cross-group`, `stop-go`, `verdict`. The **Evaluation Swarm** tab renders these live;
-the **Evaluation** tab renders the final `report`.
+`cross-group`, `stop-go`, `verdict`, plus the Evaluation Complex's `complex-cluster`,
+`complex-turn`, `complex-verdict`, `complex-stop`, `complex-final`. The **Evaluation
+Swarm** tab renders the swarm events live, the **Evaluation Complex** tab renders the
+complex events, and the **Evaluation** tab renders the final `report`.
 
 The report fixture (`js/mock-report.js`) is generated from
 `20261011-014311-b2e9.json` and conforms to `evaluation-report.schema.json`.
@@ -451,8 +468,8 @@ The report fixture (`js/mock-report.js`) is generated from
 ## 7. Status & next steps
 
 **Done (mocked):** three-column UI, level tree with per-level/per-idea iteration,
-lineage labels, evaluation runs with the two-tab popup (**Evaluation Swarm** live
-stream + **Evaluation** report with raw JSON), settings popup + page,
+lineage labels, evaluation runs with the three-tab popup (**Evaluation Swarm** live
+stream + **Evaluation Complex** + **Evaluation** report with raw JSON), settings popup + page,
 light/minimal styling.
 
 **Done (real): Part 2 backend** in `website/` (see `website/README.md`, routes documented there).
@@ -475,6 +492,12 @@ structured verdict (`grounded` / `questionable` / `nonsense` + category, summary
 advisory (a failed call does not stop the run), feeds the stop-or-go and final prompts so a `nonsense` idea
 cannot get a plain "Go", lands in the report as `reality_check`, and shows as a banner in the Evaluation tab and
 a `reality-check` event in Evaluation Swarm. The mock mirrors it with a small keyword heuristic.
+
+**Done (real): Evaluation Complex** — three stewards (Usefulness, Convergence, ROI) run in parallel to the swarm
+(`orchestrator/complex.py`, prompts `prompts/system/complex_*.md`, the `complex` settings block) and vote
+continue/stop. Enough stop votes, the time limit, or `POST /api/finalize` stop the swarm and write the verdict from
+what exists. Shown in the modal's **Evaluation Complex** tab (stewards as a graph, their votes streamed, a **Force
+stop & finalize** button) and in the report's `complex` section. The mock mirrors it.
 
 **Done (real): Column 3 · Idea Execution** — `website/frontend/js/api-execution.js` swaps the mock for the real
 `artifactfactory/` service whenever it answers (same origin, or `localhost:8080` from `run.sh` on :8000; the

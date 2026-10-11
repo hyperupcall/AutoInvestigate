@@ -219,6 +219,7 @@
   function buildScript(report) {
     const events = [];
     const push = (e, gap) => events.push(Object.assign({ gap: gap || 320 }, e));
+    const emittedCx = new Set();
 
     push({ phase: 'Setup', kind: 'phase', text: 'Opening SLIM groups and registering agents over A2A.' }, 500);
     push({
@@ -230,6 +231,17 @@
         agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question, who_they_are: a.who_they_are })),
       })),
     }, 700);
+
+    // The Evaluation Complex: three stewards watching the swarm in parallel. They are introduced up front and
+    // assess after each swarm round, so their votes stream in alongside the swarm's own activity.
+    const cx = report.complex;
+    if (cx) {
+      push({
+        phase: 'Complex', kind: 'complex-cluster',
+        text: `Evaluation Complex: ${cx.stewards.length} stewards watching the swarm in parallel.`,
+        agents: cx.stewards.map((s) => ({ id: s.id, name: s.name, model: s.model, objective: s.objective })),
+      }, 500);
+    }
 
     if (report.reality_check) {
       push({ phase: 'Reality check', kind: 'reality-check', reality_check: report.reality_check }, 620);
@@ -278,7 +290,30 @@
         if (r.summary) {
           push({ phase, kind: 'summary', group: g.name, groupId: g.id, round: r.round, summary: r.summary }, 560);
         }
+        // The stewards' assessment for this round, once (they watch all groups at once).
+        const cxr = cx && (cx.history || []).find((h) => h.round === r.round);
+        if (cxr && !emittedCx.has(r.round)) {
+          emittedCx.add(r.round);
+          for (const s of cx.stewards) {
+            const v = (cxr.stewards || {})[s.id] || {};
+            push({ phase: 'Complex', kind: 'complex-turn', round: r.round, agent_id: s.id, name: s.name, model: s.model,
+                   text: v.reason || '', decision: v.decision, confidence: v.confidence }, 300);
+          }
+          const stop = (cxr.votes || {}).stop || 0;
+          const cont = (cxr.votes || {}).continue || 0;
+          push({ phase: 'Complex', kind: 'complex-verdict', round: r.round, decision: cxr.decision, votes: cxr.votes,
+                 rationale: `Round ${r.round}: ${stop} of ${stop + cont} stewards voted to stop.`,
+                 stewards: cxr.stewards, elapsed: cxr.elapsed_seconds }, 420);
+        }
       }
+    }
+
+    if (cx) {
+      if (cx.stopped_by) {
+        push({ phase: 'Complex', kind: 'complex-stop', by: cx.stopped_by,
+               reason: `The Evaluation Complex stopped the swarm (${cx.stopped_by}).` }, 420);
+      }
+      push({ phase: 'Complex', kind: 'complex-final', report: cx }, 520);
     }
 
     push({ phase: 'Cross-group', kind: 'phase', text: 'Comparing positions across groups.' }, 520);
@@ -316,6 +351,17 @@
 
     return {
       cancel() { cancelled = true; timers.forEach(clearTimeout); },
+      finalize() {
+        // Stop the swarm now and deliver the report (the mock equivalent of POST /api/finalize).
+        cancelled = true;
+        timers.forEach(clearTimeout);
+        if (report.complex) {
+          onEvent({ phase: 'Complex', kind: 'complex-stop', by: 'user', reason: 'The user forced the swarm to stop and finalize.', ts: Date.now() });
+          onEvent({ phase: 'Complex', kind: 'complex-final', report: Object.assign({}, report.complex, { stopped_by: 'user', decision: 'stop' }), ts: Date.now() });
+        }
+        onEvent({ phase: 'Verdict', kind: 'verdict', verdict: report.verdict, ts: Date.now() });
+        onDone(report);
+      },
       durationMs: doneDelay,
     };
   }

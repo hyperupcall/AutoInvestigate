@@ -99,12 +99,31 @@ per server (✕ to remove) and a dropdown to add another. Save, and the next run
 
 The orchestrator only opens SLIM groups, relays commands and records events; it decides nothing.
 
+## The Evaluation Complex
+
+Three **steward** agents run in parallel to the swarm for the whole run and decide whether it should continue or
+stop. They share one goal but optimize for different things, so they genuinely disagree:
+
+| Steward | Optimizes for | Stops when |
+|---|---|---|
+| **Usefulness** | Is there a useful or implementable result in what the collectives produced? | The answer is clear either way |
+| **Convergence** | Information gain: would another round actually change anything? | Positions have stabilized, or the disagreement is irreducible |
+| **ROI** | Marginal value against cost in time and money | Another round is not worth its cost, or budget/time is nearly spent |
+
+They re-assess after each swarm round and on a timer (`complex.interval_seconds`), each writing a `continue`/`stop`
+vote with a reason. When `complex.stop_votes` of them vote stop, the swarm stops and the run writes its final verdict
+from what exists. A time limit (`complex.max_seconds`) and the user (`POST /api/finalize`) can also force the stop.
+The stewards' votes and the complex's own report land in the report's `complex` section and stream to the frontend as
+`complex-cluster` / `complex-turn` / `complex-verdict` / `complex-stop` / `complex-final` events (the **Evaluation
+Complex** tab). Prompts: `prompts/system/complex_usefulness.md`, `complex_convergence.md`, `complex_roi.md`.
+
 ## Routes
 
 | Route | |
 |---|---|
 | `POST /api/evaluate` `{"idea": "...", "overrides": {"deliberation_seconds": 20, "summarizer_model": "...", "group_ids": ["research"]}}` | start (up to 3 at once) |
 | `POST /api/stop` `{"run_id": "..."}` | cancel |
+| `POST /api/finalize` `{"run_id": "..."}` | stop the swarm and write the final verdict (not a cancel) |
 | `GET /api/status`, `GET /api/runs` | what is running, past runs |
 | `GET /api/ui/runs/<id>/events?since=N` | live events in the frontend's shape (`orchestrator/compat.py`) |
 | `GET /api/runs/<id>/report` | the report, `schema/evaluation-report.schema.json` |
@@ -123,6 +142,7 @@ frontend/       the three-column app (static, no build step)
 deliberation/   settings, prompts loader, OpenRouter client, MCP client, report builder, SLIM glue
 agent_host/     one process per agent (each a SLIM endpoint)
 orchestrator/   pipeline, run, SLIM bus client, web routes, frontend compatibility, live view (static/)
+                complex.py: the Evaluation Complex (three stewards watching the swarm in parallel)
 prompts/        every agent's role and the system prompts (markdown, editable, mounted live)
 schema/         evaluation-report.schema.json
 examples/       two finished reports

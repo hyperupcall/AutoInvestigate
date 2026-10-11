@@ -347,7 +347,8 @@ The one model-made part, the disagreement analysis, is read from the run's
 The report conforms to `website/schema/evaluation-report.schema.json`. Top-level
 sections: `run` (metadata, cost, mode), `pipeline`, `groups` (agents, rounds,
 discussions, evaluations, summaries, scores, verdicts, disagreements),
-`cross_group`, `stop_go`, `verdict` (the final report), `reality_check`, `agntcy`
+`cross_group`, `stop_go`, `verdict` (the final report), `reality_check`, `complex`
+(the Evaluation Complex's stewards and votes), `agntcy`
 (transport/protocol/endpoints), `analysis`, and `sources`.
 
 ### 4.12 HTTP routes

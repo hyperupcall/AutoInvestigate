@@ -102,6 +102,13 @@
         el('span', { class: 'muted small', text: run.status === 'running' ? (run.currentPhase || '') : `${run.cluster ? run.cluster.length : 0} groups · ${agentCount} agents` }),
         el('div', { class: 'run-foot-actions' }, [
           decision && Hack.deliberationOutcome ? el('span', { class: 'run-decision ' + Hack.deliberationOutcome(report.stop_go).cls, text: Hack.deliberationOutcome(report.stop_go).value }) : null,
+          run.complex && run.complex.decision ? el('span', { class: 'run-decision ' + (run.complex.decision === 'stop' ? 'kept' : 'extra'), text: 'Complex: ' + run.complex.decision }) : null,
+          run.status === 'running'
+            ? el('button', {
+                class: 'mini-btn', text: 'Force stop', title: 'Stop the swarm now and write the final verdict',
+                onclick: (e) => { e.stopPropagation(); actions.forceFinalize(run.id); },
+              })
+            : null,
           run.status === 'running'
             ? el('button', {
                 class: 'mini-btn', text: 'Cancel', title: 'Stop this run',
