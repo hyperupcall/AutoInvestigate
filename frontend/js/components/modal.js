@@ -295,6 +295,7 @@
    * the "Final verdict" block. Neutral colours so STOP doesn't read as "rejected". */
   function deliberationOutcome(sg) {
     if (!sg) return null;
+    if (!sg.consensus_feasible && sg.decision === 'go') return { cls: 'kept', value: 'Extra round, disagreement kept', note: 'Ran one more round; the groups still cannot converge, so a person should decide.' };
     if (!sg.consensus_feasible) return { cls: 'kept', value: 'Disagreement kept', note: 'The groups cannot converge, so a person should decide.' };
     if (sg.decision === 'go') return { cls: 'extra', value: 'Extra round', note: 'Ran one more round to settle an open question, then finished.' };
     return { cls: 'stopped', value: 'Stopped', note: 'The evidence was enough to conclude.' };

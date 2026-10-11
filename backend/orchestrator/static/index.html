@@ -289,7 +289,8 @@ function render(S) {
   }
   if (S.stopgo) {
     const sg = S.stopgo; const gname = id => (S.groups.find(g => g.id === id) || {name: id}).name;
-    const o = !sg.consensus_feasible ? ['kept', 'Disagreement kept', 'The groups cannot converge, so a person should decide.']
+    const o = !sg.consensus_feasible && sg.decision === 'go' ? ['kept', 'Extra round, disagreement kept', 'Ran one more round; the groups still cannot converge, so a person should decide.']
+      : !sg.consensus_feasible ? ['kept', 'Disagreement kept', 'The groups cannot converge, so a person should decide.']
       : sg.decision === 'go' ? ['go', 'Extra round', 'Ran one more round to settle an open question, then finished.']
       : ['stopped', 'Stopped', 'The evidence was enough to conclude.'];
     d += `<div class="card"><h2>Deliberation: keep going or stop?</h2><div><span class="badge ${o[0]}">${o[1]}</span>

@@ -11,7 +11,7 @@
 SHELL := /bin/sh
 .DEFAULT_GOAL := help
 
-.PHONY: help run backend frontend evalreport examples tests js components css daemon smoke test
+.PHONY: help run backend frontend evalreport evaluation examples tests js components css daemon smoke test
 
 help: ## Show this help
 	@echo "Targets:"
@@ -26,6 +26,9 @@ backend: ## Run the Artifact Factory backend daemon
 
 frontend: ## Serve the frontend static site
 	cd frontend && ./run.sh $(ARGS)
+
+evaluation: ## Set up and start the AGNTCY evaluation backend (Docker; http://localhost:8090)
+	cd backend && ./setup.sh $(ARGS)
 
 evalreport: ## Run the Outshift Research Intelligence Streamlit app
 	cd evalreport && ./run.sh $(ARGS)
