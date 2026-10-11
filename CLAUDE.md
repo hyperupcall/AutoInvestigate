@@ -173,7 +173,7 @@ sidebar). The same content is also available as a standalone `frontend/settings.
   with **Clear all**).
 - Each queued idea has its own **Start Deeper Research** button, which starts the run
   and moves the idea into the **Research runs** list.
-- Each run appears in the **Research runs** list. Clicking a run opens a large popup with
+- Each run appears in the **Research runs** list. A running run can be **cancelled** (from its card or the popup header); any run can be **hidden** with ✕, and **Hide finished** clears all completed/cancelled runs. Clicking a run opens a large popup with
   **two tabs**:
   - **Cluster Status** — each group is drawn as a **graph**: one circle per agent
     with the agent's name beside it (the agent currently speaking is highlighted).

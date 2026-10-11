@@ -77,7 +77,12 @@
         ]),
         el('h3', { class: 'modal-title', text: truncate(run.ideaText, 200) }),
       ]),
-      el('button', { class: 'icon-btn', title: 'Close', text: '✕', onclick: () => actions.closeModal() }),
+      el('div', { class: 'modal-head-actions' }, [
+        run.status === 'running'
+          ? el('button', { class: 'btn small', text: 'Cancel run', title: 'Stop this run', onclick: () => actions.cancelEvaluation(run.id) })
+          : null,
+        el('button', { class: 'icon-btn', title: 'Close', text: '✕', onclick: () => actions.closeModal() }),
+      ]),
     ]);
   }
 

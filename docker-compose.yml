@@ -6,7 +6,6 @@
 #   8000   frontend         static site (no build step)
 #   8080   artifactfactory  REST API (idea execution backend — the frontend's column 3)
 #   8090   web              evaluation backend (idea evaluation — the frontend's column 2)
-#   8501   evalreport       Streamlit "Outshift Research Intelligence" app
 #   46357  slim             AGNTCY/SLIM bus (used by the evaluation agents)
 #
 # The evaluation backend (slim / agent_host / web) reads the single root .env
@@ -101,15 +100,3 @@ services:
     depends_on:
       - slim
       - agent_host
-
-  # ------------------------------------------------------------- report app
-  evalreport:
-    build:
-      context: ./evalreport
-    image: outshift/evalreport:latest
-    ports:
-      - "8501:8501"
-    environment:
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
-    restart: unless-stopped

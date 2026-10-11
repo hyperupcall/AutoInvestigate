@@ -263,6 +263,29 @@
     run.status = 'cancelled';
     run.finishedAt = Date.now();
     store.notify();
+    showToast('Research run cancelled.', 'warn');
+  }
+
+  /** Hide a run: stop it if it is still running, then drop it from the list. */
+  function removeRun(runId) {
+    const run = store.runById(runId);
+    if (!run) return;
+    if (run.status === 'running' && run._handle) run._handle.cancel();
+    state.evaluation.runs = state.evaluation.runs.filter((r) => r.id !== runId);
+    if (state.evaluation.activeRunId === runId) state.evaluation.activeRunId = null;
+    if (state.ui.modal.open && state.ui.modal.runId === runId) state.ui.modal.open = false;
+    store.notify();
+  }
+
+  /** Hide every finished run, keeping the ones still in progress. */
+  function clearFinishedRuns() {
+    const finished = state.evaluation.runs.filter((r) => r.status !== 'running');
+    if (!finished.length) return;
+    const openId = state.ui.modal.open ? state.ui.modal.runId : null;
+    state.evaluation.runs = state.evaluation.runs.filter((r) => r.status === 'running');
+    if (openId && !state.evaluation.runs.some((r) => r.id === openId)) state.ui.modal.open = false;
+    store.notify();
+    showToast(finished.length === 1 ? 'Hid 1 finished run.' : `Hid ${finished.length} finished runs.`, 'ok');
   }
 
   /* ------------------------------ modal ------------------------------ */
@@ -445,6 +468,8 @@
     startQueuedEvaluation,
     startEvaluation,
     cancelEvaluation,
+    removeRun,
+    clearFinishedRuns,
     sendToExecution,
     clearExecution,
     buildArtifacts,

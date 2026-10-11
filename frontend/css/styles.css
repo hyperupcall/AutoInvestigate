@@ -177,6 +177,7 @@ a { color: blue; }
 .run-card { border: 1px solid silver; padding: 8px; cursor: pointer; }
 .run-card:hover { background: whitesmoke; }
 .run-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.run-head-right { display: flex; align-items: center; gap: 6px; }
 .run-status { font-size: 12px; color: gray; }
 .run-status.running { color: darkorange; }
 .run-status.done { color: green; }
@@ -244,6 +245,7 @@ a { color: blue; }
   padding: 10px 12px; border-bottom: 1px solid silver;
 }
 .modal-eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.modal-head-actions { display: flex; align-items: center; gap: 6px; }
 .modal-title { font-size: 14px; }
 
 .modal-tabs { display: flex; gap: 4px; padding: 6px 12px 0; border-bottom: 1px solid silver; }

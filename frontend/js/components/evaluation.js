@@ -70,6 +70,13 @@
         ]));
         return;
       }
+      const finishedCount = s.evaluation.runs.filter((r) => r.status !== 'running').length;
+      if (finishedCount) {
+        refs.runs.appendChild(el('div', { class: 'queue-head' }, [
+          el('span', { class: 'muted small', text: s.evaluation.runs.length + (s.evaluation.runs.length === 1 ? ' run' : ' runs') }),
+          el('button', { class: 'link-btn', text: 'Hide finished', title: 'Hide all completed and cancelled runs', onclick: () => actions.clearFinishedRuns() }),
+        ]));
+      }
       s.evaluation.runs.forEach((run) => refs.runs.appendChild(renderRun(run)));
     });
   }
@@ -90,7 +97,13 @@
           run.status === 'running' ? el('span', { class: 'dot-pulse' }) : null,
           statusText,
         ]),
-        el('span', { class: 'muted small', text: timeAgo(run.startedAt) }),
+        el('div', { class: 'run-head-right' }, [
+          el('span', { class: 'muted small', text: timeAgo(run.startedAt) }),
+          el('button', {
+            class: 'mini-btn', text: '✕', title: 'Hide this run',
+            onclick: (e) => { e.stopPropagation(); actions.removeRun(run.id); },
+          }),
+        ]),
       ]),
       el('p', { class: 'run-idea', text: truncate(run.ideaText, 150) }),
       run.status === 'running'
@@ -100,6 +113,12 @@
         el('span', { class: 'muted small', text: run.status === 'running' ? (run.currentPhase || '') : `${run.cluster ? run.cluster.length : 0} groups · ${agentCount} agents` }),
         el('div', { class: 'run-foot-actions' }, [
           decision && Hack.deliberationOutcome ? el('span', { class: 'run-decision ' + Hack.deliberationOutcome(report.stop_go).cls, text: Hack.deliberationOutcome(report.stop_go).value }) : null,
+          run.status === 'running'
+            ? el('button', {
+                class: 'mini-btn', text: 'Cancel', title: 'Stop this run',
+                onclick: (e) => { e.stopPropagation(); actions.cancelEvaluation(run.id); },
+              })
+            : null,
           el('button', {
             class: 'mini-btn', text: 'Execute →', title: 'Send this idea to Idea Execution',
             onclick: (e) => { e.stopPropagation(); actions.sendToExecution({ ideaId: run.ideaId, ideaText: run.ideaText }); },
