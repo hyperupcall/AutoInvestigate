@@ -55,7 +55,7 @@
       el('img', { class: 'brand-mark', src: 'favicon.svg', alt: '', width: 20, height: 20 }),
       el('div', { class: 'brand-text' }, [
         el('h1', { text: 'AutoInvestigate' }),
-        el('p', { text: 'Automated research — generate, refine and stress-test ideas' }),
+        el('p', { text: 'Automated research, ideation, evaluation, and artifact generation' }),
       ]),
     ]));
 

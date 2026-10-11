@@ -106,7 +106,7 @@ class AgentWorker(AgentExecutor):
         if not servers:
             return await orr.chat(model, messages, key, **kw)
         try:
-            async with MCPToolbox(servers, mcp_cfg.get("api_key") or "", mcp_cfg.get("timeout_seconds", 20)) as box:
+            async with MCPToolbox(servers, settings.mcp_key(s), mcp_cfg.get("timeout_seconds", 20)) as box:
                 if not box.tools:
                     return await orr.chat(model, messages, key, **kw)
                 logger.info("%s: %d MCP tools from %d servers", self.id, len(box.tools), len(box.servers))

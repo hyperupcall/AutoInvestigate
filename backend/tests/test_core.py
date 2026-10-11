@@ -123,6 +123,23 @@ def test_settings_mask_roundtrip_and_permissions():
         del os.environ["SETTINGS_PATH"]
 
 
+def test_mcp_key_prefers_env_over_stored():
+    s = default_settings(); s["mcp"]["api_key"] = "stored-smithery"
+    saved = os.environ.pop(settings.MCP_KEY_ENV, None)  # ignore any real .env loaded at import
+    try:
+        assert settings.mcp_key(s) == "stored-smithery"  # no env: the stored setting is used
+        assert settings.public_view(s)["mcp"]["api_key_env"] is False
+        os.environ[settings.MCP_KEY_ENV] = "env-smithery"
+        assert settings.mcp_key(s) == "env-smithery"  # .env wins over the stored setting
+        view = settings.public_view(s)
+        assert view["mcp"]["api_key"] == settings.MASK and view["mcp"]["api_key_env"] is True
+        assert "env-smithery" not in json.dumps(view)
+    finally:
+        os.environ.pop(settings.MCP_KEY_ENV, None)
+        if saved is not None:
+            os.environ[settings.MCP_KEY_ENV] = saved
+
+
 def test_reasoning_mandatory_model_falls_back_to_low():
     seen = []
     def h(r):

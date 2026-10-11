@@ -191,12 +191,15 @@
 
   function renderMcp(S) {
     const m = S.mcp || (S.mcp = { enabled: true, api_key: '', timeout_seconds: 20, max_tool_calls: 2 });
+    const keyField = m.api_key_env
+      ? field('Smithery API key', el('span', { class: 'muted small', text: 'set in .env (SMITH_API_KEY)' }))
+      : field('Smithery API key', keyInput(m.api_key, (e) => { m.api_key = e.target.value; }));
     return section('MCP servers', [
       el('div', { class: 'field inline' }, [
         el('label', {}, [checkbox(m.enabled, (e) => { m.enabled = e.target.checked; }), ' Let agents use their MCP servers (deep mode)']),
       ]),
       el('div', { class: 'field-row' }, [
-        field('Smithery API key', keyInput(m.api_key, (e) => { m.api_key = e.target.value; })),
+        keyField,
         field('Timeout (seconds)', numberInput(m.timeout_seconds, (e) => { m.timeout_seconds = Number(e.target.value); }, { min: 1, max: 120 })),
         field('Max tool calls per agent', numberInput(m.max_tool_calls, (e) => { m.max_tool_calls = Number(e.target.value); }, { min: 0, max: 8 })),
       ]),

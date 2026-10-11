@@ -67,9 +67,9 @@ During the `evaluate` / `cross_review` stages (deep mode) the agent host connect
 Streamable HTTP (`council/mcp.py`), lists their tools and offers them to the model via OpenRouter tool-calling
 (`council/openrouter.py`, `chat_with_tools`). Tool names are prefixed with the server id (`arxiv__search`) so two
 servers can expose the same name. It is bounded by `mcp.max_tool_calls` and **fail-safe**: if a server is down or a
-call fails, the agent answers without tools. Settings: `mcp.enabled`, `mcp.api_key` (Smithery key, masked in the
-public view), `mcp.timeout_seconds`, `mcp.max_tool_calls`. The frontend shows the same catalog in the
-Settings popup.
+call fails, the agent answers without tools. The Smithery key comes from `SMITH_API_KEY` in the root `.env`
+(see `../.env.example`); a stored `mcp.api_key` is only a fallback. Other settings: `mcp.enabled`,
+`mcp.timeout_seconds`, `mcp.max_tool_calls`. The frontend shows the same catalog in the Settings popup.
 
 Add or remove a server for any agent on the `/settings` page: each agent row has an "MCP servers" line with a chip
 per server (✕ to remove) and a dropdown to add another. Save, and the next run uses it.

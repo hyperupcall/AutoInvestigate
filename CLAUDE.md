@@ -223,8 +223,9 @@ them to the model via OpenRouter tool-calling (`council/openrouter.py`
 `chat_with_tools`). Tool names are prefixed with the server id (`arxiv__search`) so
 two servers can expose the same name. It runs for the `evaluate` / `cross_review`
 stages only (deep mode), bounded by `mcp.max_tool_calls`, and is **fail-safe**: if a
-server is down or the call fails, the agent answers without tools. Settings:
-`mcp.enabled`, `mcp.api_key` (Smithery key, masked in the public view),
+server is down or the call fails, the agent answers without tools. The Smithery key is
+read from `SMITH_API_KEY` in the root `.env` (`council/settings.py` `mcp_key()`); a
+stored `mcp.api_key` is only a fallback. Other settings: `mcp.enabled`,
 `mcp.timeout_seconds`, `mcp.max_tool_calls`.
 
 **Editing:** add or remove a server for any agent on the backend `/settings` page —
@@ -376,8 +377,8 @@ state = {
   always yields the same mock result.
 
 **Environment / API keys:** everything runs on a **single `OPENROUTER_API_KEY`** in one
-root `.env` (template: `.env.example`). There are no per-directory `.env` files and no
-other provider keys. Each service reads that one file: the root `docker-compose.yml`
+root `.env` (template: `.env.example`), plus an optional **`SMITH_API_KEY`** for the
+agents' MCP servers. There are no per-directory `.env` files and no other provider keys. Each service reads that one file: the root `docker-compose.yml`
 defines the evaluation backend with `env_file: .env` (and `backend/setup.sh` /
 `backend/Makefile` drive it via `docker compose -f ../docker-compose.yml --env-file
 ../.env`), `backend/legacy/` via `../../.env` (litellm `openrouter/...` models),
