@@ -213,6 +213,10 @@ Reaction ×5). **API keys are intentionally not here** — they live on the back
 
 ### Design principles
 
+The full design system — tokens, semantic status colors, component recipes and a
+standalone-page base block — lives in [`STYLE.md`](STYLE.md). The canonical
+implementation is `frontend/css/styles.css`. Summary:
+
 - **Light mode only.**
 - **Minimal styling** — plain layout, thin borders, system font.
 - **HTML5 named colors, used sparingly** (`silver`, `gray`, `gainsboro`,

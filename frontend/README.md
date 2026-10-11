@@ -5,6 +5,13 @@ Frontend for **BACKEND Code B** (Idea generation + Idea evaluation) and the
 evaluation and idea execution connect to the real backends when they are running
 (see [Real backends](#real-backends)).
 
+## Design system
+
+The visual language (light-only, HTML5 named colors, spacing, typography, component
+recipes) is documented in [`../STYLE.md`](../STYLE.md). Anything that renders UI — this app,
+the Artifact Factory dashboard, backend-served pages — should follow it. The canonical
+implementation is `css/styles.css`.
+
 ## Run it
 
 No build step. Either:
