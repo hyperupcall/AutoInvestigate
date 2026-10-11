@@ -1,5 +1,5 @@
 [project]
-name = "research-council"
+name = "research-deliberation"
 version = "0.1.0"
 description = "AutoInvestiage: 4 competing agents negotiate over AGNTCY/SLIM"
 requires-python = ">=3.13,<3.14"

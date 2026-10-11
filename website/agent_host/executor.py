@@ -10,13 +10,13 @@ from a2a.server.events import EventQueue
 from a2a.types import Message, Part, Role, TextPart
 from a2a.utils import new_task
 
-from council import openrouter as orr
-from council import prompts, settings
-from council.defaults import archetype_library
-from council.openrouter import trim_to_sentence
-from council.slim import SILENT
+from deliberation import openrouter as orr
+from deliberation import prompts, settings
+from deliberation.defaults import archetype_library
+from deliberation.openrouter import trim_to_sentence
+from deliberation.slim import SILENT
 
-logger = logging.getLogger("council.agent")
+logger = logging.getLogger("deliberation.agent")
 KINDS = {"turn": "deliberation", "evaluate": "evaluation", "cross_review": "cross_review"}
 
 
@@ -99,8 +99,8 @@ class AgentWorker(AgentExecutor):
                    and cmd["kind"] in ("evaluate", "cross_review"))
         if not use_mcp:
             return await orr.chat(model, messages, key, **kw)
-        from council.defaults import MCP_CATALOG
-        from council.mcp import MCPToolbox
+        from deliberation.defaults import MCP_CATALOG
+        from deliberation.mcp import MCPToolbox
         catalog = {m["id"]: m for m in MCP_CATALOG}
         servers = [catalog[i] for i in ids if i in catalog]
         if not servers:

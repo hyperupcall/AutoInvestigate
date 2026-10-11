@@ -3,7 +3,7 @@
  * Curated from Smithery (https://smithery.ai/servers) across three categories:
  * Academic Research, Finance and Reasoning. Each agent carries `mcp_servers`
  * (ids from this catalog); the backend connects to those servers and offers
- * their tools to the agent's model (see website/council/mcp.py). This file is
+ * their tools to the agent's model (see website/deliberation/mcp.py). This file is
  * the display source of truth; when the backend is live it serves the same
  * catalog in /api/settings (see api-backend.js).
  *

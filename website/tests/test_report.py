@@ -1,4 +1,4 @@
-from council.report import parse_evaluation, parse_summary
+from deliberation.report import parse_evaluation, parse_summary
 from orchestrator.analysis import _norm, verify
 
 EVAL = """PART 1
@@ -47,7 +47,7 @@ def test_verify_drops_invented_quotes_and_unknown_ids():
 
 
 def test_report_includes_reality_check():
-    from council.report import build
+    from deliberation.report import build
     events = [
         {"kind": "run_start", "t": "2026-01-01T00:00:00+00:00", "run": "r1", "idea": "x", "max_cost": 1, "mode": "quick",
          "groups": [{"id": "g", "name": "G", "consensus": "converge", "use_sources": False,

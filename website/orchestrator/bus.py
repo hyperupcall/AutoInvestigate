@@ -9,9 +9,9 @@ from a2a.types import Message, MessageSendParams, Part, Role, SendMessageRequest
 from agntcy_app_sdk.semantic.a2a import ClientConfig, SlimTransportConfig
 from agntcy_app_sdk.semantic.a2a.client.factory import A2AClientFactory
 
-from council.slim import GROUP, NAMESPACE, SLIM_SECRET, SLIM_SERVER, agent_card, identifier
+from deliberation.slim import GROUP, NAMESPACE, SLIM_SECRET, SLIM_SERVER, agent_card, identifier
 
-logger = logging.getLogger("council.bus")
+logger = logging.getLogger("deliberation.bus")
 
 
 class Bus:

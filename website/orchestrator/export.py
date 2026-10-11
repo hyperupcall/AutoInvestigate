@@ -8,8 +8,8 @@ import json
 import os
 from datetime import datetime, timezone
 
-from council import report, settings
-from council.openrouter import RunBudget
+from deliberation import report, settings
+from deliberation.openrouter import RunBudget
 
 RESULTS = "results"
 RUNS = "logs/runs"

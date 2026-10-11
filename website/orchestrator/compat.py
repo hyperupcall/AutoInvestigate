@@ -8,7 +8,7 @@ summary, cross-group, stop-go, verdict.
 import re
 from datetime import datetime
 
-from council.report import parse_evaluation, parse_summary, _summary_complete
+from deliberation.report import parse_evaluation, parse_summary, _summary_complete
 
 
 def _round(stage) -> int | None:

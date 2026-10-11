@@ -7,8 +7,8 @@ import re
 import statistics
 from datetime import datetime
 
-from council.defaults import archetype_library
-from council.prompts import ROOT
+from deliberation.defaults import archetype_library
+from deliberation.prompts import ROOT
 
 SCHEMA_VERSION = "1.0"
 TEMPLATE_METRICS = ["Feasibility", "Technical risk", "Market demand", "Differentiation",
@@ -112,7 +112,7 @@ def _summary_complete(ev: dict) -> bool:
 def _prompt_info(agent: dict) -> dict:
     path = agent.get("prompt")
     if not path:
-        from council import settings
+        from deliberation import settings
         s = settings.load()
         found = next((a for g in s["groups"] for a in g["agents"] if a["id"] == agent["id"]), None) or \
             next((a for a in archetype_library() if a["id"] == agent["id"]), None)
@@ -242,7 +242,7 @@ def build(events: list[dict]) -> dict:
                           "summary": rc["summary"], "blockers": rc.get("blockers", []),
                           "assumptions": rc.get("assumptions", []), "model": rc.get("model")} if rc else None,
         "agntcy": {"transport": "SLIM", "protocol": "A2A", "slim_groups_opened": sum(1 for _ in slim),
-                   "endpoints": [f"council/agents/{a['id']}" for g in groups_meta for a in g["agents"]]},
+                   "endpoints": [f"deliberation/agents/{a['id']}" for g in groups_meta for a in g["agents"]]},
         "analysis": {k: analysis.get(k) for k in ("model", "verified_quotes", "dropped_quotes", "dropped_items")} if analysis else None,
         "sources": sources,
     }

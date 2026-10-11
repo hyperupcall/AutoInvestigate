@@ -4,7 +4,7 @@
   2. OpenAlex, restricted to papers hosted on arXiv (fast, generous limits); the arXiv API itself is only a fallback
      because it rate-limits hard (a shared venue network gets 429s quickly). Results are cached per idea.
   3. a cheap model keeps the most relevant papers
-The agents get the list and must cite as [arXiv:ID]; council/report.py checks every citation against it."""
+The agents get the list and must cite as [arXiv:ID]; deliberation/report.py checks every citation against it."""
 import asyncio
 import json
 import os
@@ -14,8 +14,8 @@ import xml.etree.ElementTree as ET
 
 import httpx
 
-from council import openrouter as orr
-from council import prompts, settings
+from deliberation import openrouter as orr
+from deliberation import prompts, settings
 
 ARXIV = "https://export.arxiv.org/api/query"
 NS = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
@@ -85,7 +85,7 @@ def parse_openalex(data: dict) -> list[dict]:
 
 async def _search(queries: list[str]) -> tuple[list[dict], str]:
     """OpenAlex restricted to arXiv (fast, generous limits); the arXiv API is only a fallback (it rate-limits hard)."""
-    headers = {"User-Agent": "research-council/1.0 (hackathon demo)"}
+    headers = {"User-Agent": "research-deliberation/1.0 (hackathon demo)"}
     async with httpx.AsyncClient(timeout=10, headers=headers) as c:
         try:
             rs = await asyncio.gather(*[c.get(OPENALEX, params={

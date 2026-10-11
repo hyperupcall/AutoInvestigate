@@ -1959,19 +1959,19 @@
     "protocol": "A2A",
     "slim_groups_opened": 68,
     "endpoints": [
-      "council/agents/feasibility_scientist",
-      "council/agents/systems_architect",
-      "council/agents/ai_systems_researcher",
-      "council/agents/critical_reviewer",
-      "council/agents/technical_risk_partner",
-      "council/agents/market_revenue_partner",
-      "council/agents/competitive_strategy_partner",
-      "council/agents/horizon_returns_partner",
-      "council/agents/power_user",
-      "council/agents/enterprise_decision_maker",
-      "council/agents/skeptical_technical_critic",
-      "council/agents/startup_builder",
-      "council/agents/free_tier_maximizer"
+      "deliberation/agents/feasibility_scientist",
+      "deliberation/agents/systems_architect",
+      "deliberation/agents/ai_systems_researcher",
+      "deliberation/agents/critical_reviewer",
+      "deliberation/agents/technical_risk_partner",
+      "deliberation/agents/market_revenue_partner",
+      "deliberation/agents/competitive_strategy_partner",
+      "deliberation/agents/horizon_returns_partner",
+      "deliberation/agents/power_user",
+      "deliberation/agents/enterprise_decision_maker",
+      "deliberation/agents/skeptical_technical_critic",
+      "deliberation/agents/startup_builder",
+      "deliberation/agents/free_tier_maximizer"
     ]
   },
   "analysis": {

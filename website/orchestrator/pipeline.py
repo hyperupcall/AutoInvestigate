@@ -9,9 +9,9 @@
 The orchestrator only relays and records; agents and the summarizer/judge models do the thinking."""
 import asyncio
 
-from council import openrouter as orr
-from council import prompts, settings
-from council.openrouter import BudgetExceeded
+from deliberation import openrouter as orr
+from deliberation import prompts, settings
+from deliberation.openrouter import BudgetExceeded
 from orchestrator.run import Run, transcript_text
 
 

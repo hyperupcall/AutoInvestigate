@@ -63,7 +63,7 @@ ok "free"
 bold "5/6  Building and starting (the first build takes a few minutes)"
 mkdir -p data logs results
 dc up -d --build slim agent_host web
-want=$(dc exec -T web python -c "from council import settings; s=settings.load(); print(len({a['id'] for g in s['groups'] for a in g['agents']}))")
+want=$(dc exec -T web python -c "from deliberation import settings; s=settings.load(); print(len({a['id'] for g in s['groups'] for a in g['agents']}))")
 printf '  waiting for %s agents to register on SLIM ' "$want"
 for i in $(seq 1 90); do
   ready=$(dc logs agent_host 2>/dev/null | grep -c "agent ready" || true)
@@ -74,7 +74,7 @@ echo
 [ "$ready" -ge "$want" ] || fail "only $ready of $want agents came online. See: docker compose logs agent_host"
 for i in $(seq 1 30); do curl -s -o /dev/null http://localhost:8090/api/status && break; sleep 1; done
 curl -s -o /dev/null http://localhost:8090/api/status || fail "the web app is not answering. See: docker compose logs web"
-ok "$want agents online, each its own AGNTCY/SLIM endpoint (council/agents/<id>)"
+ok "$want agents online, each its own AGNTCY/SLIM endpoint (deliberation/agents/<id>)"
 
 bold "6/6  One tiny call to every configured model"
 if [ "${SKIP_SMOKE:-0}" = 1 ]; then ok "skipped"; else

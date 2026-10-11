@@ -6,8 +6,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from council.defaults import MCP_CATALOG, MCP_CATEGORIES, archetype_library, default_settings
-from council.prompts import ROOT
+from deliberation.defaults import MCP_CATALOG, MCP_CATEGORIES, archetype_library, default_settings
+from deliberation.prompts import ROOT
 
 # The single root .env holds every key (see ../.env.example). docker compose injects it via
 # env_file; loading it here too means a plain `python -m orchestrator.web` also sees it.
@@ -148,7 +148,7 @@ def public_view(s: dict) -> dict:
     for g in v["groups"]:
         for a in g["agents"]:
             a["api_key"] = _mask(a.get("api_key", ""))
-    from council.report import _prompt_info  # role question for display (e.g. the AutoInvestigate frontend)
+    from deliberation.report import _prompt_info  # role question for display (e.g. the AutoInvestigate frontend)
     for g in v["groups"]:
         for a in g["agents"]:
             a["question"] = _prompt_info(a).get("question")

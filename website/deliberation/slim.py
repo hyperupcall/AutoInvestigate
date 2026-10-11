@@ -5,7 +5,7 @@ from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill
 
 SLIM_SERVER = os.getenv("SLIM_SERVER", "localhost:46357")
 SLIM_SECRET = os.getenv("SLIM_SHARED_SECRET", "")
-NAMESPACE, GROUP = "council", "agents"
+NAMESPACE, GROUP = "deliberation", "agents"
 SILENT = "__SILENT__"  # executor output meaning "do not post to the group"
 
 

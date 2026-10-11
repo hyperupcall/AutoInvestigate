@@ -164,7 +164,7 @@
     if (report.agntcy) {
       out.agntcy = Object.assign({}, report.agntcy, {
         slim_groups_opened: groups.length,
-        endpoints: groups.flatMap((g) => (g.agents || []).map((a) => `council/agents/${a.id}`)),
+        endpoints: groups.flatMap((g) => (g.agents || []).map((a) => `deliberation/agents/${a.id}`)),
       });
     }
     if (report.cross_group) {

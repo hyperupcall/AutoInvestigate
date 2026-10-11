@@ -206,7 +206,7 @@ which of the groups take part is chosen per run (see Column 2).
 Agents can be given MCP servers to use. The catalog is curated from
 [Smithery](https://smithery.ai/servers) across three categories — **Academic
 Research**, **Finance** and **Reasoning** — and lives in `website/frontend/js/mcp-servers.js`
-(display) and `website/council/defaults.py` (`MCP_CATALOG`, the access source of
+(display) and `website/deliberation/defaults.py` (`MCP_CATALOG`, the access source of
 truth; the backend serves it in `/api/settings` as `mcp_catalog`, and the frontend
 prefers it when live).
 
@@ -229,13 +229,13 @@ Each agent carries `mcp_servers` (catalog ids), correlated with its role:
 | Market · Free-Tier Maximizer | EveryCalc, MonsiTools, Clear Thought |
 
 **Access:** the agent host (`website/agent_host/executor.py`) connects to the agent's
-servers over Streamable HTTP (`website/council/mcp.py`), lists their tools, and offers
-them to the model via OpenRouter tool-calling (`council/openrouter.py`
+servers over Streamable HTTP (`website/deliberation/mcp.py`), lists their tools, and offers
+them to the model via OpenRouter tool-calling (`deliberation/openrouter.py`
 `chat_with_tools`). Tool names are prefixed with the server id (`arxiv__search`) so
 two servers can expose the same name. It runs for the `evaluate` / `cross_review`
 stages only (deep mode), bounded by `mcp.max_tool_calls`, and is **fail-safe**: if a
 server is down or the call fails, the agent answers without tools. The Smithery key is
-read from `SMITH_API_KEY` in the root `.env` (`council/settings.py` `mcp_key()`); a
+read from `SMITH_API_KEY` in the root `.env` (`deliberation/settings.py` `mcp_key()`); a
 stored `mcp.api_key` is only a fallback. Other settings: `mcp.enabled`,
 `mcp.timeout_seconds`, `mcp.max_tool_calls`.
 
