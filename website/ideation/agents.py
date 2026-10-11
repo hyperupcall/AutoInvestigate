@@ -24,16 +24,25 @@ from deliberation import prompts as prompt_lib
 from deliberation import settings as delib_settings
 
 # The team. `model: None` means "use the daemon's configured model".
+# `mcp_servers` are ids from deliberation.defaults.MCP_CATALOG (the same catalog the
+# evaluation agents use); `skills` are directories under website/skills/ whose SKILL.md
+# is folded into the agent's system prompt. Both are shown in the Ideation View.
 AGENTS: List[Dict[str, Any]] = [
     {"id": "idea_generator", "name": "Idea Generator",
      "role": "Researches the idea and finalizes it — or replaces it with a better one.",
-     "prompt": "ideation/prompts/idea_generator.md", "model": None},
+     "prompt": "ideation/prompts/idea_generator.md", "model": None,
+     "mcp_servers": ["arxiv", "semantic-scholar", "thoughtbox"],
+     "skills": ["brainstorming"]},
     {"id": "builder", "name": "Builder",
      "role": "Scores how well the idea can be built as an MVP or artifact.",
-     "prompt": "ideation/prompts/builder.md", "model": None},
+     "prompt": "ideation/prompts/builder.md", "model": None,
+     "mcp_servers": ["arxiv", "crossref", "math-logic"],
+     "skills": ["launch-strategy"]},
     {"id": "analyzer", "name": "Analyzer",
      "role": "Researches the idea and judges whether it makes sense or is nonsense.",
-     "prompt": "ideation/prompts/analyzer.md", "model": None},
+     "prompt": "ideation/prompts/analyzer.md", "model": None,
+     "mcp_servers": ["citation-checker", "crossref", "logic-verifier", "invinoveritas"],
+     "skills": []},
 ]
 
 # The order the team speaks in each round: generate, then score, then analyze.
@@ -61,10 +70,14 @@ def thinking_for(agent_id: str, default_thinking: bool = True,
 def public_agents(default_model: str, agent_models: Optional[Dict[str, str]] = None,
                   default_thinking: bool = True,
                   agent_thinking: Optional[Dict[str, bool]] = None) -> List[Dict[str, Any]]:
-    """The agent roster the frontend draws as a graph (with each agent's resolved model and thinking)."""
+    """The agent roster the frontend draws as a graph (with each agent's resolved model,
+    thinking, starting prompt, skills and MCP servers)."""
     return [{"id": a["id"], "name": a["name"], "role": a["role"],
              "model": model_for(a["id"], default_model, agent_models),
-             "thinking": thinking_for(a["id"], default_thinking, agent_thinking)} for a in AGENTS]
+             "thinking": thinking_for(a["id"], default_thinking, agent_thinking),
+             "prompt": a["prompt"], "prompt_text": system_prompt(a),
+             "mcp_servers": list(a.get("mcp_servers") or []),
+             "skills": skill_info(a)} for a in AGENTS]
 
 
 # --------------------------------------------------------------- validation
@@ -130,10 +143,65 @@ def _run(coro):
     return asyncio.run(coro)
 
 
+def _skill_path(skill_id: str) -> str:
+    return f"skills/{skill_id}/SKILL.md"
+
+
+def skill_info(agent: Dict[str, Any]) -> List[Dict[str, str]]:
+    """The skills an agent can use, as {id, name, description} read from each SKILL.md."""
+    out = []
+    for sid in agent.get("skills") or []:
+        try:
+            text = prompt_lib.read(_skill_path(sid))
+        except OSError:
+            continue
+        name, description = _skill_frontmatter(text, sid)
+        out.append({"id": sid, "name": name, "description": description})
+    return out
+
+
+def _skill_frontmatter(text: str, fallback: str) -> tuple:
+    """The `name` and `description` from a SKILL.md's YAML frontmatter (best effort)."""
+    name, description = fallback.replace("-", " ").title(), ""
+    if not text.startswith("---"):
+        return name, description
+    block = text.split("---", 2)[1] if text.count("---") >= 2 else ""
+    for line in block.splitlines():
+        key, _, value = line.partition(":")
+        value = value.strip().strip('"').strip("'")
+        if key.strip() == "name" and value:
+            name = value
+        elif key.strip() == "description" and value:
+            description = value
+    return name, description
+
+
+def _skills_text(agent: Dict[str, Any]) -> str:
+    """The full text of each skill an agent can use, folded into its system prompt."""
+    blocks = []
+    for sid in agent.get("skills") or []:
+        try:
+            blocks.append(prompt_lib.read(_skill_path(sid)).strip())
+        except OSError:
+            continue
+    if not blocks:
+        return ""
+    return "## Skills you can use\n\n" + "\n\n---\n\n".join(blocks)
+
+
+def system_prompt(agent: Dict[str, Any]) -> str:
+    """The full starting prompt an agent is given: its role prompt, the message format,
+    and the text of any skills it can use."""
+    parts = [prompt_lib.read(agent["prompt"]).rstrip(),
+             prompt_lib.read("ideation/prompts/message_format.md").rstrip()]
+    skills = _skills_text(agent)
+    if skills:
+        parts.append(skills)
+    return "\n\n".join(parts)
+
+
 def _system(agent: Dict[str, Any]) -> str:
-    base = prompt_lib.read(agent["prompt"])
-    fmt = prompt_lib.read("ideation/prompts/message_format.md")
-    return base.rstrip() + "\n\n" + fmt
+    return system_prompt(agent)
 
 
 def format_signals(signals: List[Dict[str, Any]]) -> str:
@@ -165,16 +233,18 @@ def format_transcript(messages: List[Dict[str, Any]]) -> str:
 
 
 def run_agent(agent: Optional[Dict[str, Any]], user_prompt: str, *, model: str,
-              thinking: bool = True, budget: openrouter.RunBudget) -> Dict[str, Any]:
-    """One agent turn. Returns the parsed message (with agent_id/name/model attached)."""
+              thinking: bool = True, budget: openrouter.RunBudget,
+              mcp: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """One agent turn. Returns the parsed message (with agent_id/name/model attached).
+
+    When the agent has MCP servers and MCP is enabled, the model may call their tools
+    (fail-safe: any error falls back to a plain call)."""
     if agent is None:
         raise ValueError("unknown agent")
     messages = [{"role": "system", "content": _system(agent)},
                 {"role": "user", "content": user_prompt}]
     validate = VALIDATORS.get(agent["id"], validate_message)
-    obj, res = _run(openrouter.chat_json(
-        model, messages, _key(), validate=validate,
-        max_tokens=2200, reasoning_effort=_effort(thinking), budget=budget))
+    obj, res = _run(_chat_json(agent, messages, model, thinking, budget, validate, mcp or {}))
     if not isinstance(obj, dict):
         raise openrouter.OpenRouterError(f"{agent['id']}: no JSON message returned")
     obj["agent_id"] = agent["id"]
@@ -184,6 +254,42 @@ def run_agent(agent: Optional[Dict[str, Any]], user_prompt: str, *, model: str,
     obj.setdefault("justification", [])
     obj.setdefault("sources", [])
     return obj
+
+
+async def _chat_json(agent: Dict[str, Any], messages: List[Dict[str, Any]], model: str,
+                     thinking: bool, budget: openrouter.RunBudget, validate, mcp: Dict[str, Any]):
+    """A JSON reply, using the agent's MCP tools when it has any and they are enabled."""
+    kw: Dict[str, Any] = {"max_tokens": 2200, "reasoning_effort": _effort(thinking), "budget": budget}
+    ids = agent.get("mcp_servers") or []
+    if ids and mcp.get("enabled", True):
+        got = await _chat_json_with_tools(agent, messages, model, ids, validate, mcp, kw)
+        if got is not None:
+            return got
+    return await openrouter.chat_json(model, messages, _key(), validate=validate, **kw)
+
+
+async def _chat_json_with_tools(agent: Dict[str, Any], messages: List[Dict[str, Any]], model: str,
+                                ids: List[str], validate, mcp: Dict[str, Any], kw: Dict[str, Any]):
+    """Try the agent's MCP servers; return (obj, result) on a valid JSON reply, else None."""
+    from deliberation.defaults import MCP_CATALOG
+    from deliberation.mcp import MCPToolbox
+    catalog = {m["id"]: m for m in MCP_CATALOG}
+    servers = [catalog[i] for i in ids if i in catalog]
+    if not servers:
+        return None
+    try:
+        async with MCPToolbox(servers, delib_settings.mcp_key({}), mcp.get("timeout_seconds", 20)) as box:
+            if not box.tools:
+                return None
+            res = await openrouter.chat_with_tools(
+                model, messages, _key(), box.tools, box.call,
+                max_tool_calls=int(mcp.get("max_tool_calls", 2)), **kw)
+            obj = openrouter.extract_json(res.text)
+            if obj is not None and validate(obj) is None:
+                return obj, res
+    except Exception:  # never let MCP break a session
+        return None
+    return None
 
 
 def parse_sources(signals: List[Dict[str, Any]]) -> List[Dict[str, str]]:
@@ -265,3 +371,59 @@ def draft_topic(description: str, *, model: str, thinking: bool = True,
         "model": model,
         "cost": res.cost,
     }
+
+
+# ------------------------------------------------------------- topic finder
+def format_material(recent: List[Dict[str, Any]], trending: List[Dict[str, Any]],
+                    text_limit: int = 400) -> str:
+    """What the topic finder reads: the signals the team has already seen, plus a broad
+    'what is happening right now' fetch. Each signal's text is trimmed so the prompt stays small."""
+    def block(title: str, signals: List[Dict[str, Any]]) -> str:
+        if not signals:
+            return ""
+        lines = []
+        for i, s in enumerate(signals, 1):
+            text = (s.get("text") or "").strip()
+            if len(text) > text_limit:
+                text = text[:text_limit].rstrip() + "…"
+            lines.append(f"[{i}] {s.get('title', '')}  ({s.get('source', '')})\n    {text}")
+        return f"{title}\n" + "\n".join(lines)
+
+    parts = [block("RECENT SIGNALS THE TEAM HAS ALREADY SEEN:", recent),
+             block("WHAT IS TRENDING ON THE INTERNET RIGHT NOW:", trending)]
+    return "\n\n".join(p for p in parts if p) or "(no material was available)"
+
+
+def validate_topics(obj: Any) -> Optional[str]:
+    if not isinstance(obj, dict):
+        return "reply must be a JSON object"
+    topics = obj.get("topics")
+    if not isinstance(topics, list) or not topics:
+        return "topics must be a non-empty list"
+    for t in topics:
+        if not isinstance(t, dict) or not str(t.get("name", "")).strip():
+            return "each topic needs a name"
+        if not str(t.get("description", "")).strip():
+            return "each topic needs a description"
+        if not isinstance(t.get("keywords"), list):
+            return "each topic needs a keywords list"
+    return None
+
+
+def find_topics(material: str, existing: List[Dict[str, Any]], *, model: str,
+                thinking: bool = True, budget: openrouter.RunBudget) -> Dict[str, Any]:
+    """The topic finder: read the internet material and propose new watchlist topics.
+
+    Topics combine one or two things and do not need to be small (see the prompt)."""
+    system = prompt_lib.read("ideation/prompts/topic_finder.md")
+    names = "\n".join(f"- {t.get('name', '')}: {t.get('description', '')}" for t in existing) or "(none yet)"
+    user = (f"EXISTING TOPICS (do not repeat these):\n{names}\n\n"
+            f"WHAT IS HAPPENING ON THE INTERNET RIGHT NOW:\n{material}\n\n"
+            "Propose the topics now.")
+    obj, res = _run(openrouter.chat_json(
+        model, [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        _key(), validate=validate_topics, max_tokens=2200,
+        reasoning_effort=_effort(thinking), budget=budget))
+    if not isinstance(obj, dict):
+        raise openrouter.OpenRouterError("topic finder returned no JSON object")
+    return {"topics": obj.get("topics", []), "model": model, "cost": res.cost}

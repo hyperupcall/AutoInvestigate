@@ -8,6 +8,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 COPY . /app/artifactfactory/
+COPY docker-entrypoint.py /app/docker-entrypoint.py
 
 # Bind to all interfaces so the port is reachable from outside the container.
 # Defaults for data/artifacts resolve to /app/_artifactfactory-data and

@@ -124,7 +124,7 @@ Complex** tab). Prompts: `prompts/system/complex_usefulness.md`, `complex_conver
 | `POST /api/evaluate` `{"idea": "...", "overrides": {"deliberation_seconds": 20, "summarizer_model": "...", "group_ids": ["research"]}}` | start (up to 3 at once) |
 | `POST /api/stop` `{"run_id": "..."}` | cancel |
 | `POST /api/finalize` `{"run_id": "..."}` | stop the swarm and write the final verdict (not a cancel) |
-| `GET /api/status`, `GET /api/runs` | what is running, past runs |
+| `GET /api/status`, `GET /api/runs` | what is running (with the number of active agents), past runs |
 | `GET /api/ui/runs/<id>/events?since=N` | live events in the frontend's shape (`orchestrator/compat.py`) |
 | `GET /api/runs/<id>/report` | the report, `schema/evaluation-report.schema.json` |
 | `GET /api/runs/<id>/events?since=N` | raw event log |

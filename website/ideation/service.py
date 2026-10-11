@@ -12,6 +12,7 @@ as an event and the session carries on with what it has.
 import json
 import os
 import threading
+import time
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -23,7 +24,9 @@ from .store import now_iso
 # Settings that can be changed from the Ideation View. Persisted next to the database.
 SETTING_FIELDS = ("model", "thinking", "poll_interval_seconds", "max_cost_usd", "rounds",
                   "signals_per_topic", "autostart", "agent_models", "agent_thinking",
-                  "topic_model", "topic_thinking")
+                  "topic_model", "topic_thinking", "mcp_enabled", "mcp_max_tool_calls",
+                  "mcp_timeout_seconds", "finder_model", "finder_thinking",
+                  "discovery_enabled", "discovery_interval_seconds")
 # Fields whose value is a map of agent id -> value (filtered against the known agents).
 AGENT_MAP_FIELDS = ("agent_models", "agent_thinking")
 
@@ -38,6 +41,8 @@ class Service:
         self.store = store
         self._lock = threading.RLock()
         self._running: set[str] = set()   # session ids currently running
+        self._last_discovery_at: Optional[float] = None   # monotonic time of the last topic-finder run
+        self._last_discovery: Optional[Dict[str, Any]] = None
 
     # ------------------------------------------------------------- polling
     def poll_topic(self, topic: Dict[str, Any], limit_per_source: int = 5) -> int:
@@ -53,8 +58,14 @@ class Service:
         return new
 
     def run_cycle(self, trigger: str = "schedule") -> Dict[str, Any]:
-        """Poll every enabled topic; run a session for any topic that found new signals."""
-        summary = {"trigger": trigger, "topics": [], "sessions": []}
+        """Poll every enabled topic; run a session for any topic that found new signals.
+        The topic finder runs first when it is due, so a topic it adds is polled in the same cycle."""
+        summary = {"trigger": trigger, "topics": [], "sessions": [], "discovery": None}
+        if self.config.discovery_enabled and self._discovery_due():
+            try:
+                summary["discovery"] = self.find_topics(trigger=trigger)
+            except Exception as exc:  # noqa: BLE001 - a failed discovery must not stop the cycle
+                summary["discovery"] = {"error": str(exc)}
         for topic in self.store.list_topics(enabled_only=True):
             new = self.poll_topic(topic)
             summary["topics"].append({"id": topic["id"], "name": topic["name"], "new_signals": new})
@@ -142,7 +153,10 @@ class Service:
                 try:
                     msg = agents.run_agent(
                         agent, self._prompt_for(agent_id, topic, transcript, signals, remembered, r),
-                        model=self._model(agent_id), thinking=self._thinking(agent_id), budget=budget)
+                        model=self._model(agent_id), thinking=self._thinking(agent_id), budget=budget,
+                        mcp={"enabled": self.config.mcp_enabled,
+                             "max_tool_calls": self.config.mcp_max_tool_calls,
+                             "timeout_seconds": self.config.mcp_timeout_seconds})
                     transcript.append(msg)
                     round_turns.append(msg)
                     self._emit(session_id, "turn", self._turn_event(msg, round=r))
@@ -270,6 +284,64 @@ class Service:
                       for i in result.get("ideas", [])],
         }
 
+    # ------------------------------------------------------- topic finder
+    def find_topics(self, trigger: str = "manual") -> Dict[str, Any]:
+        """The topic finder: read the internet and add the topics it proposes.
+
+        Topics combine one or two things and do not need to be small (see the prompt).
+        Deduplicated against the existing watchlist by name."""
+        budget = openrouter.RunBudget(self.config.max_cost_usd)
+        material = self._discovery_material()
+        result = agents.find_topics(material, self.store.list_topics(), model=self._finder_model(),
+                                    thinking=self.config.finder_thinking, budget=budget)
+        added = []
+        for raw in result["topics"]:
+            topic = self._topic_from_finder(raw)
+            if topic is None or self._topic_exists(topic["name"]):
+                continue
+            self.store.add_topic(topic)
+            added.append(topic)
+        self._last_discovery_at = time.monotonic()
+        self._last_discovery = {"added": added, "model": result["model"],
+                                "cost": result["cost"], "trigger": trigger}
+        return self._last_discovery
+
+    def _discovery_due(self) -> bool:
+        if self._last_discovery_at is None:
+            return True
+        return (time.monotonic() - self._last_discovery_at) >= self.config.discovery_interval_seconds
+
+    def _discovery_material(self) -> str:
+        """What the finder reads: the signals the team has seen, plus a broad trending fetch."""
+        recent = self.store.list_signals(limit=self.config.discovery_signals)
+        try:
+            trending = sources.trending(self.config.discovery_trending)
+        except Exception:  # noqa: BLE001 - a dead source must not stop discovery
+            trending = []
+        return agents.format_material(recent, trending)
+
+    def _topic_from_finder(self, raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        name = str(raw.get("name", "")).strip()
+        if not name:
+            return None
+        valid = set(sources.ADAPTERS)
+        srcs = [s for s in (raw.get("sources") or []) if s in valid] or list(valid)
+        return {
+            "id": new_id("topic"), "name": name,
+            "description": str(raw.get("description", "")).strip(),
+            "tags": [str(t).strip() for t in (raw.get("tags") or []) if str(t).strip()][:6],
+            "keywords": [str(k).strip() for k in (raw.get("keywords") or []) if str(k).strip()][:8],
+            "sources": srcs, "priority": 2, "enabled": 1,
+            "origin": "finder", "rationale": str(raw.get("rationale", "")).strip(),
+        }
+
+    def _topic_exists(self, name: str) -> bool:
+        wanted = name.strip().lower()
+        return any(t["name"].strip().lower() == wanted for t in self.store.list_topics())
+
+    def _finder_model(self) -> str:
+        return self.config.finder_model or self.config.model
+
     # ------------------------------------------------------------ settings
     def _settings_path(self) -> str:
         return os.path.join(self.config.data_dir, "settings.json")
@@ -313,11 +385,13 @@ class Service:
                          if k in known and str(v).strip()}
             elif key == "agent_thinking":
                 value = {str(k): bool(v) for k, v in (value or {}).items() if k in known}
-            elif key in ("poll_interval_seconds", "rounds", "signals_per_topic"):
+            elif key in ("poll_interval_seconds", "rounds", "signals_per_topic",
+                         "mcp_max_tool_calls", "mcp_timeout_seconds", "discovery_interval_seconds"):
                 value = int(value)
             elif key == "max_cost_usd":
                 value = float(value)
-            elif key in ("autostart", "thinking", "topic_thinking"):
+            elif key in ("autostart", "thinking", "topic_thinking", "mcp_enabled",
+                         "finder_thinking", "discovery_enabled"):
                 value = bool(value)
             setattr(self.config, key, value)
         os.makedirs(self.config.data_dir, exist_ok=True)
@@ -337,6 +411,10 @@ class Service:
             "ideas": len(self.store.list_ideas(limit=100000)),
             "memory": len(self.store.list_memory(limit=100000)),
             "running_sessions": running,
+            "running_agents": len(running) * len(agents.AGENTS),
             "poll_interval_seconds": self.config.poll_interval_seconds,
             "model": self.config.model,
+            "discovery": {"enabled": self.config.discovery_enabled,
+                          "interval_seconds": self.config.discovery_interval_seconds,
+                          "last": self._last_discovery},
         }

@@ -45,9 +45,10 @@ In Docker it is the `ideation` service (built from `./website`, command
 container running as your user cannot write to it. The service therefore starts as
 root and runs `website/docker-entrypoint.py`, which chowns `_ideation-data` to
 `HOST_UID:HOST_GID` and then drops to that user — so the database ends up owned by
-you on the host. If you already have a root-owned `_ideation-data/` from an earlier
-run, either rebuild (`docker compose up --build ideation`) or fix it once with
-`sudo chown -R "$(id -u):$(id -g)" _ideation-data`.
+you on the host. The same entrypoint (with `CHOWN_DIRS`) fixes the evaluation and
+artifact-factory services. If you already have a root-owned directory from an earlier
+run, either rebuild (`docker compose up --build`) or fix it once with the helper:
+`./fix-permissions.sh` (from the repo root).
 
 ## How it works
 
@@ -64,6 +65,10 @@ scheduler ──► cycle ──► poll sources (arXiv · HN · Reddit · news)
 - **A cycle** polls every enabled topic's sources and stores the new signals
   (deduplicated by a hash of the URL/title). A topic that found something new gets a
   session. The scheduler runs a cycle every `ID_POLL_INTERVAL` seconds (default 900).
+- **The topic finder** runs first, when it is due (every `discovery_interval_seconds`,
+  default 1h): it reads the newest signals and a broad "what is trending right now"
+  fetch, and proposes new watchlist topics. A topic it adds is polled in the same cycle.
+  It is on by default; turn it off in Settings or with `ID_DISCOVERY_ENABLED=0`.
 - **A session** is the team working together. Three agents speak in a fixed order, round
   by round, each building on what the others said — they collaborate, they do not compete:
   - **Idea Generator** — given a description of the idea, does extra research and
@@ -73,6 +78,25 @@ scheduler ──► cycle ──► poll sources (arXiv · HN · Reddit · news)
 
 The final idea is the generator's latest; the build score and the analysis come from
 last round's Builder and Analyzer.
+
+## The topic finder
+
+The watchlist is not a fixed list. A **topic finder** agent runs on its own and adds
+topics by reading the internet — the newest signals the team has seen plus a broad
+fetch of what is trending (Hacker News front page, recent arXiv). It is the same idea
+as the **+ Add Topic** drafter, but it starts from the internet instead of from you.
+
+A topic is a **combination of one or two things** — a technology and a use case, a
+library and a domain. **Topics do not need to be small.** The prompt
+(`prompts/topic_finder.md`) is explicit: a topic like *"using a Rust library to
+implement and validate a quick idea"* is exactly right — it combines two things and
+leaves room for the team to find the idea. It rejects bare generic words and single
+over-specific artifacts.
+
+Every topic the finder adds carries `origin: "finder"` and a `rationale` (the signal
+that prompted it), shown in the Ideation View. Topics are deduplicated against the
+existing watchlist by name. Run it now with the **Find topics** button or
+`POST /api/topics/discover`.
 
 ## The message format
 
@@ -111,6 +135,11 @@ multi-threaded (the HTTP server and the scheduler both touch it).
 | `ID_MODEL` | | `openai/gpt-oss-120b` | Default model for the agents |
 | `ID_ROUNDS` | | `2` | Refinement rounds per session |
 | `ID_SIGNALS_PER_TOPIC` | | `12` | Newest signals fed to a session |
+| `ID_MCP_ENABLED` | | `1` | Let agents call their MCP servers' tools |
+| `ID_MCP_MAX_TOOL_CALLS` | | `2` | Tool calls per agent turn |
+| `ID_MCP_TIMEOUT` | | `20` | Per MCP server connection timeout (seconds) |
+| `ID_DISCOVERY_ENABLED` | | `1` | Let the topic finder add topics on its own |
+| `ID_DISCOVERY_INTERVAL` | | `3600` | Seconds between topic-finder runs |
 
 Model calls use `OPENROUTER_API_KEY` from the root `.env` (the same single key every
 service uses). Without a key, the daemon still runs — sessions record the failure and
@@ -128,6 +157,23 @@ The **Settings** button in the Ideation View opens the daemon's settings, saved 
   offered come from `website/frontend/js/model-info.js`.
 - **Daemon** — the poll interval, the per-session cost cap, the refinement rounds, the
   signals fed to a session, and whether the scheduler starts with the daemon.
+- **Topic finder** — whether the finder adds topics on its own, how often it runs, and
+  the model it uses (with a **Thinking** toggle).
+- **MCP servers** — whether agents may call the tools of the MCP servers assigned to them,
+  how many tool calls each agent turn may make, and the per-server timeout.
+
+### What each agent is given
+
+Clicking an agent in a session shows, beside its messages, the **starting prompt** it is
+sent (its role prompt, the message format, and the text of any skills it can use) and the
+**skills and MCP servers it can access**. The same is shown under each agent in Settings.
+
+- **Skills** are directories under `website/skills/`; each agent's `skills` list names the
+  ones whose `SKILL.md` is folded into its system prompt (see `ideation/agents.py`).
+- **MCP servers** are ids from the shared catalog (`deliberation/defaults.py` `MCP_CATALOG`,
+  the same one the evaluation agents use). When MCP is enabled, the agent connects to its
+  servers over Streamable HTTP and may call their tools (`deliberation/mcp.py`); it is
+  fail-safe — a server that is down just contributes no tools.
 
 The same values are available over the API: `GET /api/settings` returns the settings
 plus the resolved agent roster; `PUT /api/settings` accepts any subset (an
@@ -141,6 +187,7 @@ plus the resolved agent roster; `PUT /api/settings` accepts any subset (an
 | GET | `/info`, `/health` | Service info; health |
 | GET/POST | `/api/topics` | List / create topics |
 | POST | `/api/topics/draft` | Draft a topic (name, description, tags, keywords) from a description |
+| POST | `/api/topics/discover` | Run the topic finder now: read the internet and add new topics |
 | PUT/DELETE | `/api/topics/{id}` | Update / delete a topic |
 | GET | `/api/ideas`, `/api/ideas/{id}` | Generated ideas |
 | GET | `/api/tree` | The ideas as the frontend's level tree (abstract at 1, concrete at 2) |
@@ -151,7 +198,7 @@ plus the resolved agent roster; `PUT /api/settings` accepts any subset (an
 | GET | `/api/sessions/{id}/report` | The session report |
 | POST | `/api/generate` | The Part 1 generation contract |
 | POST | `/api/poll` | Run a cycle now |
-| GET | `/api/status` | Daemon + scheduler status |
+| GET | `/api/status` | Daemon + scheduler status (incl. `running_agents`) |
 | GET/PUT | `/api/settings` | The daemon's settings |
 
 Errors are JSON: `{"error": "..."}` with `400` (bad input), `404` (missing),

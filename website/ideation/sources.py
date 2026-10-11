@@ -130,6 +130,59 @@ def news(topic: Dict[str, Any], limit: int = 5) -> List[Dict[str, Any]]:
 ADAPTERS = {"arxiv": arxiv, "hackernews": hackernews, "reddit": reddit, "news": news}
 
 
+# ------------------------------------------------------------------ trending
+# Broad "what is happening right now" material for the topic finder — not tied to a
+# topic. These are the same free APIs the adapters use, queried without a keyword.
+def _trending_hackernews(limit: int) -> List[Dict[str, Any]]:
+    url = "https://hn.algolia.com/api/v1/search"
+    try:
+        r = httpx.get(url, params={"tags": "front_page", "hitsPerPage": limit},
+                      timeout=TIMEOUT, headers={"User-Agent": UA})
+        r.raise_for_status()
+        hits = r.json().get("hits", [])
+    except Exception:
+        return []
+    out = []
+    for h in hits:
+        title = h.get("title") or h.get("story_title") or ""
+        link = h.get("url") or f"https://news.ycombinator.com/item?id={h.get('objectID')}"
+        out.append(_signal("hackernews", title, link, h.get("story_text") or "", h.get("created_at", "")))
+    return out
+
+
+def _trending_arxiv(limit: int) -> List[Dict[str, Any]]:
+    url = "http://export.arxiv.org/api/query"
+    params = {"search_query": "cat:cs.AI OR cat:cs.LG OR cat:cs.SE OR cat:cs.DC",
+              "sortBy": "submittedDate", "sortOrder": "descending", "max_results": limit}
+    try:
+        r = httpx.get(url, params=params, timeout=TIMEOUT, headers={"User-Agent": UA})
+        r.raise_for_status()
+        root = ET.fromstring(r.text)
+    except Exception:
+        return []
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    out = []
+    for entry in root.findall("a:entry", ns):
+        out.append(_signal("arxiv",
+                           entry.findtext("a:title", default="", namespaces=ns),
+                           entry.findtext("a:id", default="", namespaces=ns),
+                           entry.findtext("a:summary", default="", namespaces=ns),
+                           entry.findtext("a:published", default="", namespaces=ns)))
+    return out
+
+
+def trending(limit: int = 12) -> List[Dict[str, Any]]:
+    """The newest front-page stories and papers, with no keyword — the raw material the
+    topic finder reads to propose new topics. Fail-safe: a dead source contributes nothing."""
+    out: List[Dict[str, Any]] = []
+    for fetch in (_trending_hackernews, _trending_arxiv):
+        try:
+            out.extend(fetch(limit))
+        except Exception:
+            continue
+    return out
+
+
 def poll_topic(topic: Dict[str, Any], limit_per_source: int = 5) -> List[Dict[str, Any]]:
     """Poll every source the topic enables. Returns the signals found (may be empty)."""
     out: List[Dict[str, Any]] = []

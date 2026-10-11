@@ -1,12 +1,13 @@
 /* components/navbar.js — the app header (navbar), shared by every page so it looks
  * the same everywhere: the brand on the left, the primary links (Agent View,
- * Artifact Factory) in the middle, and the actions (backend badge, Information,
- * Settings) on the right. The links open in the same tab.
+ * Artifact Factory) in the middle, and the actions (agents running, backend badge,
+ * Information, Settings) on the right. The links open in the same tab.
  *
  * The workspace (index.html) mounts it from app.js; the other pages mount it from
  * shell.js. The backend badge and the Agent View href follow the detected backend
  * (Hack.backendInfo, set by api-backend.js), so the header stays correct on every
- * page without each page wiring it up itself. */
+ * page without each page wiring it up itself. The "agents running" badge polls the
+ * reachable backends' /api/status and shows the total number of active agents. */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
   Hack.components = Hack.components || {};
@@ -44,6 +45,53 @@
     if (document.getElementById('col-generation')) e.preventDefault();
   }
 
+  /* ---- how many agents are running, across the reachable backends ---- */
+  // Each service is probed at the same origin first, then at its default port. The `service`
+  // field in the reply tells the two apart when a page is served by one of them.
+  const SERVICES = [
+    { name: 'Evaluation', expect: 'evaluation', candidates: ['', 'http://localhost:8090'], pick: (s) => s.agents || 0 },
+    { name: 'Ideation', expect: 'ideation', candidates: ['', 'http://localhost:8091'], pick: (s) => s.running_agents || 0 },
+  ];
+  const agents = { total: 0, parts: [] };
+  let agentsTimer = null;
+
+  async function probe(base, expect) {
+    try {
+      const r = await fetch(base + '/api/status', { cache: 'no-store' });
+      if (!r.ok) return null;
+      const body = await r.json();
+      if (body.service !== expect) return null;  // the other service (or something else) answered
+      return body;
+    } catch (e) { return null; }
+  }
+
+  async function loadAgents() {
+    const parts = await Promise.all(SERVICES.map(async (svc) => {
+      for (const base of svc.candidates) {
+        const body = await probe(base, svc.expect);
+        if (body) return { name: svc.name, count: svc.pick(body) };
+      }
+      return { name: svc.name, count: 0, offline: true };
+    }));
+    agents.parts = parts;
+    agents.total = parts.reduce((n, p) => n + p.count, 0);
+    renderAgents();
+  }
+
+  function renderAgents() {
+    const host = document.getElementById('agents-running');
+    if (!host) return;
+    const n = agents.total;
+    const online = agents.parts.filter((p) => !p.offline);
+    host.className = 'agents-running' + (n ? ' active' : '');
+    host.title = online.length
+      ? 'Agents running — ' + online.map((p) => `${p.name}: ${p.count}`).join(' · ')
+      : 'No backend reachable';
+    clear(host);
+    if (n) host.appendChild(el('span', { class: 'dot-pulse' }));
+    host.appendChild(el('span', { text: n === 1 ? '1 agent running' : `${n} agents running` }));
+  }
+
   function render() {
     if (!root) return;
     const info = Hack.backendInfo || { live: false, base: '' };
@@ -67,6 +115,7 @@
     ]));
 
     root.appendChild(el('div', { class: 'header-actions' }, [
+      el('span', { class: 'agents-running', id: 'agents-running', title: 'Agents running across the backends' }),
       el('span', {
         class: 'mock-badge',
         id: 'backend-badge',
@@ -78,12 +127,16 @@
       headerButton('open-info', 'Information', 'App, backend and model information', () => open('openInfo', 'index.html')),
       headerButton('open-settings', 'Settings', 'Models, keys, groups and MCP servers', () => open('openSettings', 'index.html')),
     ]));
+    renderAgents();
   }
 
   function mount(container) {
     root = container;
     lastSignature = null;
     render();
+    if (agentsTimer) clearInterval(agentsTimer);
+    loadAgents();
+    agentsTimer = setInterval(loadAgents, 5000);
   }
 
   Hack.components.navbar = { mount, render };

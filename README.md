@@ -48,6 +48,27 @@ to `./_artifacts` and `./_artifactfactory-data` on the host. Stop with `docker c
 Each service also has its own Dockerfile (`artifactfactory/`, `website/frontend/`,
 `website/`, `evalreport/`) if you want to build or run one on its own.
 
+### Permission errors
+
+Docker creates a bind-mount source directory as `root` when it does not already exist,
+so a container running as you cannot write to it. You then see errors like
+`PermissionError: [Errno 13] Permission denied: 'logs/runs'` or
+`sqlite3.OperationalError: unable to open database file`. The services fix this on
+startup — their entrypoint chowns the mounted dirs (`logs`, `website/data`,
+`website/council_results`, `_artifacts`, `_artifactfactory-data`, `_ideation-data`) to
+`HOST_UID:HOST_GID` and then drops to that user — so a rebuild repairs it:
+
+```bash
+docker compose up -d --build
+```
+
+To repair the directories without rebuilding, run the helper script:
+
+```bash
+./fix-permissions.sh            # create + own every mounted directory
+./fix-permissions.sh --restart  # ...and rebuild + restart the services
+```
+
 ## Run on macOS/Linux
 ```bash
 cd outshift_research_intelligence

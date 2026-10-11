@@ -3,7 +3,7 @@
   POST /api/evaluate   {"idea": "...", "overrides": {"deliberation_seconds": 20, "summarizer_model": "..."}}
   POST /api/stop       {"run_id": "..."}  (no run_id: stop every running evaluation)
   POST /api/finalize   {"run_id": "..."}  (no run_id: every running evaluation) stop the swarm and write the verdict
-  GET  /api/status                        {"running": bool, "run_id": newest running, "running_ids": [...]}
+  GET  /api/status                        {"running": bool, "run_id": newest running, "running_ids": [...], "agents": N}
   GET  /api/runs                          past and current runs, newest first
   GET  /api/runs/<id>/events?since=N      our raw events after index N
   GET  /api/runs/<id>/report              the run's JSON report (schema/evaluation-report.schema.json)
@@ -45,6 +45,21 @@ _models = {"at": 0.0, "data": []}
 
 def running_ids() -> list[str]:
     return [rid for rid, (_, f) in RUNS.items() if not f.done()]
+
+
+def running_agents() -> dict:
+    """How many agents are active across the running evaluations: the swarm agents and the
+    Evaluation Complex stewards (which run in parallel to the swarm)."""
+    swarm = stewards = 0
+    for rid in running_ids():
+        run = RUNS.get(rid, (None, None))[0]
+        if run is None:
+            continue
+        swarm += sum(len(g.get("agents", [])) for g in run.s.get("groups", []))
+        cx = run.s.get("complex") or {}
+        if cx.get("enabled"):
+            stewards += len(cx.get("stewards", []))
+    return {"swarm": swarm, "stewards": stewards, "total": swarm + stewards}
 
 
 def apply_overrides(s: dict, o: dict) -> tuple[dict, str | None]:
@@ -151,7 +166,11 @@ def models() -> list[dict]:
     return _models["data"]
 
 
-CORS_ORIGINS = {o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:8000,http://127.0.0.1:8000").split(",") if o.strip()}
+CORS_ORIGINS = {o.strip() for o in os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:8000,http://127.0.0.1:8000,"
+    "http://localhost:8080,http://127.0.0.1:8080,"
+    "http://localhost:8091,http://127.0.0.1:8091").split(",") if o.strip()}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -202,8 +221,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._file(STATIC, "index.html")  # no frontend mounted: the live view is the home page
         if path == "/api/status":
             ids = running_ids()
-            return self._send(200, {"running": bool(ids), "run_id": ids[-1] if ids else None, "running_ids": ids,
-                                    "max_parallel": MAX_PARALLEL})
+            agents = running_agents()
+            return self._send(200, {"service": "evaluation", "running": bool(ids), "run_id": ids[-1] if ids else None,
+                                    "running_ids": ids, "max_parallel": MAX_PARALLEL,
+                                    "agents": agents["total"], "swarm_agents": agents["swarm"],
+                                    "stewards": agents["stewards"]})
         if path == "/api/runs":
             return self._send(200, list_runs())
         parts = path.strip("/").split("/")

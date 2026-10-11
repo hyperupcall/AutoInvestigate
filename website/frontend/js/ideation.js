@@ -158,13 +158,19 @@
       for (const t of state.topics) {
         host.appendChild(el('div', { class: 'ideation-topic' + (t.enabled ? '' : ' off') }, [
           el('div', { class: 'ideation-topic-head' }, [
-            el('span', { class: 'ideation-topic-name', text: t.name }),
+            el('span', { class: 'ideation-topic-title' }, [
+              el('span', { class: 'ideation-topic-name', text: t.name }),
+              t.origin === 'finder'
+                ? el('span', { class: 'ideation-origin', title: t.rationale || 'Found by the topic finder', text: 'found' })
+                : null,
+            ]),
             el('button', {
               class: 'mini-btn', text: 'Run session', title: 'Start a refinement session for this topic',
               onclick: () => runSession(t.id),
             }),
           ]),
           t.description ? el('p', { class: 'ideation-topic-desc muted small', text: t.description }) : null,
+          t.rationale ? el('p', { class: 'ideation-topic-rationale muted small', text: '↳ ' + t.rationale }) : null,
           el('div', { class: 'ideation-tags' }, (t.tags || []).map((tag) => el('span', { class: 'ideation-tag', text: tag }))),
         ]));
       }
@@ -292,6 +298,23 @@
     } catch (e) {
       alert('Could not start the session: ' + e.message);
     }
+  }
+
+  /** Ask the topic finder to read the internet and propose new topics. */
+  async function discoverTopics() {
+    const btn = document.getElementById('ideation-discover');
+    if (btn) { btn.disabled = true; btn.textContent = 'Finding…'; }
+    try {
+      const r = await post('/api/topics/discover');
+      const n = (r.added || []).length;
+      if (Hack.actions && Hack.actions.showToast) {
+        Hack.actions.showToast(n ? `Found ${n} new topic${n === 1 ? '' : 's'}.` : 'No new topics found.', n ? 'ok' : 'warn');
+      }
+      await load();
+    } catch (e) {
+      if (Hack.actions && Hack.actions.showToast) Hack.actions.showToast('Could not find topics: ' + e.message, 'error');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Find topics'; }
   }
 
   function renderSession(host) {
@@ -439,14 +462,17 @@
 
   function renderAgentStream(agent, turns) {
     if (!agent) return el('div', { class: 'agent-stream empty-state small' }, [el('p', { class: 'muted', text: 'No agents.' })]);
+    const a = agentDetail(agent);
     const chars = turns.reduce((n, t) => n + ((t.context || '').length), 0);
     const head = el('div', { class: 'agent-stream-head' }, [
-      el('div', { class: 'agent-stream-name', text: agent.name }),
-      el('div', { class: 'agent-stream-model', text: agent.model || '' }),
+      el('div', { class: 'agent-stream-name', text: a.name }),
+      el('div', { class: 'agent-stream-model', text: a.model || '' }),
       el('div', { class: 'agent-stream-stats muted small', text: `${turns.length} messages · ${formatCount(chars)} chars` }),
     ]);
     const about = el('div', { class: 'agent-stream-about' }, [
-      agent.role ? el('p', { class: 'cluster-agent-who muted small', text: agent.role }) : null,
+      a.role ? el('p', { class: 'cluster-agent-who muted small', text: a.role }) : null,
+      renderAgentCapabilities(a),
+      renderAgentPrompt(a),
     ]);
     const body = el('div', { class: 'agent-stream-body' });
     if (!turns.length) {
@@ -455,6 +481,49 @@
       turns.forEach((t) => body.appendChild(renderTurn(t)));
     }
     return el('div', { class: 'agent-stream' }, [head, about, body]);
+  }
+
+  /** The session's agent record, enriched with the roster's prompt/skills/mcp when missing. */
+  function agentDetail(agent) {
+    if (!agent) return agent;
+    const known = ((state.settings && state.settings.agents) || []).find((x) => x.id === agent.id) || {};
+    return Object.assign({}, known, agent, {
+      prompt_text: agent.prompt_text || known.prompt_text,
+      mcp_servers: (agent.mcp_servers && agent.mcp_servers.length) ? agent.mcp_servers : (known.mcp_servers || []),
+      skills: (agent.skills && agent.skills.length) ? agent.skills : (known.skills || []),
+    });
+  }
+
+  /** The skills and MCP servers an agent can access. */
+  function renderAgentCapabilities(agent) {
+    const mcp = (Hack.mcpServers && Hack.mcpServers.forAgent(agent)) || [];
+    const skills = agent.skills || [];
+    if (!mcp.length && !skills.length) return null;
+    const groups = [];
+    if (skills.length) {
+      groups.push(el('div', { class: 'agent-cap-group' }, [
+        el('span', { class: 'agent-cap-label muted small', text: 'Skills' }),
+        el('div', { class: 'agent-cap-chips' }, skills.map((s) =>
+          el('span', { class: 'agent-cap-chip', title: s.description || '', text: s.name || s.id || String(s) }))),
+      ]));
+    }
+    if (mcp.length) {
+      groups.push(el('div', { class: 'agent-cap-group' }, [
+        el('span', { class: 'agent-cap-label muted small', text: 'MCP servers' }),
+        el('div', { class: 'agent-cap-chips' }, mcp.map((s) =>
+          el('a', { class: 'agent-cap-chip', href: s.docs || s.url || '#', target: '_blank', rel: 'noopener', title: s.description || '', text: s.name }))),
+      ]));
+    }
+    return el('div', { class: 'agent-capabilities' }, groups);
+  }
+
+  /** The full starting prompt an agent is given. */
+  function renderAgentPrompt(agent) {
+    if (!agent.prompt_text) return null;
+    return el('details', { class: 'agent-prompt' }, [
+      el('summary', { text: 'Starting prompt' }),
+      el('pre', { class: 'agent-prompt-text', text: agent.prompt_text }),
+    ]);
   }
 
   function renderTurn(t) {
@@ -812,10 +881,22 @@
           settingsSection('Models', [
             modelRow('Default model (agents without their own)', s.model, s.thinking,
               (v) => { s.model = v; }, (v) => { s.thinking = v; }),
-            ...(s.agents || []).map((a) => modelRow(a.name + ' — ' + a.role, a.model, a.thinking,
-              (v) => { s.agent_models[a.id] = v; }, (v) => { s.agent_thinking[a.id] = v; })),
+            ...(s.agents || []).map((a) => el('div', { class: 'agent-config' }, [
+              modelRow(a.name + ' — ' + a.role, a.model, a.thinking,
+                (v) => { s.agent_models[a.id] = v; }, (v) => { s.agent_thinking[a.id] = v; }),
+              renderAgentCapabilities(a),
+              renderAgentPrompt(a),
+            ])),
             modelRow('Topic drafting model', s.topic_model || s.model, s.topic_thinking,
               (v) => { s.topic_model = v; }, (v) => { s.topic_thinking = v; }),
+          ]),
+          settingsSection('Topic finder', [
+            settingsField('Let the finder add topics on its own',
+              el('input', { type: 'checkbox', checked: !!s.discovery_enabled, onchange: (e) => { s.discovery_enabled = e.target.checked; } })),
+            numberField('Find topics every (seconds)', s.discovery_interval_seconds,
+              (v) => { s.discovery_interval_seconds = v; }, { min: 60 }),
+            modelRow('Topic finder model', s.finder_model || s.model, s.finder_thinking,
+              (v) => { s.finder_model = v; }, (v) => { s.finder_thinking = v; }),
           ]),
           settingsSection('Daemon', [
             numberField('Poll interval (seconds)', s.poll_interval_seconds,
@@ -828,6 +909,14 @@
               (v) => { s.signals_per_topic = v; }, { min: 1, max: 50 }),
             settingsField('Start the scheduler with the daemon',
               el('input', { type: 'checkbox', checked: !!s.autostart, onchange: (e) => { s.autostart = e.target.checked; } })),
+          ]),
+          settingsSection('MCP servers', [
+            settingsField('Let agents call their MCP servers',
+              el('input', { type: 'checkbox', checked: !!s.mcp_enabled, onchange: (e) => { s.mcp_enabled = e.target.checked; } })),
+            numberField('Tool calls per agent turn', s.mcp_max_tool_calls,
+              (v) => { s.mcp_max_tool_calls = v; }, { min: 0, max: 8 }),
+            numberField('Server timeout (seconds)', s.mcp_timeout_seconds,
+              (v) => { s.mcp_timeout_seconds = v; }, { min: 1, max: 120 }),
           ]),
           el('div', { class: 'settings-actions' }, [
             el('button', { class: 'btn primary', type: 'button', text: 'Save settings', onclick: saveSettings }),
@@ -850,6 +939,8 @@
     try { await post('/api/poll'); await load(); } catch (e) { /* ignore */ }
     poll.disabled = false;
   });
+  const discover = document.getElementById('ideation-discover');
+  if (discover) discover.addEventListener('click', discoverTopics);
   const settingsBtn = document.getElementById('ideation-settings');
   if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
   document.addEventListener('keydown', (e) => {

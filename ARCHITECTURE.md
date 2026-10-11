@@ -361,7 +361,7 @@ frontend.
 | --- | --- |
 | `POST /api/evaluate` | Start a run (up to `MAX_PARALLEL`, default 3). Accepts `overrides` (mode, deliberation seconds, summarizer model, group ids). |
 | `POST /api/stop` | Cancel a run (or all running runs). |
-| `GET /api/status`, `GET /api/runs` | What is running; past runs. |
+| `GET /api/status`, `GET /api/runs` | What is running (with the number of active agents); past runs. |
 | `GET /api/runs/<id>/events?since=N` | Raw event log. |
 | `GET /api/runs/<id>/report` | The report (schema-conforming). |
 | `GET /api/ui/runs/<id>/events?since=N` | Live events in the frontend's shape (`orchestrator/compat.py`). |
@@ -736,12 +736,13 @@ same level tree (`generation.js`) — abstract ideas at level 1, concrete at lev
 | `GET /` | The Ideation View page. |
 | `GET /info`, `GET /health` | Service info; health. |
 | `GET`/`POST /api/topics`, `PUT`/`DELETE /api/topics/{id}` | The watchlist. |
+| `POST /api/topics/draft`, `POST /api/topics/discover` | Draft a topic from a description; run the topic finder. |
 | `GET /api/ideas`, `GET /api/ideas/{id}`, `GET /api/tree` | Generated ideas; the level tree. |
 | `GET /api/signals`, `GET /api/memory` | The raw feed; the memory. |
 | `GET`/`POST /api/sessions`, `GET /api/sessions/{id}` | Refinement sessions. |
 | `GET /api/sessions/{id}/events?since=N`, `GET /api/sessions/{id}/report` | The live stream; the report. |
 | `POST /api/generate` | The Part 1 generation contract. |
-| `POST /api/poll`, `GET /api/status` | Run a cycle now; daemon status. |
+| `POST /api/poll`, `GET /api/status` | Run a cycle now; daemon status (incl. `running_agents`). |
 | `GET`/`PUT /api/settings` | The daemon's settings (persisted next to the database). |
 
 ### 13.6 Configuration

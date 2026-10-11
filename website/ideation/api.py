@@ -131,6 +131,8 @@ class Handler(BaseHTTPRequestHandler):
             if not description:
                 raise ApiError(400, "field 'description' is required")
             return self._send_json(200, svc.draft_topic(description))
+        if method == "POST" and path == "/api/topics/discover":
+            return self._send_json(200, svc.find_topics(trigger="manual"))
         m = re.fullmatch(r"/api/topics/([^/]+)", path)
         if m and method == "PUT":
             topic = svc.store.update_topic(m.group(1), **self._read_json())
@@ -265,7 +267,8 @@ class Handler(BaseHTTPRequestHandler):
             "service": "ideation", "name": "Ideation Collective", "version": "0.1.0",
             "routes": [
                 "GET / (Ideation View)", "GET /info", "GET /health",
-                "GET/POST /api/topics", "POST /api/topics/draft", "PUT/DELETE /api/topics/{id}",
+                "GET/POST /api/topics", "POST /api/topics/draft", "POST /api/topics/discover",
+                "PUT/DELETE /api/topics/{id}",
                 "GET /api/ideas", "GET /api/ideas/{id}", "GET /api/tree",
                 "GET /api/signals", "GET /api/memory", "POST /api/generate",
                 "GET/POST /api/sessions", "GET /api/sessions/{id}",

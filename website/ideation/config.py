@@ -30,8 +30,17 @@ class Config:
     agent_thinking: Dict[str, bool] = field(default_factory=dict)   # per-agent thinking overrides (agent id -> bool)
     topic_model: str = ""                       # model that drafts a topic from a description ("" = the default model)
     topic_thinking: bool = True                 # thinking mode for the topic drafter
+    finder_model: str = ""                      # model the topic finder uses ("" = the default model)
+    finder_thinking: bool = True                # thinking mode for the topic finder
+    discovery_enabled: bool = True              # let the topic finder add topics on its own
+    discovery_interval_seconds: int = 3600      # how often the finder runs (seconds)
+    discovery_signals: int = 20                 # recent signals fed to the finder
+    discovery_trending: int = 12                # trending items per source fed to the finder
     rounds: int = 2                             # refinement rounds per session
     signals_per_topic: int = 12                 # newest signals fed to a session
+    mcp_enabled: bool = True                    # let agents call their MCP servers' tools
+    mcp_max_tool_calls: int = 2                 # tool calls per agent turn
+    mcp_timeout_seconds: int = 20               # per MCP server connection
 
     @property
     def db_path(self) -> str:
@@ -56,4 +65,9 @@ class Config:
             model=os.environ.get("ID_MODEL", "openai/gpt-oss-120b"),
             rounds=int(os.environ.get("ID_ROUNDS", "2")),
             signals_per_topic=int(os.environ.get("ID_SIGNALS_PER_TOPIC", "12")),
+            mcp_enabled=flag("ID_MCP_ENABLED", True),
+            mcp_max_tool_calls=int(os.environ.get("ID_MCP_MAX_TOOL_CALLS", "2")),
+            mcp_timeout_seconds=int(os.environ.get("ID_MCP_TIMEOUT", "20")),
+            discovery_enabled=flag("ID_DISCOVERY_ENABLED", True),
+            discovery_interval_seconds=int(os.environ.get("ID_DISCOVERY_INTERVAL", "3600")),
         )

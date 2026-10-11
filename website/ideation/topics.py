@@ -17,7 +17,7 @@ def _topic(id: str, name: str, description: str, tags: List[str], keywords: List
         "id": id, "name": name, "description": description,
         "tags": tags, "keywords": keywords, "priority": priority,
         "sources": sources if sources is not None else list(ALL_SOURCES),
-        "enabled": 1,
+        "enabled": 1, "origin": "seed", "rationale": "",
     }
 
 

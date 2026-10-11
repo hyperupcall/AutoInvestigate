@@ -181,8 +181,11 @@ the backend's real settings and saves them (`PUT /api/settings`); without a back
 it falls back to the in-memory mock settings.
 
 The header is a **navbar**: the brand on the left, the primary links (**Agent View**,
-**Artifact Factory**) in the middle, and the actions (**MOCK BACKEND** badge,
-**Information**, **Settings**) on the right. It is **one
+**Artifact Factory**) in the middle, and the actions (**agents running** badge, **MOCK BACKEND** badge,
+**Information**, **Settings**) on the right. The **agents running** badge polls the reachable backends'
+`/api/status` (the evaluation backend and the ideation daemon) every few seconds and shows the total number
+of agents active across them (swarm agents + Evaluation Complex stewards + ideation team members), with a
+per-service breakdown in its tooltip. It is **one
 shared component** (`website/frontend/js/components/navbar.js`) mounted on every page, so it
 looks and behaves the same on all routes — the workspace mounts it from `app.js`, the
 other pages from `website/frontend/js/shell.js` (which also mounts the popups it opens). The
@@ -423,6 +426,13 @@ defines the evaluation backend with `env_file: .env` (and `website/setup.sh` /
 ../.env`), `evalreport/` via `load_dotenv(<repo-root>/.env)` (OpenAI SDK pointed at
 OpenRouter), and `artifactfactory/run.sh` sources it.
 
+**Volume ownership:** Docker creates a bind-mount source directory as `root` when it does not already exist, so a
+container running as the host user cannot write to it (e.g. `PermissionError: [Errno 13] Permission denied:
+'logs/runs'`, or SQLite's "unable to open database file"). The services therefore start as root and run
+`docker-entrypoint.py` (`website/` and `artifactfactory/`), which chowns the mounted dirs (`CHOWN_DIRS`, plus
+`ID_DATA_DIR` for ideation) to `HOST_UID:HOST_GID` and then drops to that user. `./fix-permissions.sh` (repo root)
+repairs existing root-owned dirs without a rebuild.
+
 ---
 
 ## 6. Mock backend contract
@@ -515,9 +525,18 @@ by round. Each agent's model is configurable in the Ideation View's Settings. Ev
 bullets**. The **Ideation View** (`website/frontend/ideation.html`, the navbar's **Research and Ideation** link) is
 three columns — **Topics** and **Sessions** side by side (each scrolls on its own) and the main view to their
 right — and draws a session as an agent graph, the same visual language as the Evaluation Swarm, with the selected
-agent's messages beside it. A long **+ Add Topic** button ends the topics list: describe a topic and the AI fills
-in the name, description, tags and keywords (`POST /api/topics/draft`). Settings cover a model and a **Thinking**
-toggle for each agent and for the topic drafter. `website/frontend/js/api-generation.js` connects column 1: the seed box's `generateIdeas` calls
+agent's messages beside it. Clicking an agent also shows its **starting prompt** and the **skills and MCP servers
+it can access** (the same is shown under each agent in Settings): skills are `website/skills/` directories whose
+`SKILL.md` is folded into the agent's system prompt, and MCP servers are ids from the shared catalog
+(`deliberation/defaults.py` `MCP_CATALOG`) that the agent may call tools on when MCP is enabled. A long **+ Add Topic** button ends the topics list: describe a topic and the AI fills
+in the name, description, tags and keywords (`POST /api/topics/draft`). A **topic finder** agent also runs on its
+own (every `discovery_interval_seconds`, default 1h, and on demand via the **Find topics** button /
+`POST /api/topics/discover`): it reads the newest signals plus a broad trending fetch (Hacker News front page,
+recent arXiv) and adds topics, each carrying `origin: "finder"` and a `rationale`. The prompt
+(`prompts/topic_finder.md`) insists that **topics do not need to be small** and **should combine only one or two
+things** (e.g. "using a Rust library to implement and validate a quick idea"). Settings cover a model and a **Thinking**
+toggle for each agent and for the topic drafter, the topic finder (on/off, interval, model), plus the MCP settings
+(enabled, tool calls per turn, timeout). `website/frontend/js/api-generation.js` connects column 1: the seed box's `generateIdeas` calls
 `POST /api/generate`, and the daemon's ideas load from `GET /api/tree` into the same level tree (abstract at
 level 1, concrete at level 2).
 

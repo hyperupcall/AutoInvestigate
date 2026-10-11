@@ -136,7 +136,15 @@ class Store:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.executescript(SCHEMA)
+        self._migrate()
         self._conn.commit()
+
+    def _migrate(self) -> None:
+        """Add columns introduced after the first release, so an existing database keeps working."""
+        cols = {r["name"] for r in self._conn.execute("PRAGMA table_info(topics)")}
+        for name, ddl in (("origin", "TEXT DEFAULT 'user'"), ("rationale", "TEXT DEFAULT ''")):
+            if name not in cols:
+                self._conn.execute(f"ALTER TABLE topics ADD COLUMN {name} {ddl}")
 
     # ------------------------------------------------------------- internals
     def _decode(self, table: str, row: sqlite3.Row) -> Dict[str, Any]:
@@ -177,6 +185,8 @@ class Store:
         topic.setdefault("priority", 1)
         topic.setdefault("enabled", 1)
         topic.setdefault("description", "")
+        topic.setdefault("origin", "user")
+        topic.setdefault("rationale", "")
         topic.setdefault("last_polled_at", None)
         self._insert("topics", topic)
         return topic
