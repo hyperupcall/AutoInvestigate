@@ -4,6 +4,7 @@ import re
 import tarfile
 from typing import Any, Dict, List
 
+from . import evaluation, mvp
 from .models import Artifact, new_id
 
 
@@ -68,6 +69,15 @@ class SourceRepositoryBuilder(ArtifactBuilder):
         base = ctx.key(self.type, name)
         title = ctx.plan.get("title") or name
         summary = ctx.idea.get("text") or title
+
+        # Real content when the idea came from an evaluation run (see evaluation.py); placeholders otherwise.
+        rep = evaluation.report_for(ctx) if language == "python" else None
+        real = evaluation.source_repo(rep, title, summary) if rep else None
+        if real:
+            files = [self._w(ctx, f"{base}/README.md", real["readme"])]
+            files += [self._w(ctx, f"{base}/{path}", content) for path, content in real["files"].items()]
+            return self.record(ctx, spec, base, files)
+
         files = [self._w(ctx, f"{base}/README.md", self._readme(title, summary, language))]
 
         if language == "python":
@@ -287,7 +297,9 @@ class LiteratureReviewBuilder(ArtifactBuilder):
         base = ctx.key(self.type, name)
         title = ctx.plan.get("title") or name
         summary = ctx.idea.get("text") or title
-        files = [self._w(ctx, f"{base}/literature_review.md", self._review(title, summary))]
+        rep = evaluation.report_for(ctx)  # real, cited review when the idea came from an evaluation run
+        body = evaluation.literature_review_md(rep, title, summary) if rep else self._review(title, summary)
+        files = [self._w(ctx, f"{base}/literature_review.md", body)]
         return self.record(ctx, spec, base, files)
 
     def _review(self, title, summary):
@@ -318,7 +330,30 @@ class LiteratureReviewBuilder(ArtifactBuilder):
         )
 
 
+class MvpPrototypeBuilder(ArtifactBuilder):
+    """A clickable, self-contained prototype page of the idea (what Execute -> builds; see mvp.py)."""
+    type = "mvp_prototype"
+
+    def build(self, ctx, spec):
+        name = spec.get("name") or slugify(ctx.plan.get("title") or ctx.idea.get("text"))
+        base = ctx.key(self.type, name)
+        idea = ctx.idea.get("text") or ctx.plan.get("title") or name
+        rep = evaluation.report_for(ctx)
+        page, generated, note = mvp.generate(idea, rep)
+        readme = (
+            f"# Prototype: {ctx.plan.get('title') or name}\n\n"
+            "Open `index.html` in a browser. It is a self-contained, clickable prototype with demo data; it loads "
+            "nothing from the network.\n\n"
+            + (f"Built from evaluation run `{rep['run']['id']}`: {(rep.get('verdict') or {}).get('headline', '')}\n"
+               if rep else "Built from the idea text (no evaluation report was available).\n")
+            + ("" if generated else f"\nThe interactive version could not be generated ({note}); this is a plain page.\n")
+        )
+        files = [self._w(ctx, f"{base}/index.html", page), self._w(ctx, f"{base}/README.md", readme)]
+        return self.record(ctx, spec, base, files)
+
+
 BUILDERS = {
+    MvpPrototypeBuilder.type: MvpPrototypeBuilder(),
     SourceRepositoryBuilder.type: SourceRepositoryBuilder(),
     NpmPackageBuilder.type: NpmPackageBuilder(),
     DockerImageBuilder.type: DockerImageBuilder(),

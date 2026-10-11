@@ -17,6 +17,7 @@ _STEP_LABELS = {
     "docker_image": "Build Docker image manifest",
     "literature_review": "Write literature review",
     "tarball": "Package all artifacts into a tarball",
+    "mvp_prototype": "Build an interactive prototype (MVP) of the idea",
 }
 
 

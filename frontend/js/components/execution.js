@@ -32,9 +32,23 @@
     render();
   }
 
+  /* Only redraw when the execution state actually changes: redrawing recreates the prototype frame, which would
+   * reload the prototype and throw away whatever the viewer just clicked in it. */
+  let lastSignature = null;
+  function signature(ex) {
+    const job = ex.job || {};
+    const live = !!(Hack.artifactFactoryInfo && Hack.artifactFactoryInfo.live);
+    const plan = ex.plan ? [ex.plan.id, ex.plan.status, (ex.plan.artifact_specs || []).map((x) => x.status).join()] : null;
+    return JSON.stringify([ex.ideaText, ex.title, ex.pending, ex.building, ex.error, plan, job.id, job.status,
+      ex.artifacts.map((a) => a.id), live]);
+  }
+
   function render() {
     if (!refs.body) return;
     const ex = store.state.execution;
+    const sig = signature(ex);
+    if (sig === lastSignature) return;
+    lastSignature = sig;
     preserveView(refs.body, () => {
       clear(refs.body);
       refs.body.appendChild(renderStatus());
@@ -54,7 +68,7 @@
       }
       if (ex.plan) refs.body.appendChild(renderPlan(ex));
       if (ex.building) {
-        refs.body.appendChild(el('div', { class: 'exec-progress' }, [el('div', { class: 'spinner' }), el('span', { text: 'Building artifacts…' })]));
+        refs.body.appendChild(el('div', { class: 'exec-progress' }, [el('div', { class: 'spinner' }), el('span', { text: 'Building the prototype (about a minute)…' })]));
       }
       if (ex.artifacts.length) refs.body.appendChild(renderArtifacts(ex));
       if (ex.error) refs.body.appendChild(el('div', { class: 'section-error', text: ex.error }));
@@ -76,7 +90,7 @@
       el('div', { class: 'exec-idea-foot' }, [
         el('button', { class: 'link-btn', text: 'Clear', onclick: () => actions.clearExecution() }),
         canBuild
-          ? el('button', { class: 'btn small primary', text: ex.plan ? 'Build again' : 'Build artifacts', onclick: () => actions.buildArtifacts() })
+          ? el('button', { class: 'btn small primary', text: ex.plan ? 'Build again' : 'Build prototype', onclick: () => actions.buildArtifacts() })
           : null,
       ]),
     ]);
@@ -105,8 +119,45 @@
     ]);
   }
 
+  /* The prototype is fetched and shown through srcdoc in a sandboxed frame (scripts only: no network, no forms,
+   * no navigation, no access to this page). Loading it by URL from another port renders blank in some browsers.
+   * The HTML is cached per artifact so re-renders do not refetch; if the fetch fails, the frame loads the URL. */
+  const previewCache = new Map();
+  function previewFrame(id, view) {
+    const frame = el('iframe', { class: 'exec-preview', sandbox: 'allow-scripts', title: 'Prototype preview' });
+    // Set the content only once the frame is in the page (content set on a detached frame can stay blank).
+    const show = (html, tries = 0) => {
+      if (frame.isConnected) frame.srcdoc = html;
+      else if (tries < 50) requestAnimationFrame(() => show(html, tries + 1));
+    };
+    const html = previewCache.get(id);
+    if (html) { show(html); return frame; }
+    fetch(view).then((r) => (r.ok ? r.text() : Promise.reject(r.status))).then((text) => {
+      previewCache.set(id, text);
+      show(text);
+    }).catch(() => { frame.src = view; });
+    return frame;
+  }
+
   function renderArtifact(a) {
     const url = actions.artifactDownloadUrl(a.id);
+    const view = a.type === 'mvp_prototype' ? actions.artifactViewUrl(a.id) : null;
+    if (view) {
+      // The prototype itself: a sandboxed preview (scripts only: no network, no forms, no navigation).
+      return el('div', { class: 'exec-artifact' }, [
+        el('div', { class: 'exec-artifact-head' }, [
+          el('div', {}, [
+            el('span', { class: 'exec-artifact-type', text: 'prototype' }),
+            el('span', { class: 'exec-artifact-name', text: a.name }),
+          ]),
+          el('div', {}, [
+            el('a', { class: 'mini-btn', href: view, target: '_blank', rel: 'noopener', text: 'Open full screen' }),
+            url ? el('a', { class: 'mini-btn', href: url, download: '', text: 'Download' }) : null,
+          ]),
+        ]),
+        previewFrame(a.id, view),
+      ]);
+    }
     return el('div', { class: 'exec-artifact' }, [
       el('div', { class: 'exec-artifact-head' }, [
         el('div', {}, [

@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
+from . import mvp
 from .service import Service
 from .web import render_evaluations
 
@@ -160,6 +161,24 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(404, "job not found")
             return self._send_json(200, job)
 
+        m = re.fullmatch(r"/artifacts/([^/]+)/view", path)
+        if method == "GET" and m:  # the prototype page itself, for the frontend's preview and "open full screen"
+            artifact = self.service.get_artifact(m.group(1))
+            entry = mvp.entry_file((artifact or {}).get("files", []))
+            if not entry or not self.service.storage.exists(entry):
+                raise ApiError(404, "no viewable page for this artifact")
+            body = mvp._inject_csp(self.service.storage.get_bytes(entry).decode("utf-8", "replace")).encode()
+            self.send_response(200)
+            self._cors()
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Security-Policy", mvp.CSP + "; sandbox allow-scripts")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         m = re.fullmatch(r"/artifacts/([^/]+)/download", path)
         if method == "GET" and m:
             result = self.service.download_artifact(m.group(1))
@@ -208,7 +227,7 @@ class Handler(BaseHTTPRequestHandler):
                 "POST /ideas", "GET /ideas",
                 "GET /ideas/{id}", "GET /plans", "GET /plans/{id}",
                 "POST /plans/{id}/implement", "GET /jobs", "GET /jobs/{id}",
-                "GET /artifacts/{id}", "GET /artifacts/{id}/download",
+                "GET /artifacts/{id}", "GET /artifacts/{id}/download", "GET /artifacts/{id}/view",
             ],
         }
 

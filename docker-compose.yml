@@ -45,10 +45,12 @@ services:
     image: outshift/artifactfactory:latest
     ports:
       - "8080:8080"
+    env_file: .env   # OPENROUTER_API_KEY: real literature review and experiment repo (artifactfactory/evaluation.py)
     environment:
       AF_HOST: 0.0.0.0
       AF_PORT: "8080"
       AF_STORAGE: local
+      AF_EVAL_API: http://web:8090   # the evaluation backend, to fetch the run's report
     volumes:
       - ./_artifacts:/app/_artifacts
       - ./_artifactfactory-data:/app/_artifactfactory-data

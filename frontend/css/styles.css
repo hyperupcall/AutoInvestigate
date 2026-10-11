@@ -428,6 +428,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .decision-banner.kept { border-color: darkorange; }
 .decision-banner.extra .decision-value { color: blue; }
 .decision-banner.kept .decision-value { color: darkorange; }
+.exec-preview { width: 100%; height: 460px; border: 1px solid silver; margin-top: 6px; background: white; }
 .run-decision.extra { color: blue; border-color: blue; }
 .run-decision.kept { color: darkorange; border-color: darkorange; }
 /* reality check (runs before the groups): does the idea make sense in the real world at all? */

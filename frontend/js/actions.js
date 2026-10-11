@@ -337,11 +337,12 @@
   /* --------------------------- execution --------------------------- */
 
   /** Copy an idea into column 3 (from an evaluation run or an idea row). */
-  function sendToExecution({ ideaId, ideaText, title }) {
+  function sendToExecution({ ideaId, ideaText, title, evaluationRunId }) {
     const text = ideaText != null ? ideaText : (store.ideaById(ideaId) || {}).text;
     if (!text) return;
     state.execution = {
       ideaId: ideaId || null, ideaText: text, title: title || '',
+      evaluationRunId: evaluationRunId || null, // lets the factory build from the real evaluation report
       plan: null, job: null, artifacts: [], pending: false, building: false, error: null,
     };
     store.notify();
@@ -364,7 +365,11 @@
     ex.error = null;
     store.notify();
     try {
-      const { idea, plan } = await execBackend.createIdea({ text: ex.ideaText, title: ex.title });
+      const { idea, plan } = await execBackend.createIdea({
+        text: ex.ideaText, title: ex.title,
+        metadata: ex.evaluationRunId ? { evaluation_run_id: ex.evaluationRunId } : undefined,
+        options: { artifacts: ['mvp_prototype'] }, // Execute builds one clickable prototype of the idea
+      });
       if (state.execution !== ex) return; // the column was reset while we waited
       ex.plan = plan;
       ex.ideaId = ex.ideaId || idea.id;
@@ -413,6 +418,10 @@
   /** Download URL for a built artifact (a data: URL in mock mode). */
   function artifactDownloadUrl(artifactId) {
     return execBackend.artifactUrl(artifactId);
+  }
+
+  function artifactViewUrl(artifactId) {
+    return execBackend.viewUrl ? execBackend.viewUrl(artifactId) : null;
   }
 
   /* --------------------------- settings popup --------------------------- */
@@ -509,6 +518,7 @@
     clearExecution,
     buildArtifacts,
     artifactDownloadUrl,
+    artifactViewUrl,
     openModal,
     closeModal,
     setModalTab,

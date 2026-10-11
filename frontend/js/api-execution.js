@@ -33,7 +33,7 @@
 
   function createIdea(args) {
     if (!info.live) return fallback.createIdea(args);
-    return post('/ideas', { text: args.text, title: args.title || '', options: args.options })
+    return post('/ideas', { text: args.text, title: args.title || '', options: args.options, metadata: args.metadata })
       .then((r) => ({ idea: r.idea, plan: r.plan }));
   }
 
@@ -55,6 +55,11 @@
   function listPlans() {
     if (!info.live) return fallback.listPlans();
     return getJSON('/plans').then((r) => r.plans || []);
+  }
+
+  /** The prototype page, served by the factory with a strict no-network policy (null when on the mock). */
+  function viewUrl(artifactId) {
+    return info.live ? `${info.base}/artifacts/${artifactId}/view` : null;
   }
 
   function artifactUrl(artifactId) {
@@ -84,6 +89,7 @@
   mock.getPlan = getPlan;
   mock.listPlans = listPlans;
   mock.artifactUrl = artifactUrl;
+  mock.viewUrl = viewUrl;
   Hack.apiExecution = { detect, info };
   window.addEventListener('load', detect);
 })();
