@@ -2,12 +2,12 @@
 
 | Folder | What | Run |
 |---|---|---|
-| `frontend/` | the three-column app (no build step) | served by the backend at http://localhost:8090/, or `frontend/run.sh` |
-| `backend/` | Part 2, idea evaluation: 13 agents on AGNTCY/SLIM, models via OpenRouter | `cd backend && ./setup.sh` (see `backend/README.md`) |
+| `website/frontend/` | the three-column app (no build step) | served by the backend at http://localhost:8090/, or `website/frontend/run.sh` |
+| `website/` | Part 2, idea evaluation: 13 agents on AGNTCY/SLIM, models via OpenRouter | `cd website && ./setup.sh` (see `website/README.md`) |
 | `artifactfactory/` | Part 3, idea execution: turns an idea into artifacts (the frontend's column 3) | `./run.sh` |
 | `evalreport/` | report viewer | see the folder |
 
-Quick start for the evaluation backend: install Docker, get an OpenRouter key, then `cd backend && ./setup.sh` and
+Quick start for the evaluation backend: install Docker, get an OpenRouter key, then `cd website && ./setup.sh` and
 open http://localhost:8090/.
 
 ---
@@ -37,16 +37,16 @@ docker compose up --build
 ```
 
 Everything runs on a **single OpenRouter key**. The root `.env` holds one
-`OPENROUTER_API_KEY`, and every service reads that one file (`backend/` and
+`OPENROUTER_API_KEY`, and every service reads that one file (`website/` and
 `evalreport/`). The evaluation backend also needs a
-`SLIM_SHARED_SECRET`; `cd backend && ./setup.sh` writes both for you.
+`SLIM_SHARED_SECRET`; `cd website && ./setup.sh` writes both for you.
 
 Then open http://localhost:8000 (frontend). The evaluation backend also serves the
 same frontend at http://localhost:8090. Generated artifacts and daemon state persist
 to `./_artifacts` and `./_artifactfactory-data` on the host. Stop with `docker compose down`.
 
-Each service also has its own Dockerfile (`artifactfactory/`, `frontend/`,
-`backend/`, `evalreport/`) if you want to build or run one on its own.
+Each service also has its own Dockerfile (`artifactfactory/`, `website/frontend/`,
+`website/`, `evalreport/`) if you want to build or run one on its own.
 
 ## Run on macOS/Linux
 ```bash

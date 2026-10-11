@@ -25,10 +25,10 @@ backend: ## Run the Artifact Factory backend daemon
 	cd artifactfactory && ./run.sh $(ARGS)
 
 frontend: ## Serve the frontend static site
-	cd frontend && ./run.sh $(ARGS)
+	cd website/frontend && ./run.sh $(ARGS)
 
 evaluation: ## Set up and start the AGNTCY evaluation backend (Docker; http://localhost:8090)
-	cd backend && ./setup.sh $(ARGS)
+	cd website && ./setup.sh $(ARGS)
 
 evalreport: ## Run the Outshift Research Intelligence Streamlit app
 	cd evalreport && ./run.sh $(ARGS)
@@ -43,13 +43,13 @@ tests: ## Run the backend unit tests
 	cd artifactfactory/tests && ./run.sh $(ARGS)
 
 js: ## Syntax-check the frontend JavaScript
-	cd frontend/js && ./run.sh $(ARGS)
+	cd website/frontend/js && ./run.sh $(ARGS)
 
 components: ## Syntax-check the frontend component JavaScript
-	cd frontend/js/components && ./run.sh $(ARGS)
+	cd website/frontend/js/components && ./run.sh $(ARGS)
 
 css: ## Sanity-check the frontend CSS
-	cd frontend/css && ./run.sh $(ARGS)
+	cd website/frontend/css && ./run.sh $(ARGS)
 
 # Aliases (not listed in help).
 daemon: backend

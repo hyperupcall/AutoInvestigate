@@ -10,8 +10,8 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_DIR)
 DEFAULT_DATA_DIR = os.path.join(PROJECT_ROOT, "_artifactfactory-data")
 DEFAULT_ARTIFACTS_DIR = os.path.join(PROJECT_ROOT, "_artifacts")
 # The frontend static site (dashboard page + shared css/js). Mounted read-only
-# into the container at /app/frontend; defaults to <repo>/frontend locally.
-DEFAULT_FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
+# into the container at /app/frontend; defaults to <repo>/website/frontend locally.
+DEFAULT_FRONTEND_DIR = os.path.join(PROJECT_ROOT, "website", "frontend")
 
 
 @dataclass

@@ -26,5 +26,5 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "frontend:        http://127.0.0.1:$FRONTEND_PORT/"
-cd "$ROOT/frontend"
+cd "$ROOT/website/frontend"
 python3 -m http.server "$FRONTEND_PORT"

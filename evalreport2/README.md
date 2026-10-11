@@ -5,7 +5,7 @@ A streamlined take on `evalreport/`. Same evaluation logic, different interface:
 - **Runs in the terminal.** No Streamlit, no server. It prints progress as it works.
 - **Writes one self-contained `index.html`** with all of the data inlined (CSS + JSON),
   plus Chart.js from a CDN for the charts.
-- Styling matches the `frontend/` directory: light mode, system font, thin borders,
+- Styling matches the `website/frontend/` directory: light mode, system font, thin borders,
   HTML5 named colors only.
 
 ## What it evaluates

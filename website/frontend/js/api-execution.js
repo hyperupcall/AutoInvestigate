@@ -1,5 +1,5 @@
 /* api-execution.js — connects column 3 (Idea Execution) to the real Artifact
- * Factory backend in ../artifactfactory.
+ * Factory backend in the repo's artifactfactory/.
  *
  * If the factory is reachable, building an idea produces real artifacts (the
  * content is still dummy for now — see artifactfactory/README.md). Otherwise the

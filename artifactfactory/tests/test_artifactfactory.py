@@ -179,7 +179,7 @@ class HttpTests(unittest.TestCase):
             conn.close()
 
     def test_home_serves_the_frontend_dashboard(self):
-        # The dashboard is now a frontend page (frontend/artifactfactory.html);
+        # The dashboard is now a frontend page (website/frontend/artifactfactory.html);
         # the daemon serves it and its assets, and the data comes from the JSON API.
         status, content_type, body = self._get_raw("/")
         self.assertEqual(status, 200)

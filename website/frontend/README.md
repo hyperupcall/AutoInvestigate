@@ -122,9 +122,9 @@ prompts, group perspectives).
 
 Two backends connect automatically when they are reachable; otherwise the mocks keep working.
 
-- **Idea evaluation** — `js/api-backend.js` connects Part 2 to `../backend` when it is running
-  (`cd ../backend && ./setup.sh`, then open http://localhost:8090/).
-- **Idea execution** — `js/api-execution.js` connects column 3 to `../artifactfactory`
+- **Idea evaluation** — `js/api-backend.js` connects Part 2 to `..` when it is running
+  (`cd .. && ./setup.sh`, then open http://localhost:8090/).
+- **Idea execution** — `js/api-execution.js` connects column 3 to `artifactfactory/`
   (`python3 -m artifactfactory.daemon`, or the root `./run.sh`). The factory allows the
   frontend's origin via `AF_CORS_ORIGINS`; override the target with `window.AF_API`.
 
@@ -166,7 +166,7 @@ the **Evaluation** tab renders the final `report`. The report fixture
 ## Files
 
 ```
-frontend/
+website/frontend/
   index.html              three-column workspace
   artifactfactory.html    Artifact Factory dashboard (also served by the factory)
   css/styles.css          all styling

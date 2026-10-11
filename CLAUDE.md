@@ -148,8 +148,8 @@ settings.
 
 ## 4. Frontend UI (as built)
 
-Location: `frontend/`. **No build step** — vanilla JS, classic `<script>` tags, a
-single `window.Hack` namespace. Open `frontend/index.html` directly, or serve it
+Location: `website/frontend/`. **No build step** — vanilla JS, classic `<script>` tags, a
+single `window.Hack` namespace. Open `website/frontend/index.html` directly, or serve it
 (`python3 -m http.server`).
 
 ### Layout — three columns
@@ -168,9 +168,9 @@ it falls back to the in-memory mock settings.
 The header is a **navbar**: the brand on the left, the primary links (**Agent View**,
 **Artifact Factory**) in the middle, and the actions (**MOCK BACKEND** badge,
 **Information**, **Settings**) on the right. It is **one
-shared component** (`frontend/js/components/navbar.js`) mounted on every page, so it
+shared component** (`website/frontend/js/components/navbar.js`) mounted on every page, so it
 looks and behaves the same on all routes — the workspace mounts it from `app.js`, the
-other pages from `frontend/js/shell.js` (which also mounts the popups it opens). The
+other pages from `website/frontend/js/shell.js` (which also mounts the popups it opens). The
 links open in the **same tab**.
 
 An **Agent View** link opens the site rendered by the backend server (the `web`
@@ -178,12 +178,12 @@ service, `http://localhost:8090/live` — the live view). Its `href` defaults to
 `http://localhost:8090/live` and follows the detected backend (`window.EVAL_API`, same
 origin, or `localhost:8090`) via `Hack.backendInfo`, which `api-backend.js` fills in.
 The live view itself now renders **the same shared navbar**: it loads
-`frontend/css/styles.css` and the shell scripts from the frontend directory (the
+`website/frontend/css/styles.css` and the shell scripts from the frontend directory (the
 backend serves them), and its own controls (past runs, replay speed, Replay, backend
 Settings) sit in a `.live-toolbar` below the navbar.
 
 An **Artifact Factory** link opens the Artifact Factory dashboard — now a frontend
-page (`frontend/artifactfactory.html`, script `frontend/js/artifactfactory.js`) that
+page (`website/frontend/artifactfactory.html`, script `website/frontend/js/artifactfactory.js`) that
 lists every evaluation (idea) the factory has been given, with its plan and artifact
 status. The page discovers the factory API itself (`window.AF_API`, same origin, or
 `localhost:8080`), so the link stays relative. The daemon serves the same page at
@@ -193,7 +193,7 @@ status. The page discovers the factory API itself (`window.AF_API`, same origin,
 An **Information** button opens a popup with everything about the app: what it does,
 which backends are connected, the models it uses (each linked to its OpenRouter page
 with its input/output price per 1M tokens) and useful links. The model list lives in
-`frontend/js/model-info.js` (the single source of truth for the settings dropdown too).
+`website/frontend/js/model-info.js` (the single source of truth for the settings dropdown too).
 
 The **MCP server catalog** (the servers agents can use, grouped by category) lives in the
 **Settings** popup, under the group perspectives: each agent shows the servers it can
@@ -205,8 +205,8 @@ which of the groups take part is chosen per run (see Column 2).
 
 Agents can be given MCP servers to use. The catalog is curated from
 [Smithery](https://smithery.ai/servers) across three categories — **Academic
-Research**, **Finance** and **Reasoning** — and lives in `frontend/js/mcp-servers.js`
-(display) and `backend/council/defaults.py` (`MCP_CATALOG`, the access source of
+Research**, **Finance** and **Reasoning** — and lives in `website/frontend/js/mcp-servers.js`
+(display) and `website/council/defaults.py` (`MCP_CATALOG`, the access source of
 truth; the backend serves it in `/api/settings` as `mcp_catalog`, and the frontend
 prefers it when live).
 
@@ -228,8 +228,8 @@ Each agent carries `mcp_servers` (catalog ids), correlated with its role:
 | Market · Startup Builder | Finance MCP, EveryCalc, Thoughtbox |
 | Market · Free-Tier Maximizer | EveryCalc, MonsiTools, Clear Thought |
 
-**Access:** the agent host (`backend/agent_host/executor.py`) connects to the agent's
-servers over Streamable HTTP (`backend/council/mcp.py`), lists their tools, and offers
+**Access:** the agent host (`website/agent_host/executor.py`) connects to the agent's
+servers over Streamable HTTP (`website/council/mcp.py`), lists their tools, and offers
 them to the model via OpenRouter tool-calling (`council/openrouter.py`
 `chat_with_tools`). Tool names are prefixed with the server id (`arxiv__search`) so
 two servers can expose the same name. It runs for the `evaluate` / `cross_review`
@@ -277,7 +277,7 @@ popup then reflects it (it syncs from the backend).
   (duplicates are blocked; each queued item can be removed with ✕ or cleared with
   **Clear queued**).
 - Each queued idea has its own **Start Deeper Research** button. It opens a popup
-  (`frontend/js/components/runConfigModal.js`) that lists the agent groups with
+  (`website/frontend/js/components/runConfigModal.js`) that lists the agent groups with
   checkboxes (all selected by default) so you can include or exclude groups for that
   run; **Start research** then starts the run and turns the entry into a run card in
   the same list. The chosen group ids are passed to the run (`startEvaluation({ …,
@@ -318,7 +318,7 @@ the public view.
 
 The full design system — tokens, semantic status colors, component recipes and a
 standalone-page base block — lives in [`STYLE.md`](STYLE.md). The canonical
-implementation is `frontend/css/styles.css`. Summary:
+implementation is `website/frontend/css/styles.css`. Summary:
 
 - **Light mode only.**
 - **Minimal styling** — plain layout, thin borders, system font.
@@ -332,7 +332,7 @@ implementation is `frontend/css/styles.css`. Summary:
 ## 5. Architecture
 
 ```
-frontend/
+website/frontend/
   index.html              three-column workspace
   artifactfactory.html    Artifact Factory dashboard (also served by the factory)
   css/styles.css          all styling (light, minimal)
@@ -391,8 +391,8 @@ state = {
 **Environment / API keys:** everything runs on a **single `OPENROUTER_API_KEY`** in one
 root `.env` (template: `.env.example`), plus an optional **`SMITH_API_KEY`** for the
 agents' MCP servers. There are no per-directory `.env` files and no other provider keys. Each service reads that one file: the root `docker-compose.yml`
-defines the evaluation backend with `env_file: .env` (and `backend/setup.sh` /
-`backend/Makefile` drive it via `docker compose -f ../docker-compose.yml --env-file
+defines the evaluation backend with `env_file: .env` (and `website/setup.sh` /
+`website/Makefile` drive it via `docker compose -f ../docker-compose.yml --env-file
 ../.env`), `evalreport/` via `load_dotenv(<repo-root>/.env)` (OpenAI SDK pointed at
 OpenRouter), and `artifactfactory/run.sh` sources it.
 
@@ -400,7 +400,7 @@ OpenRouter), and `artifactfactory/run.sh` sources it.
 
 ## 6. Mock backend contract
 
-`frontend/js/mock-backend.js` is the single swap point. Replace the bodies with
+`website/frontend/js/mock-backend.js` is the single swap point. Replace the bodies with
 `fetch()` calls to the real routes; the shapes below are what the UI expects.
 
 ```js
@@ -443,8 +443,8 @@ lineage labels, evaluation runs with the two-tab popup (**Evaluation Swarm** liv
 stream + **Evaluation** report with raw JSON), settings popup + page,
 light/minimal styling.
 
-**Done (real): Part 2 backend** in `backend/` (see `backend/README.md`, routes documented there).
-`frontend/js/api-backend.js` swaps the mock evaluation for the real one whenever the backend answers (same origin
+**Done (real): Part 2 backend** in `website/` (see `website/README.md`, routes documented there).
+`website/frontend/js/api-backend.js` swaps the mock evaluation for the real one whenever the backend answers (same origin
 on :8090, or `localhost:8090` from `run.sh` on :8000); otherwise the mock still runs. Past runs load into
 "Research runs". Stop-or-go is shown as the deliberation outcome (Stopped / Extra round / Disagreement kept),
 not as a verdict on the idea; the idea's verdict is the "Final report" block.
@@ -464,7 +464,7 @@ advisory (a failed call does not stop the run), feeds the stop-or-go and final p
 cannot get a plain "Go", lands in the report as `reality_check`, and shows as a banner in the Evaluation tab and
 a `reality-check` event in Evaluation Swarm. The mock mirrors it with a small keyword heuristic.
 
-**Done (real): Column 3 · Idea Execution** — `frontend/js/api-execution.js` swaps the mock for the real
+**Done (real): Column 3 · Idea Execution** — `website/frontend/js/api-execution.js` swaps the mock for the real
 `artifactfactory/` service whenever it answers (same origin, or `localhost:8080` from `run.sh` on :8000; the
 factory allows that origin via `AF_CORS_ORIGINS`). "Execute →" on a research run sends its idea to column 3,
 which creates a plan, implements it and lists the artifacts with download links. Artifact content is still dummy.

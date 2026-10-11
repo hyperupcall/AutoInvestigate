@@ -4,7 +4,7 @@ Models are restricted to the cheap set in ../CHEAP_MODELS.md (OpenRouter ids).
 Each agent also carries `mcp_servers`: ids from MCP_CATALOG (curated from Smithery,
 https://smithery.ai/servers). The agent host connects to those servers and offers
 their tools to the agent's model (see council/mcp.py). The frontend shows the same
-catalog in the "Configure Agent Groups" popup (frontend/js/mcp-servers.js)."""
+catalog in the "Configure Agent Groups" popup (website/frontend/js/mcp-servers.js)."""
 import copy
 import glob
 import os

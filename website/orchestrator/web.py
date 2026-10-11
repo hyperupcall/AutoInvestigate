@@ -32,7 +32,7 @@ from orchestrator.pipeline import pipeline
 from orchestrator.run import RUNS_DIR, Run
 
 STATIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-FRONTEND = os.path.abspath(os.getenv("FRONTEND_DIR", os.path.join(ROOT, "..", "frontend")))
+FRONTEND = os.path.abspath(os.getenv("FRONTEND_DIR", os.path.join(ROOT, "frontend")))
 MAX_PARALLEL = int(os.getenv("MAX_PARALLEL_RUNS", "3"))
 # One event loop and one SLIM client for the life of the process (the SDK holds one SLIM connection per process).
 LOOP = asyncio.new_event_loop()

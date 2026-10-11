@@ -1,7 +1,7 @@
 /* components/execution.js — RIGHT column: Idea Execution.
  *
  * Turns a chosen idea into tangible artifacts via the Artifact Factory backend
- * (../artifactfactory). An idea arrives here with "Execute →" from a research
+ * (the repo's artifactfactory/). An idea arrives here with "Execute →" from a research
  * run in column 2 (or an idea row in column 1). Building creates a plan, then
  * implements it and lists the artifacts with download links.
  */

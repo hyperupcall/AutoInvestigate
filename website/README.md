@@ -14,7 +14,7 @@ Give it one idea as a string. Three groups of AI agents evaluate it and reach a 
 Needs Docker (Desktop on Mac/Windows, Engine + compose plugin on Linux) and an OpenRouter API key.
 
 ```bash
-cd backend
+cd website
 ./setup.sh
 ```
 
@@ -27,7 +27,7 @@ Then open:
 
 | URL | What |
 |---|---|
-| http://localhost:8090/ | the AutoInvestigate frontend (`../frontend`), with real evaluations |
+| http://localhost:8090/ | the AutoInvestigate frontend (`frontend/`), with real evaluations |
 | http://localhost:8090/live | three live chat columns, stage tracker, replay (good for demos) |
 | http://localhost:8090/settings | models, keys, agents per group, deliberation time, cost cap |
 
@@ -119,6 +119,7 @@ Examples of finished reports: `examples/`.
 
 ```
 setup.sh, Dockerfile, Makefile   (the services are defined in the root ../docker-compose.yml)
+frontend/       the three-column app (static, no build step)
 council/        settings, prompts loader, OpenRouter client, MCP client, report builder, SLIM glue
 agent_host/     one process per agent (each a SLIM endpoint)
 orchestrator/   pipeline, run, SLIM bus client, web routes, frontend compatibility, live view (static/)

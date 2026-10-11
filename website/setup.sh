@@ -57,8 +57,8 @@ if [ -z "$(dc ps -q web 2>/dev/null)" ]; then
   done
 fi
 ok "free"
-[ -f ../frontend/index.html ] && ok "frontend found at ../frontend (served at http://localhost:8090/)" \
-  || ok "no ../frontend next to this folder; the live view will be the home page"
+[ -f frontend/index.html ] && ok "frontend found at frontend (served at http://localhost:8090/)" \
+  || ok "no frontend next to this folder; the live view will be the home page"
 
 bold "5/6  Building and starting (the first build takes a few minutes)"
 mkdir -p data logs results

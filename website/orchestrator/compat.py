@@ -1,4 +1,4 @@
-"""Live events in the shape the AutoInvestigate frontend renders (frontend/js/mock-backend.js there), built from
+"""Live events in the shape the AutoInvestigate frontend renders (website/frontend/js/mock-backend.js there), built from
 our raw run log. The finished report needs no translation: the frontend reads schema/evaluation-report.schema.json
 directly (GET /api/runs/<id>/report).
 

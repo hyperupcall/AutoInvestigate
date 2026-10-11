@@ -86,7 +86,7 @@ The `.env` file is **not** committed (it is gitignored). You can either:
 - let CI create it — set the `OPENROUTER_API_KEY` and `SLIM_SHARED_SECRET`
   secrets and the first deploy writes `/opt/autoinvestigate/.env` for you
   (adding `SLIM_SERVER`, `HOST_UID` and `HOST_GID` on the server); or
-- create it yourself on the server, e.g. `cd /opt/autoinvestigate && cd backend && ./setup.sh`.
+- create it yourself on the server, e.g. `cd /opt/autoinvestigate && cd website && ./setup.sh`.
 
 CI only uses the bootstrap when the server has no `.env`; an existing file is
 never overwritten. The bootstrap file is removed from the server on every run.

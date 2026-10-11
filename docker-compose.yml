@@ -10,7 +10,7 @@
 #
 # The evaluation backend (slim / agent_host / web) reads the single root .env
 # (OPENROUTER_API_KEY, SLIM_SHARED_SECRET, ...). Copy `.env.example` to `.env` and
-# fill it in, or run `cd backend && ./setup.sh`, which writes it for you.
+# fill it in, or run `cd website && ./setup.sh`, which writes it for you.
 #
 # Generated artifacts and state are persisted to the host via the volumes below.
 
@@ -18,19 +18,19 @@ name: outshift-research-intelligence
 
 # Shared config for the evaluation backend (idea evaluation).
 x-council: &council
-  build: ./backend
+  build: ./website
   env_file: .env
   volumes:
-    - ./backend/data:/app/data
-    - ./backend/logs:/app/logs
-    - ./backend/prompts:/app/prompts:ro
-    - ./backend/results:/app/results
+    - ./website/data:/app/data
+    - ./website/logs:/app/logs
+    - ./website/prompts:/app/prompts:ro
+    - ./website/results:/app/results
 
 services:
   # ------------------------------------------------------------- frontend
   frontend:
     build:
-      context: ./frontend
+      context: ./website/frontend
     image: outshift/frontend:latest
     ports:
       - "8000:80"
@@ -51,11 +51,11 @@ services:
       AF_PORT: "8080"
       AF_STORAGE: local
       AF_EVAL_API: http://web:8090   # the evaluation backend, to fetch the run's report
-      AF_FRONTEND_DIR: /app/frontend  # the dashboard page (frontend/artifactfactory.html)
+      AF_FRONTEND_DIR: /app/frontend  # the dashboard page (website/frontend/artifactfactory.html)
     volumes:
       - ./_artifacts:/app/_artifacts
       - ./_artifactfactory-data:/app/_artifactfactory-data
-      - ${FRONTEND_DIR:-./frontend}:/app/frontend:ro
+      - ${FRONTEND_DIR:-./website/frontend}:/app/frontend:ro
     restart: unless-stopped
 
   # ------------------------------------------------------- idea evaluation
@@ -68,7 +68,7 @@ services:
       - PASSWORD=${SLIM_SHARED_SECRET}
       - CONFIG_PATH=/config.yaml
     volumes:
-      - ./backend/slim/server-config.yaml:/config.yaml
+      - ./website/slim/server-config.yaml:/config.yaml
     command: ["/slim", "--config", "/config.yaml"]
 
   agent_host:
@@ -87,11 +87,11 @@ services:
     environment:
       - FRONTEND_DIR=/app/frontend
     volumes:
-      - ./backend/data:/app/data
-      - ./backend/logs:/app/logs
-      - ./backend/prompts:/app/prompts:ro
-      - ./backend/results:/app/results
-      - ${FRONTEND_DIR:-./frontend}:/app/frontend:ro
+      - ./website/data:/app/data
+      - ./website/logs:/app/logs
+      - ./website/prompts:/app/prompts:ro
+      - ./website/results:/app/results
+      - ${FRONTEND_DIR:-./website/frontend}:/app/frontend:ro
     restart: unless-stopped
     depends_on:
       - slim

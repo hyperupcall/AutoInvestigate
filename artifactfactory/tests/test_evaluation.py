@@ -1,4 +1,4 @@
-"""Artifacts built from a real evaluation report (backend/examples), with the model calls faked."""
+"""Artifacts built from a real evaluation report (website/examples), with the model calls faked."""
 import json
 import os
 import unittest
@@ -7,7 +7,7 @@ from unittest import mock
 from artifactfactory import evaluation as ev
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-REPORT = json.load(open(os.path.join(ROOT, "backend", "examples", "homomorphic-encryption.json")))
+REPORT = json.load(open(os.path.join(ROOT, "website", "examples", "homomorphic-encryption.json")))
 REPORT_WITH_PAPERS = dict(REPORT, sources={"papers": [
     {"id": "2305.05904", "title": "Revisiting Fully Homomorphic Encryption Schemes", "authors": ["A", "B", "C"],
      "year": "2023", "url": "https://arxiv.org/abs/2305.05904", "abstract": "A survey.", "cited_by": ["critical_reviewer"]}]})

@@ -1,6 +1,6 @@
 """Serve the Artifact Factory dashboard.
 
-The dashboard is now a frontend page (``frontend/artifactfactory.html``) that
+The dashboard is now a frontend page (``website/frontend/artifactfactory.html``) that
 talks to this daemon's JSON API, so all frontend code lives in one place. This
 module locates and returns that page; if it is missing (for example when the
 frontend was not mounted), a tiny fallback page points at the JSON API.

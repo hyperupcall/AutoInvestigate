@@ -4,8 +4,9 @@ Track A (council): every agent, the summarizer, the judge, the reality check and
 BASE_MODEL. The idea goes through the normal pipeline over AGNTCY/SLIM and we take its final report.
 Track B (baseline): the idea is pasted into BASE_MODEL with one plain request to evaluate it.
 
-Both reports are then graded blind by JUDGE (labels "Report 1"/"Report 2" in random order): accuracy, reasoning,
-specificity, actionability and overall, 0-10 each, plus the concrete errors it found in each report.
+Both reports are then graded blind by JUDGE (labels "Report 1"/"Report 2" in random order): plausibility,
+actionability and specificity, 1-5 each, plus the concrete errors it found in each report. It does not rate how
+good or bad the idea is.
 
 Needs the stack running (docker compose up -d) and OPENROUTER_API_KEY in the environment or the root .env.
 The council settings are changed for the run and reset to the repo defaults at the end.
@@ -199,21 +200,23 @@ Note on sources: any arXiv papers listed in either report were retrieved live fr
 exist, including ones dated after your training data. Do not treat a paper as fabricated because you do not know it;
 judge whether it is relevant to the idea and whether the report uses it correctly.
 
-Score each report from 0 to 10 on:
-- accuracy: are its factual claims (technology, science, law, products, companies, papers, numbers) correct?
-  Deduct for each false claim, invented source, or unsourced number presented as fact.
-- reasoning: are its conclusions supported by its arguments, and does it weigh both sides?
-- specificity: concrete risks, alternatives, numbers and tests rather than generic advice.
-- actionability: would a founder know exactly what to do next?
-- overall: your overall judgment of which report better evaluates this idea.
+Score each report from 1 to 5 on:
+- plausibility: does the idea, as the report presents it, make sense? Even if it is far-fetched, does the report
+  back its claims and recommended actions with evidence? Rate the report's grounding, not whether the idea is good.
+- actionability: could a concrete plan be built from this idea using the hints in the report, and an artifact then
+  be built from that plan?
+- specificity: are the details specific (concrete risks, alternatives, numbers, tests) rather than generic advice?
+
+Do not rate how good or bad the idea is, and do not reward length, formatting or tone; a longer report earns
+nothing for length, and every extra claim is one more chance to be wrong.
 
 Then list the concrete factual errors or unsupported claims you found in each (quote briefly; empty list if none).
 
 Reply with JSON only:
-{{"report_1": {{"accuracy": n, "reasoning": n, "specificity": n, "actionability": n, "overall": n, "errors": ["..."]}},
- "report_2": {{"accuracy": n, "reasoning": n, "specificity": n, "actionability": n, "overall": n, "errors": ["..."]}},
+{{"report_1": {{"plausibility": n, "actionability": n, "specificity": n, "errors": ["..."]}},
+ "report_2": {{"plausibility": n, "actionability": n, "specificity": n, "errors": ["..."]}},
  "better": 1 or 2, "why": "two sentences"}}"""
-METRICS = ["accuracy", "reasoning", "specificity", "actionability", "overall"]
+METRICS = ["plausibility", "actionability", "specificity"]
 
 
 def judge(idea: str, council: str, baseline: str) -> dict:
@@ -251,9 +254,8 @@ def write_html(res: dict, path: str):
             continue
         gc, gb = g["council"], g["baseline"]
         idea_rows += (f"<tr><td>{n}. {e(it['idea'][:70])}{'…' if len(it['idea']) > 70 else ''}</td>"
-                      f"<td><b>{g['council']['accuracy']}</b></td><td>{g['baseline']['accuracy']}</td>"
-                      f"<td><b>{g['council']['overall']}</b></td><td>{g['baseline']['overall']}</td>"
-                      f"<td class=\"{'ok' if g['better'] == 'council' else 'bad'}\">{g['better']}</td></tr>")
+                      + "".join(f"<td><b>{gc[k]}</b></td><td>{gb[k]}</td>" for k in METRICS)
+                      + f"<td class=\"{'ok' if g['better'] == 'council' else 'bad'}\">{g['better']}</td></tr>")
         per += (f"<div class=\"card\"><h3>{n}. {e(it['idea'])}</h3>"
                 f"<p class=\"small\">Judge prefers <b>{g['better']}</b>. {e(g['why'])}</p>"
                 f"<table><tr><th></th>{''.join(f'<th>{k.capitalize()}</th>' for k in METRICS)}</tr>"
@@ -279,16 +281,17 @@ pre{{white-space:pre-wrap;font-size:12px;background:whitesmoke;padding:6px}}</st
 <main>
 <h2>Result</h2>
 <div class="card"><p>The judge preferred the <b>council</b> report for <b>{S['council_wins']} of {S['graded']}</b> ideas.</p>
-<table><tr><th>Score (0-10, mean over ideas)</th><th>Council (13 agents)</th><th>Baseline (one call)</th><th>Difference</th></tr>{rows}</table></div>
-<div class="card"><table><tr><th>Idea</th><th>Council accuracy</th><th>Baseline accuracy</th><th>Council overall</th><th>Baseline overall</th><th>Preferred</th></tr>{idea_rows}</table></div>
+<table><tr><th>Score (1-5, mean over ideas)</th><th>Council (13 agents)</th><th>Baseline (one call)</th><th>Difference</th></tr>{rows}</table></div>
+<div class="card"><table><tr><th>Idea</th>{''.join(f'<th>Council {k}</th><th>Baseline {k}</th>' for k in METRICS)}<th>Preferred</th></tr>{idea_rows}</table></div>
 <h2>Method</h2>
 <div class="card small"><p><b>Council:</b> the AutoInvestigate pipeline in {e(res.get('mode', 'quick').capitalize())} mode. 13 agents in three groups (research, private equity,
 market), each with its own persona and question, each its own AGNTCY/SLIM endpoint; reality check, deliberation, evaluations,
 group summaries, cross-group review, stop-or-go and a final verdict. arXiv papers are retrieved for two groups. Every model call uses
 {e(res['base_model'])} at its lowest reasoning effort (it cannot run with reasoning off).</p>
 <p><b>Baseline:</b> one call to {e(res['base_model'])} with the prompt <i>"{e(BASELINE_PROMPT.split(chr(10))[0])}"</i> followed by the idea.</p>
-<p><b>Grading:</b> {e(res['judge'])} reads both reports, labeled only "Report 1" and "Report 2" in random order, scores each 0-10 on
-accuracy, reasoning, specificity, actionability and overall, and lists the factual errors it finds. It is told not to reward length.</p></div>
+<p><b>Grading:</b> {e(res['judge'])} reads both reports, labeled only "Report 1" and "Report 2" in random order, scores each 1-5 on
+plausibility, actionability and specificity, and lists the factual errors it finds. It is told not to reward length and not to
+rate how good or bad the idea is.</p></div>
 <h2>Per idea</h2>{per}
 </main></body></html>"""
     open(path, "w").write(doc)

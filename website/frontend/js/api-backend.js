@@ -1,4 +1,4 @@
-/* api-backend.js — connects the UI to the real evaluation backend (backend/ in this repo).
+/* api-backend.js — connects the UI to the real evaluation backend (the website backend in this repo).
  *
  * If the backend is reachable, Part 2 (idea evaluation) runs for real: every agent is its own AGNTCY/SLIM
  * endpoint and every model call goes through OpenRouter. Otherwise the mock in mock-backend.js keeps working.
@@ -12,7 +12,7 @@
  * It swaps Hack.mockBackend.buildReport / startEvaluation in place (actions.js looks them up on every call),
  * fills the settings popup with the backend's real groups and models, and loads past evaluations into the
  * "Research runs" list. Event kinds and the report are exactly what modal.js already renders
- * (report = evaluation-report.schema.json). Routes: see backend/README.md.
+ * (report = evaluation-report.schema.json). Routes: see website/README.md.
  */
 (function () {
   const Hack = (window.Hack = window.Hack || {});

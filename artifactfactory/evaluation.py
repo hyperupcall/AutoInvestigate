@@ -1,7 +1,7 @@
 """Real artifact content from the idea's evaluation report.
 
 When an idea arrives with metadata.evaluation_run_id, the builders fetch that run's report from the evaluation
-backend (GET {AF_EVAL_API}/api/runs/<id>/report, schema: backend/schema/evaluation-report.schema.json) and use
+backend (GET {AF_EVAL_API}/api/runs/<id>/report, schema: website/schema/evaluation-report.schema.json) and use
 it instead of placeholders:
 
   literature_review   assembled from the report: the arXiv papers the agents were given (with who cited each),

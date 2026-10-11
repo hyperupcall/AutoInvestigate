@@ -2,10 +2,10 @@
 
 The design system for **AutoInvestigate**'s user interface. This is the shared
 reference for anyone building UI anywhere in this repo — the three-column app in
-`frontend/`, the Artifact Factory dashboard (`frontend/artifactfactory.html`), and
+`website/frontend/`, the Artifact Factory dashboard (`website/frontend/artifactfactory.html`), and
 any backend-served page.
 
-> **Canonical source:** `frontend/css/styles.css`. That file is the reference
+> **Canonical source:** `website/frontend/css/styles.css`. That file is the reference
 > implementation of every token and recipe below. When this document and the
 > stylesheet disagree, **the stylesheet wins** — update this doc to match.
 
@@ -381,7 +381,7 @@ class rather than adding one-off utilities.
 
 ## 8. Using this system from another service
 
-### Inside `frontend/`
+### Inside `website/frontend/`
 
 Link the stylesheet and use the classes as-is — do **not** add page-local CSS:
 
@@ -391,7 +391,7 @@ Link the stylesheet and use the classes as-is — do **not** add page-local CSS:
 
 ### In a standalone page (e.g. `artifactfactory/web.py`, backend-rendered HTML)
 
-Some services can't import `frontend/css/styles.css`. Inline a small base block and
+Some services can't import `website/frontend/css/styles.css`. Inline a small base block and
 reuse the same token values and class names so the pages match. This is the approved
 base:
 
@@ -442,11 +442,11 @@ inlining — one source of truth beats two.
 
 ## 9. Extending the system
 
-1. Add the token/recipe to `frontend/css/styles.css` first, in the appropriate,
+1. Add the token/recipe to `website/frontend/css/styles.css` first, in the appropriate,
    comment-delimited section.
 2. Reuse existing named colors and the `2·4·6·8·10·12·16·24` spacing scale. Adding a
    color or a `border-radius` requires a strong reason and a note here.
 3. Update this document to match — new components belong in the cookbook (§4), new
    state colors in the status table (§2.2).
-4. Reflect any user-visible change in `frontend/README.md` and `CLAUDE.md` if it
+4. Reflect any user-visible change in `website/frontend/README.md` and `CLAUDE.md` if it
    affects documented behavior.

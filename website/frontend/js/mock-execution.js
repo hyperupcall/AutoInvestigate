@@ -1,6 +1,6 @@
 /* mock-execution.js — MOCKED Artifact Factory backend (column 3 · Idea Execution).
  *
- * Mirrors the real REST API in ../artifactfactory (see its README):
+ * Mirrors the real REST API in artifactfactory/ (see its README):
  *
  *   createIdea({ text, title, options }) -> { idea, plan }
  *   implementPlan(planId)                -> { job }   (starts an async build)

@@ -25,7 +25,7 @@ CSP = ("script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blo
        "child-src 'none'; object-src 'none'; worker-src 'none'; manifest-src 'none'")
 NETWORK = re.compile(r"\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|importScripts|navigator\.serviceWorker)\b")
 
-# The house look, from frontend/css/styles.css and documentation/FRONTEND_STYLE.md: system font, black on white, 1px silver borders, square corners,
+# The house look, from website/frontend/css/styles.css and documentation/FRONTEND_STYLE.md: system font, black on white, 1px silver borders, square corners,
 # no shadows or gradients, named colors used sparingly. Injected first in every page so prototypes match the app;
 # the page's own styles can still build on it.
 HOUSE_CSS = """*{box-sizing:border-box}
