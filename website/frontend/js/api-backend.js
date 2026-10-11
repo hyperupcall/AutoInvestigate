@@ -53,7 +53,7 @@
       pipeline: { rounds: 0, extra_round: false, stop_go_decision: null },
       groups: groups.map((g) => ({
         id: g.id, name: g.name, style: g.consensus,
-        agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question || null, who_they_are: null })),
+        agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, mcp_servers: a.mcp_servers || [], question: a.question || null, who_they_are: null })),
         rounds: [], scores: {}, verdict_counts: {}, disagreements: [], stop_go: null, verdict: null,
       })),
       cross_group: { disagreements: [], agreements: [] }, stop_go: null, verdict: null,
@@ -132,7 +132,7 @@
         id: 'backend-' + r.id, backendRunId: r.id, ideaId: null, ideaText: r.idea, model: 'AGNTCY cluster',
         status: r.status === 'done' ? 'done' : 'cancelled', events: ev.events, report,
         cluster: report.groups.map((g) => ({ id: g.id, name: g.name, style: g.style,
-          agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question, who_they_are: a.who_they_are })) })),
+          agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, mcp_servers: a.mcp_servers || [], question: a.question, who_they_are: a.who_they_are })) })),
         complex: report.complex ? {
           agents: (report.complex.stewards || []).map((s) => ({ id: s.id, name: s.name, model: s.model, objective: s.objective })),
           decision: report.complex.decision, stoppedBy: report.complex.stopped_by, report: report.complex,

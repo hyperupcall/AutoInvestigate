@@ -28,6 +28,18 @@
   const isTailKey = (key) => key === 'cluster-log' || key === 'complex-log'
     || key.startsWith('agent-stream:') || key.startsWith('complex-stream:');
 
+  /** The MCP servers an agent can use, as display names (falls back to the id). */
+  function mcpNames(agent) {
+    const byId = (Hack.mcpServers && Hack.mcpServers.byId) || {};
+    return ((agent && agent.mcp_servers) || []).map((id) => (byId[id] && byId[id].name) || id);
+  }
+
+  /** A compact "model · MCP servers" line for an agent, used wherever an agent is shown. */
+  function agentMeta(agent) {
+    const mcp = mcpNames(agent);
+    return `${agent.model || 'unknown model'} · MCP: ${mcp.length ? mcp.join(', ') : 'none'}`;
+  }
+
   /** A stable key for one streamed event, so an expanded thought stays open
    *  across the re-renders that happen as new events arrive. */
   function eventKey(run, ev) {
@@ -331,6 +343,7 @@
       const cls = 'graph-node' + (isSelected ? ' selected' : '') + (isLive ? ' live' : '') + (spoken(a.id) ? ' spoken' : '');
       const label = labelPlacement(node, r, a.name);
       return svg('g', { class: cls, onclick: () => selectAgent(group.id, a.id) }, [
+        svg('title', { text: `${a.name}\n${agentMeta(a)}` }),
         isLive ? svg('circle', { class: 'node-ring', cx: node.x, cy: node.y, r: r + 5 }) : null,
         svg('circle', { class: 'node-circle', cx: node.x, cy: node.y, r }),
         svg('text', { class: 'node-initials', x: node.x, y: node.y + 4, 'text-anchor': 'middle', text: initials(a.name) }),
@@ -405,6 +418,7 @@
     const head = el('div', { class: 'agent-stream-head' }, [
       el('div', { class: 'agent-stream-name', text: agent.name }),
       el('div', { class: 'agent-stream-model', text: agent.model || '' }),
+      el('div', { class: 'agent-stream-mcp muted small', text: 'MCP servers: ' + (mcpNames(agent).join(', ') || 'none') }),
       el('div', { class: 'agent-stream-stats muted small', text: `${items.length} outputs · ${formatCount(chars)} chars · ${formatDuration(seconds)}` }),
     ]);
     const about = el('div', { class: 'agent-stream-about' }, [
@@ -1022,6 +1036,7 @@
         el('span', { class: 'verdict-tag', text: a.model }),
         verdict ? el('span', { class: 'verdict-tag', text: verdict }) : null,
       ]),
+      el('p', { class: 'verdict-mcp muted small', text: 'MCP servers: ' + (mcpNames(a).join(', ') || 'none') }),
       a.question ? el('p', { class: 'muted small', text: a.question }) : null,
       fp.role_verdict ? el('p', { class: 'verdict-quote', text: `${fp.role_verdict.label}: ${fp.role_verdict.value}` }) : null,
       renderScoreChips(fp.template_scores),

@@ -63,6 +63,36 @@
     ]);
   }
 
+  /** Every agent with the model it runs on and the MCP servers it can call tools on. */
+  function agentsTable() {
+    const groups = (store.state.settings && store.state.settings.groupPerspectives) || [];
+    const byId = (Hack.mcpServers && Hack.mcpServers.byId) || {};
+    const rows = [];
+    groups.forEach((g) => (g.agents || []).forEach((a) => {
+      const mcp = (a.mcp_servers || []).map((id) => (byId[id] && byId[id].name) || id);
+      rows.push(el('tr', {}, [
+        el('td', {}, [
+          el('div', { class: 'info-agent-name', text: a.name }),
+          el('div', { class: 'muted small', text: g.name }),
+        ]),
+        el('td', { class: 'muted small', text: a.model || '' }),
+        el('td', { class: 'muted small', text: mcp.join(', ') || 'none' }),
+      ]));
+    }));
+    if (!rows.length) return el('p', { class: 'muted small', text: 'No agents configured.' });
+    return el('div', {}, [
+      el('p', { class: 'muted small', text: 'Every agent, the model it runs on, and the MCP servers it can call tools on. Edit these in Settings.' }),
+      el('table', { class: 'model-table' }, [
+        el('thead', {}, [el('tr', {}, [
+          el('th', { text: 'Agent' }),
+          el('th', { text: 'Model' }),
+          el('th', { text: 'MCP servers' }),
+        ])]),
+        el('tbody', {}, rows),
+      ]),
+    ]);
+  }
+
   function renderBody() {
     const backend = Hack.backendInfo || { live: false, base: '' };
     const factory = Hack.artifactFactoryInfo || { live: false, base: '' };
@@ -79,6 +109,7 @@
         ]),
       ]),
       section('Models', [modelsTable()]),
+      section('Agents — models and MCP servers', [agentsTable()]),
       section('Links', [
         el('ul', { class: 'info-list' }, [
           el('li', {}, [el('a', { href: 'https://openrouter.ai/models', target: '_blank', rel: 'noopener', text: 'OpenRouter — browse every model' })]),

@@ -68,7 +68,8 @@ class Run:
             await self.bus.connect(self.s["groups"][0]["agents"][0]["id"])
         self.log("run_start", run=self.id, idea=self.idea, max_cost=self.budget.max_usd, mode="quick" if self.quick else "deep",
                  groups=[{"id": g["id"], "name": g["name"], "consensus": g["consensus"], "use_sources": bool(g.get("use_sources")),
-                          "agents": [{"id": a["id"], "name": a["name"], "model": a["model"], "prompt": a["prompt"]} for a in g["agents"]]}
+                          "agents": [{"id": a["id"], "name": a["name"], "model": a["model"], "prompt": a["prompt"],
+                                      "mcp_servers": a.get("mcp_servers", [])} for a in g["agents"]]}
                          for g in self.s["groups"]])
 
     async def ensure_sources(self, max_wait: float = 12) -> None:

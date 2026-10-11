@@ -32,6 +32,7 @@
           "id": "feasibility_scientist",
           "name": "Research Feasibility Scientist",
           "model": "meta-llama/llama-3.1-8b-instruct",
+          "mcp_servers": ["arxiv", "semantic-scholar", "thoughtbox"],
           "question": "Is the research achievable?",
           "who_they_are": "A senior computer science researcher experienced in distributed systems, AI infrastructure, and experimental validation.",
           "final_position": {
@@ -47,6 +48,7 @@
           "id": "systems_architect",
           "name": "Systems Architect",
           "model": "google/gemma-3-4b-it",
+          "mcp_servers": ["arxiv", "crossref", "math-logic"],
           "question": "What is the underlying systems architecture, and why is it better than existing approaches?",
           "who_they_are": "A distributed-systems architect who specializes in networking, cloud infrastructure, scalability, and system design.",
           "final_position": {
@@ -70,6 +72,7 @@
           "id": "ai_systems_researcher",
           "name": "AI Systems Researcher",
           "model": "openai/gpt-oss-120b",
+          "mcp_servers": ["arxiv", "paper-search", "scholar-feed", "thoughtbox"],
           "question": "Does the system actually need an LLM, or would a deterministic algorithm work better?",
           "who_they_are": "An AI/ML researcher experienced in LLMs, agentic systems, optimization, and conventional algorithm design.",
           "final_position": {
@@ -93,6 +96,7 @@
           "id": "critical_reviewer",
           "name": "Critical Research Reviewer",
           "model": "google/gemma-3-4b-it:online",
+          "mcp_servers": ["citation-checker", "citeme", "crossref", "logic-verifier", "invinoveritas"],
           "question": "What is the strongest existing paper or open-source project that challenges this idea?",
           "who_they_are": "A skeptical research reviewer who specializes in literature reviews, reproducibility, benchmarking, and identifying redundant research.",
           "final_position": {
@@ -690,6 +694,7 @@
           "id": "technical_risk_partner",
           "name": "Technical Risk Partner",
           "model": "openai/gpt-oss-120b",
+          "mcp_servers": ["arxiv", "crossref", "logic-verifier", "invinoveritas"],
           "question": "What are the biggest technical failure points?",
           "who_they_are": "A technology-focused investment partner with experience evaluating software infrastructure, engineering risk, and technical due diligence.",
           "final_position": {
@@ -706,6 +711,7 @@
           "id": "market_revenue_partner",
           "name": "Market and Revenue Partner",
           "model": "meta-llama/llama-3.1-8b-instruct:online",
+          "mcp_servers": ["finance-mcp", "flatland", "prereason", "openalex"],
           "question": "How large is the addressable market, and what evidence supports that estimate?",
           "who_they_are": "A private equity partner specializing in market sizing, enterprise software, customer acquisition, and recurring revenue models.",
           "final_position": {
@@ -726,6 +732,7 @@
           "id": "competitive_strategy_partner",
           "name": "Competitive Strategy Partner",
           "model": "google/gemma-3-4b-it",
+          "mcp_servers": ["finance-mcp", "flatland", "semantic-scholar"],
           "question": "Why would customers choose this over competitors or building it internally?",
           "who_they_are": "A strategic investment partner focused on competitive positioning, customer behavior, defensibility, and enterprise go-to-market strategy.",
           "final_position": {
@@ -746,6 +753,7 @@
           "id": "horizon_returns_partner",
           "name": "Investment Horizon and Returns Partner",
           "model": "openai/gpt-oss-120b",
+          "mcp_servers": ["finance-mcp", "prereason", "quorum"],
           "question": "What are the best-case and worst-case scenarios?",
           "who_they_are": "A senior investment partner experienced in financial modeling, risk-adjusted returns, portfolio strategy, and long-term technology investments.",
           "final_position": {
@@ -1227,6 +1235,7 @@
           "id": "power_user",
           "name": "Power User",
           "model": "meta-llama/llama-3.1-8b-instruct",
+          "mcp_servers": ["thoughtbox", "clear-thought"],
           "question": "Can I customize it, inspect its internals, and integrate it into my stack?",
           "who_they_are": "An experienced developer or infrastructure engineer who values technical control, customization, interoperability, and transparency.",
           "final_position": {
@@ -1240,6 +1249,7 @@
           "id": "enterprise_decision_maker",
           "name": "Enterprise Decision-Maker",
           "model": "google/gemma-3-4b-it",
+          "mcp_servers": ["invinoveritas", "decide-runtime", "securelend"],
           "question": "Is it secure, compliant, and reliable enough for enterprise deployment?",
           "who_they_are": "A CIO, CTO, IT director, or enterprise procurement decision-maker responsible for business value, risk, and production readiness.",
           "final_position": {
@@ -1263,6 +1273,7 @@
           "id": "skeptical_technical_critic",
           "name": "Skeptical Technical Critic",
           "model": "google/gemma-3-4b-it",
+          "mcp_servers": ["citation-checker", "crossref", "logic-verifier"],
           "question": "Why can't an existing open-source tool do the same thing?",
           "who_they_are": "A technically sophisticated engineer who distrusts marketing claims and prefers proven, transparent, and cost-effective alternatives.",
           "final_position": {
@@ -1283,6 +1294,7 @@
           "id": "startup_builder",
           "name": "Startup Builder",
           "model": "openai/gpt-oss-120b",
+          "mcp_servers": ["finance-mcp", "everycalc", "thoughtbox"],
           "question": "Is it affordable for a small team?",
           "who_they_are": "A startup founder or small engineering-team lead operating under tight budget, staffing, and time constraints.",
           "final_position": {
@@ -1306,6 +1318,7 @@
           "id": "free_tier_maximizer",
           "name": "Free-Tier Maximizer",
           "model": "meta-llama/llama-3.1-8b-instruct",
+          "mcp_servers": ["everycalc", "monsitools", "clear-thought"],
           "question": "Is there a genuinely useful free tier, and what happens when I outgrow it?",
           "who_they_are": "A hobbyist or independent builder who adopts products mainly through free tiers, open-source licenses, and generous trials, and who is quick to leave when limits or paywalls appear.",
           "final_position": {

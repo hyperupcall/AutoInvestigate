@@ -3,22 +3,15 @@
 #   docker compose up --build
 #
 # Host ports:
-<<<<<<< HEAD
 #   80     caddy            the only public entry point (basic auth; see deploy/Caddyfile)
 #   8000   frontend         static site (no build step)      — bound to 127.0.0.1
-#   8080   artifactfactory  REST API (idea execution)         — bound to 127.0.0.1
-#   8090   web              evaluation backend (idea evaluation) — bound to 127.0.0.1
-#   46357  slim             AGNTCY/SLIM bus (used by the agents)  — bound to 127.0.0.1
+#   8080   artifactfactory  REST API (idea execution backend — the frontend's column 3) — bound to 127.0.0.1
+#   8090   web              evaluation backend (idea evaluation — the frontend's column 2) — bound to 127.0.0.1
+#   8091   ideation         ideation collective daemon (topics, monitoring, idea generation)
+#   46357  slim             AGNTCY/SLIM bus (used by the evaluation agents) — bound to 127.0.0.1
 #
 # Caddy fronts everything on :80 with HTTP basic auth and proxies the API paths
 # to the right service on the same origin, so the browser needs no CORS overrides.
-=======
-#   8000   frontend         static site (no build step)
-#   8080   artifactfactory  REST API (idea execution backend — the frontend's column 3)
-#   8090   web              evaluation backend (idea evaluation — the frontend's column 2)
-#   8091   ideation         ideation collective daemon (topics, monitoring, idea generation)
-#   46357  slim             AGNTCY/SLIM bus (used by the evaluation agents)
->>>>>>> merged
 #
 # The evaluation backend (slim / agent_host / web) reads the single root .env
 # (OPENROUTER_API_KEY, SLIM_SHARED_SECRET, ...). Copy `.env.example` to `.env` and

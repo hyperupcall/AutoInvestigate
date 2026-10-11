@@ -39,11 +39,11 @@ BASE_MODEL = os.environ.get("BASE_MODEL", "openai/gpt-oss-120b")
 JUDGE = "deepseek/deepseek-v4-pro"
 OUT = os.path.join(os.path.dirname(__file__), "results")
 IDEAS = [
-    "Homomorphic encryption for privacy-preserving analytics on enterprise customer data, so a cloud provider can run reports without ever seeing the raw data.",
-    "Quantum-safe key exchange for enterprise routers, rolled out as a firmware update that adds post-quantum algorithms to existing VPN tunnels.",
-    "An AI fridge that tracks when ingredients inside it expire and alerts the household before they go bad.",
+    # "Homomorphic encryption for privacy-preserving analytics on enterprise customer data, so a cloud provider can run reports without ever seeing the raw data.",
+    # "Quantum-safe key exchange for enterprise routers, rolled out as a firmware update that adds post-quantum algorithms to existing VPN tunnels.",
+    # "An AI fridge that tracks when ingredients inside it expire and alerts the household before they go bad.",
     "A browser extension that uses an on-device LLM to flag dark patterns (fake countdown timers, hidden fees, confirmshaming) on e-commerce checkout pages and explains them to the shopper.",
-    "A neighborhood tool-lending library run out of a converted shipping container, funded by a 10 dollar monthly membership, so renters can borrow drills, ladders and pressure washers instead of buying them.",
+    # "A neighborhood tool-lending library run out of a converted shipping container, funded by a 10 dollar monthly membership, so renters can borrow drills, ladders and pressure washers instead of buying them.",
 ]
 BASELINE_PROMPT = "Please evaluate this idea and write me a report on whether it is worth pursuing.\n\nIdea: {idea}"
 

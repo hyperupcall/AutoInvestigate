@@ -154,7 +154,8 @@ def build(events: list[dict]) -> dict:
     groups = []
     for g in groups_meta:
         gid = g["id"]
-        agents = [{"id": a["id"], "name": a["name"], "model": a["model"], **_prompt_info(a)} for a in g["agents"]]
+        agents = [{"id": a["id"], "name": a["name"], "model": a["model"],
+                   "mcp_servers": a.get("mcp_servers", []), **_prompt_info(a)} for a in g["agents"]]
         rounds = []
         for n in rounds_seen:
             turns = [e for e in events if e["kind"] == "turn" and e["group"] == gid and _round(e["stage"]) == n]

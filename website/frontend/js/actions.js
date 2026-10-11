@@ -398,7 +398,7 @@
       report,
       cluster: report.groups.map((g) => ({
         id: g.id, name: g.name, style: g.style,
-        agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question, who_they_are: a.who_they_are })),
+        agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, mcp_servers: a.mcp_servers || [], question: a.question, who_they_are: a.who_they_are })),
       })),
       // The Evaluation Complex: three stewards watching the swarm in parallel (see modal.js).
       complex: report.complex ? {

@@ -14,6 +14,12 @@
   let overlay = null;
   let bodyEl = null;
 
+  /** The MCP servers an agent can use, as display names (falls back to the id). */
+  function mcpNames(agent) {
+    const byId = (Hack.mcpServers && Hack.mcpServers.byId) || {};
+    return ((agent && agent.mcp_servers) || []).map((id) => (byId[id] && byId[id].name) || id);
+  }
+
   function renderGroupRow(group, selected) {
     return el('label', { class: 'run-config-group' }, [
       el('input', {
@@ -26,6 +32,12 @@
           el('span', { class: 'tag', text: `${group.agents.length} agents` }),
         ]),
         group.blurb ? el('p', { class: 'group-blurb', text: group.blurb }) : null,
+        el('ul', { class: 'run-config-agents' }, group.agents.map((a) =>
+          el('li', { class: 'run-config-agent' }, [
+            el('span', { class: 'run-config-agent-name', text: a.name }),
+            el('span', { class: 'run-config-agent-model muted small', text: a.model || 'unknown model' }),
+            el('span', { class: 'run-config-agent-mcp muted small', text: 'MCP: ' + (mcpNames(a).join(', ') || 'none') }),
+          ]))),
       ]),
     ]);
   }

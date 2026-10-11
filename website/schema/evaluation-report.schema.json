@@ -894,6 +894,13 @@
           "type": "string",
           "description": "OpenRouter model id the agent ran on"
         },
+        "mcp_servers": {
+          "type": "array",
+          "description": "MCP server ids (from the catalog) this agent could call tools on",
+          "items": {
+            "type": "string"
+          }
+        },
         "question": {
           "type": [
             "string",

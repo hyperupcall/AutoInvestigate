@@ -64,7 +64,8 @@ def ui_events(events: list[dict]) -> list[dict]:
             add(e, phase="Setup", kind="cluster",
                 text=f"{len(groups)} groups · {sum(len(x['agents']) for x in groups.values())} agents · transport SLIM · protocol A2A",
                 groups=[{"id": x["id"], "name": x["name"], "style": x.get("consensus", "converge"),
-                         "agents": [{"id": a["id"], "name": a["name"], "model": a["model"]} for a in x["agents"]]}
+                         "agents": [{"id": a["id"], "name": a["name"], "model": a["model"],
+                                     "mcp_servers": a.get("mcp_servers", [])} for a in x["agents"]]}
                         for x in groups.values()])
         elif k == "stage_start" and gid and str(e["stage"]).startswith("deliberation"):
             if gid not in started:

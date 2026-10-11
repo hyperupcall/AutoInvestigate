@@ -242,11 +242,11 @@ Each agent carries `mcp_servers` (catalog ids), correlated with its role:
 | PE · Technical Risk Partner | arXiv, Crossref, Logic Verifier, Invinoveritas |
 | PE · Market and Revenue Partner | Finance MCP, Flatland, PreReason, OpenAlex |
 | PE · Competitive Strategy Partner | Finance MCP, Flatland, Semantic Scholar |
-| PE · Horizon and Returns Partner | Finance MCP, PreReason, Quorum |
-| Market · Power User | Thoughtbox, Clear Thought |
-| Market · Enterprise Decision-Maker | Invinoveritas, Decide Runtime, SecureLend |
+| PE · Horizon and Returns Partner | Finance MCP, PreReason, Quorum, arXiv, Semantic Scholar |
+| Market · Power User | Thoughtbox, Clear Thought, arXiv, Semantic Scholar |
+| Market · Enterprise Decision-Maker | Invinoveritas, Decide Runtime, SecureLend, Crossref, Citation Checker |
 | Market · Skeptical Technical Critic | Citation Checker, Crossref, Logic Verifier |
-| Market · Startup Builder | Finance MCP, EveryCalc, Thoughtbox |
+| Market · Startup Builder | Finance MCP, EveryCalc, Thoughtbox, OpenAlex, Semantic Scholar |
 | Market · Free-Tier Maximizer | EveryCalc, MonsiTools, Clear Thought |
 
 **Access:** the agent host (`website/agent_host/executor.py`) connects to the agent's
@@ -385,12 +385,8 @@ website/frontend/
       infoModal.js        "Information" popup (about, connections, models, links)
       runConfigModal.js   per-run group picker (Start Deeper Research)
       variationsModal.js  "Create variations" popup (generate, regenerate, pick)
-<<<<<<< HEAD
       artifactModal.js    artifact popup (what it is, download / interact)
-      modal.js            the two-tab popup (evaluation swarm / evaluation)
-=======
       modal.js            the three-tab popup (evaluation swarm / evaluation complex / evaluation)
->>>>>>> merged
       toast.js            notifications
     app.js                bootstrap
   artifactfactory.html    Artifact Factory dashboard (served by the factory at GET /)
