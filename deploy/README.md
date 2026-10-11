@@ -23,10 +23,11 @@ The root `docker-compose.yml` stack:
 ## Triggers
 
 - **Push to `main`** → automatic "pull latest" deploy.
-- **Actions ▸ Deploy to Vultr ▸ Run workflow** → deploy a specific commit, or
-  force a rebuild. Two inputs:
+- **Actions ▸ Deploy to Vultr ▸ Run workflow** → deploy a specific commit, force
+  a rebuild, or reset the server's state. Three inputs:
   - `ref` — a commit SHA, branch, or tag. Empty means "latest `main`".
   - `force` — rebuild images and recreate containers even if nothing changed.
+  - `reset_state` — wipe the server's runtime state before deploying (see below).
 
 ## Force-deploy a particular commit
 
@@ -42,6 +43,46 @@ You can also run the script directly on the server:
 
 ```bash
 ssh deploy@<droplet> 'cd /opt/autoinvestigate && ./deploy/remote-deploy.sh <commit-sha> --force'
+```
+
+## State between deploys
+
+Deploys are **non-destructive**: the script checks out the commit with
+`git checkout --force --detach`, which overwrites tracked files but leaves
+untracked files alone. All runtime state is untracked (gitignored), so it survives
+every deploy:
+
+| Path | What it holds |
+| --- | --- |
+| `website/data/settings.json` | the backend's saved settings (models, groups, prompts) |
+| `website/data/sources_cache.json` | cached arXiv/source lookups |
+| `website/council_results/` | past evaluation runs and their reports |
+| `logs/` | service logs |
+| `_artifacts/` | generated artifacts |
+| `_artifactfactory-data/` | the Artifact Factory daemon state |
+
+`.env` (the API keys) is also left untouched.
+
+### Reset all state (server only)
+
+To start from a clean slate — wipe the runs, artifacts, logs and saved settings —
+pass `--reset-state`. It stops the stack, deletes the paths above, recreates them
+empty, then deploys. **`.env` is kept**, so the keys and the deploy keep working.
+Nothing on your machine or in the repo is touched.
+
+From the Actions UI: **Run workflow**, tick `reset_state` (optionally with `ref`
+and `force`).
+
+From the command line:
+
+```bash
+gh workflow run deploy.yml -f reset_state=true
+```
+
+Directly on the server:
+
+```bash
+ssh deploy@<droplet> 'cd /opt/autoinvestigate && ./deploy/remote-deploy.sh --reset-state'
 ```
 
 ## Required GitHub secrets

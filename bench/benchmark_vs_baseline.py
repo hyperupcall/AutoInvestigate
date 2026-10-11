@@ -4,9 +4,10 @@ Track A (deliberation): every agent, the summarizer, the judge, the reality chec
 BASE_MODEL. The idea goes through the normal pipeline over AGNTCY/SLIM and we take its final report.
 Track B (baseline): the idea is pasted into BASE_MODEL with one plain request to evaluate it.
 
-Both reports are then graded blind by JUDGE (labels "Report 1"/"Report 2" in random order): plausibility,
-actionability and specificity, 1-5 each, plus the concrete errors it found in each report. It does not rate how
-good or bad the idea is.
+Both reports are then graded blind by JUDGE (labels "Report 1"/"Report 2" in random order): plausibility and
+actionability, 1-5 each, plus the concrete errors it found in each report. Plausibility is discounted for numbers
+stated without justification or a checkable source, and the two are combined with plausibility weighted 2/3 and
+actionability 1/3. It does not rate how good or bad the idea is.
 
 Needs the stack running (docker compose up -d) and OPENROUTER_API_KEY in the environment or the root .env.
 The deliberation settings are changed for the run and reset to the repo defaults at the end.
@@ -202,21 +203,34 @@ judge whether it is relevant to the idea and whether the report uses it correctl
 
 Score each report from 1 to 5 on:
 - plausibility/sensibility: does it make sense? Even if it is a bit far-fetched, does the report back its claims
-  and recommended actions with evidence? Rate the report's grounding, not whether the idea is good.
+  and recommended actions with evidence? Rate the report's grounding, not whether the idea is good. Check every
+  number the report states (market sizes, costs, percentages, dates, counts, growth rates). A number is only
+  credible if the report justifies it with evidence the reader can check, such as a link to a web page that proves
+  it. Numbers thrown in with no justification or source are a serious flaw: heavily discount plausibility for each
+  unsupported number, and discount it further when the number is precise or load-bearing for the report's
+  conclusion.
 - actionability: can a plan be built from this idea using the hints in the report, and then an artifact be built
   from that plan?
-- specificity: are the details specific (concrete risks, alternatives, numbers, tests) rather than generic advice?
 
 Do not rate how good or bad the idea is, and do not reward length, formatting or tone; a longer report earns
 nothing for length, and every extra claim is one more chance to be wrong.
 
 Then list the concrete factual errors or unsupported claims you found in each (quote briefly; empty list if none).
 
+When you pick the better report, weigh plausibility twice as heavily as actionability (plausibility 2/3,
+actionability 1/3).
+
 Reply with JSON only:
-{{"report_1": {{"plausibility": n, "actionability": n, "specificity": n, "errors": ["..."]}},
- "report_2": {{"plausibility": n, "actionability": n, "specificity": n, "errors": ["..."]}},
+{{"report_1": {{"plausibility": n, "actionability": n, "errors": ["..."]}},
+ "report_2": {{"plausibility": n, "actionability": n, "errors": ["..."]}},
  "better": 1 or 2, "why": "two sentences"}}"""
-METRICS = ["plausibility", "actionability", "specificity"]
+METRICS = ["plausibility", "actionability"]
+WEIGHTS = {"plausibility": 2 / 3, "actionability": 1 / 3}
+
+
+def weighted(score: dict) -> float:
+    """The two metrics combined into one number, plausibility weighted twice actionability."""
+    return round(sum(WEIGHTS[k] * float(score[k]) for k in WEIGHTS), 3)
 
 
 def judge(idea: str, deliberation: str, baseline: str) -> dict:
@@ -226,8 +240,13 @@ def judge(idea: str, deliberation: str, baseline: str) -> dict:
     text, cost = chat(JUDGE, JUDGE_PROMPT.format(idea=idea, r1=r1, r2=r2), max_tokens=6000, json_mode=True)
     o = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
     c, b = (o["report_1"], o["report_2"]) if deliberation_first else (o["report_2"], o["report_1"])
-    better = "deliberation" if (o.get("better") == 1) == deliberation_first else "baseline"
-    return {"deliberation_first": deliberation_first, "deliberation": c, "baseline": b, "better": better,
+    wc, wb = weighted(c), weighted(b)
+    if wc == wb:  # a tie on the weighted score: fall back to the judge's own pick
+        better = "deliberation" if (o.get("better") == 1) == deliberation_first else "baseline"
+    else:
+        better = "deliberation" if wc > wb else "baseline"
+    return {"deliberation_first": deliberation_first, "deliberation": c, "baseline": b,
+            "deliberation_weighted": wc, "baseline_weighted": wb, "better": better,
             "why": o.get("why", ""), "cost_usd": cost}
 
 
@@ -236,6 +255,8 @@ def summarize(items: list[dict]) -> dict:
     graded = [it for it in items if it.get("grade")]
     s = {side: {k: round(statistics.mean(float(it["grade"][side][k]) for it in graded), 2) for k in METRICS}
          for side in ("deliberation", "baseline")}
+    for side in ("deliberation", "baseline"):
+        s[side]["weighted"] = round(statistics.mean(it["grade"][f"{side}_weighted"] for it in graded), 2)
     s["deliberation_wins"] = sum(it["grade"]["better"] == "deliberation" for it in graded)
     s["graded"] = len(graded)
     return s
@@ -247,6 +268,10 @@ def write_html(res: dict, path: str):
     rows = "".join(f"<tr><td>{k.capitalize()}</td><td><b>{S['deliberation'][k]}</b></td><td>{S['baseline'][k]}</td>"
                    f"<td class=\"{'ok' if S['deliberation'][k] > S['baseline'][k] else 'bad'}\">{S['deliberation'][k] - S['baseline'][k]:+.2f}</td></tr>"
                    for k in METRICS)
+    rows += (f"<tr><td>Weighted (plausibility 2/3, actionability 1/3)</td><td><b>{S['deliberation']['weighted']}</b></td>"
+             f"<td>{S['baseline']['weighted']}</td>"
+             f"<td class=\"{'ok' if S['deliberation']['weighted'] > S['baseline']['weighted'] else 'bad'}\">"
+             f"{S['deliberation']['weighted'] - S['baseline']['weighted']:+.2f}</td></tr>")
     idea_rows, per = "", ""
     for n, it in enumerate(res["items"], 1):
         g = it.get("grade")
@@ -255,12 +280,13 @@ def write_html(res: dict, path: str):
         gc, gb = g["deliberation"], g["baseline"]
         idea_rows += (f"<tr><td>{n}. {e(it['idea'][:70])}{'…' if len(it['idea']) > 70 else ''}</td>"
                       + "".join(f"<td><b>{gc[k]}</b></td><td>{gb[k]}</td>" for k in METRICS)
+                      + f"<td><b>{g['deliberation_weighted']}</b></td><td>{g['baseline_weighted']}</td>"
                       + f"<td class=\"{'ok' if g['better'] == 'deliberation' else 'bad'}\">{g['better']}</td></tr>")
         per += (f"<div class=\"card\"><h3>{n}. {e(it['idea'])}</h3>"
                 f"<p class=\"small\">Judge prefers <b>{g['better']}</b>. {e(g['why'])}</p>"
-                f"<table><tr><th></th>{''.join(f'<th>{k.capitalize()}</th>' for k in METRICS)}</tr>"
-                f"<tr><td>Deliberation</td>{''.join(f'<td>{gc[k]}</td>' for k in METRICS)}</tr>"
-                f"<tr><td>Baseline</td>{''.join(f'<td>{gb[k]}</td>' for k in METRICS)}</tr></table>"
+                f"<table><tr><th></th>{''.join(f'<th>{k.capitalize()}</th>' for k in METRICS)}<th>Weighted</th></tr>"
+                f"<tr><td>Deliberation</td>{''.join(f'<td>{gc[k]}</td>' for k in METRICS)}<td>{g['deliberation_weighted']}</td></tr>"
+                f"<tr><td>Baseline</td>{''.join(f'<td>{gb[k]}</td>' for k in METRICS)}<td>{g['baseline_weighted']}</td></tr></table>"
                 f"<p class=\"small muted\">Errors the judge found in the deliberation report: {e('; '.join(g['deliberation'].get('errors') or []) or 'none')}</p>"
                 f"<p class=\"small muted\">Errors the judge found in the baseline report: {e('; '.join(g['baseline'].get('errors') or []) or 'none')}</p>"
                 f"<p class=\"small muted\">Deliberation: {it['deliberation']['seconds']} s, ${it['deliberation']['cost_usd'] or 0:.3f}, "
@@ -282,7 +308,7 @@ pre{{white-space:pre-wrap;font-size:12px;background:whitesmoke;padding:6px}}</st
 <h2>Result</h2>
 <div class="card"><p>The judge preferred the <b>deliberation</b> report for <b>{S['deliberation_wins']} of {S['graded']}</b> ideas.</p>
 <table><tr><th>Score (1-5, mean over ideas)</th><th>Deliberation (13 agents)</th><th>Baseline (one call)</th><th>Difference</th></tr>{rows}</table></div>
-<div class="card"><table><tr><th>Idea</th>{''.join(f'<th>Deliberation {k}</th><th>Baseline {k}</th>' for k in METRICS)}<th>Preferred</th></tr>{idea_rows}</table></div>
+<div class="card"><table><tr><th>Idea</th>{''.join(f'<th>Deliberation {k}</th><th>Baseline {k}</th>' for k in METRICS)}<th>Deliberation weighted</th><th>Baseline weighted</th><th>Preferred</th></tr>{idea_rows}</table></div>
 <h2>Method</h2>
 <div class="card small"><p><b>Deliberation:</b> the AutoInvestigate pipeline in {e(res.get('mode', 'quick').capitalize())} mode. 13 agents in three groups (research, private equity,
 market), each with its own persona and question, each its own AGNTCY/SLIM endpoint; reality check, deliberation, evaluations,
@@ -290,8 +316,9 @@ group summaries, cross-group review, stop-or-go and a final verdict. arXiv paper
 {e(res['base_model'])} at its lowest reasoning effort (it cannot run with reasoning off).</p>
 <p><b>Baseline:</b> one call to {e(res['base_model'])} with the prompt <i>"{e(BASELINE_PROMPT.split(chr(10))[0])}"</i> followed by the idea.</p>
 <p><b>Grading:</b> {e(res['judge'])} reads both reports, labeled only "Report 1" and "Report 2" in random order, scores each 1-5 on
-plausibility, actionability and specificity, and lists the factual errors it finds. It is told not to reward length and not to
-rate how good or bad the idea is.</p></div>
+plausibility and actionability, and lists the factual errors it finds. Plausibility is discounted for numbers stated without
+justification or a checkable source, and the two scores are combined with plausibility weighted 2/3 and actionability 1/3.
+It is told not to reward length and not to rate how good or bad the idea is.</p></div>
 <h2>Per idea</h2>{per}
 </main></body></html>"""
     open(path, "w").write(doc)

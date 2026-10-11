@@ -3,7 +3,8 @@ name: Deploy to Vultr
 # Deploys the Docker Compose stack to the Vultr droplet.
 #
 #   * every push to the default branch        -> automatic "pull latest" deploy
-#   * Actions ▸ Deploy to Vultr ▸ Run workflow -> deploy a specific commit / force
+#   * Actions ▸ Deploy to Vultr ▸ Run workflow -> deploy a specific commit / force /
+#                                                reset the server's state
 #
 # Required repository secrets (Settings ▸ Secrets and variables ▸ Actions):
 #   VULTR_HOST            droplet IP or hostname
@@ -30,6 +31,11 @@ on:
         default: ""
       force:
         description: "Rebuild and recreate containers even if nothing changed"
+        required: false
+        type: boolean
+        default: false
+      reset_state:
+        description: "Wipe the server's runtime state (runs, artifacts, logs, settings) before deploying"
         required: false
         type: boolean
         default: false
@@ -94,11 +100,13 @@ jobs:
           BRANCH: ${{ github.event.repository.default_branch }}
           DEPLOY_REF: ${{ inputs.ref }}
           DEPLOY_FORCE: ${{ inputs.force }}
+          DEPLOY_RESET_STATE: ${{ inputs.reset_state }}
         run: |
           set -euo pipefail
           args=()
           if [ -n "$DEPLOY_REF" ]; then args+=("$DEPLOY_REF"); fi
           if [ "$DEPLOY_FORCE" = "true" ]; then args+=(--force); fi
+          if [ "$DEPLOY_RESET_STATE" = "true" ]; then args+=(--reset-state); fi
           ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o IdentitiesOnly=yes \
             "$SSH_USER@$SSH_HOST" \
             "APP_DIR='$APP_DIR' BRANCH='$BRANCH' bash -s -- ${args[*]}" \

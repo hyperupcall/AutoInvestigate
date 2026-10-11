@@ -5,10 +5,13 @@
 # This script runs ON the server. GitHub Actions copies it over SSH and runs it
 # (see .github/workflows/deploy.yml); you can also run it by hand from the repo:
 #
-#   ./deploy/remote-deploy.sh [ref] [--force]
+#   ./deploy/remote-deploy.sh [ref] [--force] [--reset-state]
 #
-#   ref      commit SHA, branch, or tag to deploy (empty = origin/<BRANCH>)
-#   --force  rebuild images and recreate containers even if nothing changed
+#   ref            commit SHA, branch, or tag to deploy (empty = origin/<BRANCH>)
+#   --force        rebuild images and recreate containers even if nothing changed
+#   --reset-state  wipe the server's runtime state (runs, artifacts, logs,
+#                  settings) before starting; .env is kept. Server-only: nothing
+#                  on your machine or in the repo is touched.
 #
 # Environment variables (all optional):
 #   APP_DIR     repo location on the server   (default: /opt/autoinvestigate)
@@ -29,14 +32,16 @@ COMPOSE_FILE="${COMPOSE_FILE:-$APP_DIR/docker-compose.yml}"
 BOOTSTRAP="${BOOTSTRAP:-/tmp/autoinvestigate-bootstrap.env}"
 
 FORCE=0
+RESET_STATE=0
 REF=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --force)   FORCE=1; shift ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
-    --)        shift; break ;;
-    *)         REF="$1"; shift ;;
+    --force)       FORCE=1; shift ;;
+    --reset-state) RESET_STATE=1; shift ;;
+    -h|--help)     sed -n '2,23p' "$0"; exit 0 ;;
+    --)            shift; break ;;
+    *)             REF="$1"; shift ;;
   esac
 done
 
@@ -98,9 +103,19 @@ if [ ! -f "$ENV_FILE" ]; then
   fi
 fi
 
-# ------------------------------------------------------------- 4. build & up
+# ------------------------------------------------------- 3b. optional state reset
 COMPOSE=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
+if [ "$RESET_STATE" = 1 ]; then
+  log "resetting server state (containers + runtime data; .env is kept)"
+  "${COMPOSE[@]}" down --remove-orphans --volumes 2>/dev/null || true
+  rm -rf "$APP_DIR/_artifacts" "$APP_DIR/_artifactfactory-data" \
+         "$APP_DIR/logs" "$APP_DIR/website/data" "$APP_DIR/website/council_results"
+  mkdir -p "$APP_DIR/_artifacts" "$APP_DIR/_artifactfactory-data" \
+           "$APP_DIR/logs" "$APP_DIR/website/data" "$APP_DIR/website/council_results"
+fi
+
+# ------------------------------------------------------------- 4. build & up
 if [ "$FORCE" = 1 ]; then
   log "building images (--pull)"
   "${COMPOSE[@]}" build --pull
