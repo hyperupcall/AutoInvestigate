@@ -1,7 +1,9 @@
 # AutoInvestigate — Frontend
 
-Frontend for **BACKEND Code B** (Idea generation + Idea evaluation). All backend
-calls are **mocked** for now — see [`js/mock-backend.js`](js/mock-backend.js).
+Frontend for **BACKEND Code B** (Idea generation + Idea evaluation) and the
+**Artifact Factory** (Idea execution). Idea generation is still mocked; idea
+evaluation and idea execution connect to the real backends when they are running
+(see [Real backends](#real-backends)).
 
 ## Run it
 
@@ -27,7 +29,7 @@ Pages:
 | --- | --- |
 | **1 · Idea Generation** | The `(A)` seed box + iteration type, and the growing list of idea sections below it. |
 | **2 · Idea Evaluation** | Ideas copied over with **Evaluate →**; start deeper research and open runs. |
-| **3 · Idea Execution** | Blank for now — reserved for turning a chosen idea into an artifact. |
+| **3 · Idea Execution** | Turn a chosen idea into artifacts via the Artifact Factory. |
 
 **Settings** is a popup, opened from the **Settings** button in the header (not a sidebar).
 
@@ -80,10 +82,15 @@ perspectives (defaults: Professional Research ×4, Private Equity ×4, Market
 Reaction ×5). API keys are intentionally **not** here — they live on the backend.
 The same content is also available as a standalone page at `settings.html`.
 
-## Real backend
+## Real backends
 
-`js/api-backend.js` connects Part 2 to the real backend in `../backend` when it is running
-(`cd ../backend && ./setup.sh`, then open http://localhost:8090/). Without it, everything below stays mocked.
+Two backends connect automatically when they are reachable; otherwise the mocks keep working.
+
+- **Idea evaluation** — `js/api-backend.js` connects Part 2 to `../backend` when it is running
+  (`cd ../backend && ./setup.sh`, then open http://localhost:8090/).
+- **Idea execution** — `js/api-execution.js` connects column 3 to `../artifactfactory`
+  (`python3 -m artifactfactory.daemon`, or the root `./run.sh`). The factory allows the
+  frontend's origin via `AF_CORS_ORIGINS`; override the target with `window.AF_API`.
 
 ## Mock backend contract
 
@@ -131,13 +138,16 @@ frontend/
     util.js               DOM + misc helpers
     mock-data.js          fixtures: groups, archetypes, prompts, templates
     mock-report.js        sample evaluation report (schema-conforming)
-    mock-backend.js       ← the mocked backend (swap this for real calls)
+    mock-backend.js       mocked evaluation backend (Part 2)
+    mock-execution.js     mocked artifact factory (column 3)
+    api-backend.js        real evaluation backend client (swaps the mock)
+    api-execution.js      real artifact factory client (swaps the mock)
     state.js              single source of truth + pub/sub
     actions.js            mutations + orchestration
     components/
       generation.js       column 1
       evaluation.js       column 2
-      execution.js        column 3 (blank)
+      execution.js        column 3 (idea execution)
       settings.js         settings content (shared)
       settingsModal.js    settings popup
       modal.js            the two-tab popup (cluster status / evaluation)
@@ -147,5 +157,6 @@ frontend/
 
 ## Note on the third column
 
-The third column is **Idea Execution**, intentionally blank for now. Settings was
-moved into a popup opened from the header.
+The third column is **Idea Execution**: send an idea here with **Execute →** from a
+research run in column 2, then **Build artifacts** to create a plan and implement it
+through the Artifact Factory. Settings is a popup opened from the header.

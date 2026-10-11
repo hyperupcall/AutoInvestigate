@@ -27,6 +27,22 @@
       activeRunId: null,
     },
 
+    /* Right column */
+    execution: {
+      // The idea chosen to turn into artifacts (sent from column 2 or column 1).
+      ideaId: null,
+      ideaText: '',
+      title: '',
+      // plan: { id, title, idea_text, status, artifact_specs, steps, artifacts }
+      // job:  { id, status, artifact_ids, error }
+      plan: null,
+      job: null,
+      artifacts: [],
+      pending: false,   // creating the plan
+      building: false,  // implementing the plan
+      error: null,
+    },
+
     /* Settings (popup) */
     settings: {
       generationModel: 'openai/gpt-4o-mini',

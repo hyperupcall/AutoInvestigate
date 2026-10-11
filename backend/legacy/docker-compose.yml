@@ -1,7 +1,8 @@
 # SLIM bus + one service per agent + moderator (run on demand: `make hello`)
+# All keys and settings come from the single root .env (../../.env).
 x-agent: &agent
   build: .
-  env_file: .env
+  env_file: ../../.env
   depends_on: [slim]
   volumes: ["./data:/app/data:ro", "./logs:/app/logs"]
 

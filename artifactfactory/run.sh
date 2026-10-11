@@ -10,5 +10,12 @@ set -e
 DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(dirname "$DIR")
 
+# Load the single root .env (all API keys live there), if present.
+if [ -f "$ROOT/.env" ]; then
+  set -a
+  . "$ROOT/.env"
+  set +a
+fi
+
 cd "$ROOT"
 exec python3 -m artifactfactory.daemon "$@"

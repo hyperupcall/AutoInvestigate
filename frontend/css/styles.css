@@ -184,8 +184,32 @@ a { color: blue; }
 .run-progress { height: 4px; border: 1px solid silver; margin-top: 6px; }
 .run-progress-bar { height: 100%; background: gray; }
 .run-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.run-foot-actions { display: flex; align-items: center; gap: 8px; }
 
 .dot-pulse { display: inline-block; width: 6px; height: 6px; margin-right: 4px; background: currentColor; border-radius: 50%; }
+
+/* --------------------------- execution --------------------------- */
+.exec-status { font-size: 12px; color: gray; margin-bottom: 8px; }
+.exec-status .live { color: green; }
+.exec-section-label { font-size: 12px; color: gray; margin: 4px 0 6px; }
+.exec-idea { border: 1px solid silver; padding: 8px; margin-bottom: 10px; }
+.exec-idea-text { font-size: 13px; }
+.exec-idea-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.exec-plan { border: 1px solid silver; padding: 8px; margin-bottom: 10px; }
+.exec-plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.exec-plan-title { font-weight: 600; }
+.exec-plan-status { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 4px; }
+.exec-steps { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+.exec-steps li { margin: 2px 0; }
+.exec-steps li.done { color: gray; text-decoration: line-through; }
+.exec-progress { display: flex; align-items: center; gap: 8px; color: gray; margin-bottom: 10px; }
+.exec-artifacts { display: flex; flex-direction: column; gap: 8px; }
+.exec-artifact { border: 1px solid silver; padding: 8px; }
+.exec-artifact-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.exec-artifact-type { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 4px; margin-right: 6px; }
+.exec-artifact-name { font-weight: 600; font-size: 13px; }
+.exec-artifact-files { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color: gray; }
+.exec-artifact-files li { margin: 1px 0; }
 
 /* --------------------------- settings --------------------------- */
 .settings-section { margin-bottom: 16px; }

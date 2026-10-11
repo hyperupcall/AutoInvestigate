@@ -11,8 +11,9 @@ cd ~/Documents/research-council
 make up          # starts SLIM, 4 council agents, 3 expert agents, the runner and the UI
 ```
 
-Open http://localhost:8090 and press **Reset and run**. (Needs Docker running and a `.env` with
-`LLM_MODEL` and `ANTHROPIC_API_KEY`; copy `.env.example`.)
+Open http://localhost:8090 and press **Reset and run**. (Needs Docker running and the root `.env`
+(`../../.env`) with `OPENROUTER_API_KEY`; the model is set with `LLM_MODEL` and routed through
+OpenRouter. See `../../.env.example`.)
 
 Other commands:
 

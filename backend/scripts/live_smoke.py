@@ -8,10 +8,15 @@ from council import settings
 
 
 def load_env():
-    for line in open(".env") if os.path.exists(".env") else []:
-        if "=" in line and not line.startswith("#"):
-            k, v = line.strip().split("=", 1)
-            os.environ.setdefault(k, v)
+    # Inside the container the vars are injected by compose; locally, read the
+    # single root .env (../.env) or a backend-local .env if one exists.
+    for path in (".env", "../.env"):
+        if not os.path.exists(path):
+            continue
+        for line in open(path):
+            if "=" in line and not line.startswith("#"):
+                k, v = line.strip().split("=", 1)
+                os.environ.setdefault(k, v)
 
 
 async def main():

@@ -2,7 +2,7 @@
 # Run the Outshift Research Intelligence Streamlit app.
 #
 #   ./run.sh                      # uses the uv-managed ./.venv (created on first run)
-#   OPENAI_API_KEY=sk-... ./run.sh
+#   OPENROUTER_API_KEY=sk-or-... ./run.sh
 #
 # Extra args are passed through to `streamlit run`, e.g.:
 #   ./run.sh --server.port 8502

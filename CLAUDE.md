@@ -255,6 +255,15 @@ state = {
 - The mock output is **deterministic per idea** (seeded PRNG), so the same idea
   always yields the same mock result.
 
+**Environment / API keys:** everything runs on a **single `OPENROUTER_API_KEY`** in one
+root `.env` (template: `.env.example`). There are no per-directory `.env` files and no
+other provider keys. Each service reads that one file: the root `docker-compose.yml`
+defines the evaluation backend with `env_file: .env` (and `backend/setup.sh` /
+`backend/Makefile` drive it via `docker compose -f ../docker-compose.yml --env-file
+../.env`), `backend/legacy/` via `../../.env` (litellm `openrouter/...` models),
+`evalreport/` via `load_dotenv(<repo-root>/.env)` (OpenAI SDK pointed at OpenRouter),
+and `artifactfactory/run.sh` sources it.
+
 ---
 
 ## 6. Mock backend contract
@@ -308,10 +317,14 @@ on :8090, or `localhost:8090` from `run.sh` on :8000); otherwise the mock still 
 "Research runs". Stop-or-go is shown as the deliberation outcome (Stopped / Extra round / Disagreement kept),
 not as a verdict on the idea; the idea's verdict is the "Final verdict" block.
 
+**Done (real): Column 3 · Idea Execution** — `frontend/js/api-execution.js` swaps the mock for the real
+`artifactfactory/` service whenever it answers (same origin, or `localhost:8080` from `run.sh` on :8000; the
+factory allows that origin via `AF_CORS_ORIGINS`). "Execute →" on a research run sends its idea to column 3,
+which creates a plan, implements it and lists the artifacts with download links. Artifact content is still dummy.
+
 **Not done:**
 
 - **Part 1 backend (idea generation)** — `generateIdeas` is still the mock.
-- **Column 3 · Idea Execution** — currently blank (the "code and implement" stage).
 - **Settings persistence** — currently in-memory only.
 - **Prompt files** — the spec wants prompts loaded from the filesystem and
   selectable in settings; currently only preset names are mocked.

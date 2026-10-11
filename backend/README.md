@@ -18,9 +18,10 @@ cd backend
 ./setup.sh
 ```
 
-It checks Docker, writes `.env` (asks for the OpenRouter key once, generates the SLIM secret), checks the key and
-ports, builds and starts the SLIM bus + one agent process per evaluator + the web app, waits until every agent is
-registered on SLIM, then sends one tiny call to each model (well under $0.001). Run it again any time.
+It checks Docker, writes the single root `.env` (`../.env`; asks for the OpenRouter key once, generates the SLIM
+secret), checks the key and ports, builds and starts the SLIM bus + one agent process per evaluator + the web app,
+waits until every agent is registered on SLIM, then sends one tiny call to each model (well under $0.001). Run it
+again any time. All keys and settings come from that one file (see `../.env.example`).
 
 Then open:
 
@@ -32,7 +33,7 @@ Then open:
 
 `../run.sh` (frontend on port 8000) also works: the frontend finds this backend at `localhost:8090`.
 
-Stop: `docker compose down`. Logs: `docker compose logs -f agent_host web`.
+Stop: `docker compose down` (from the repo root). Logs: `docker compose logs -f agent_host web`.
 
 ## What happens in an evaluation
 
@@ -68,7 +69,7 @@ Examples of finished reports: `examples/`.
 ## Layout
 
 ```
-setup.sh, docker-compose.yml, Dockerfile, Makefile
+setup.sh, Dockerfile, Makefile   (the services are defined in the root ../docker-compose.yml)
 council/        settings, prompts loader, OpenRouter client, report builder, SLIM glue
 agent_host/     one process per agent (each a SLIM endpoint)
 orchestrator/   pipeline, run, SLIM bus client, web routes, frontend compatibility, live view (static/)

@@ -6,6 +6,7 @@ import threading
 import time
 import unittest
 import urllib.request
+import http.client
 from http.server import ThreadingHTTPServer
 
 from artifactfactory.api import make_handler
@@ -122,6 +123,55 @@ class HttpTests(unittest.TestCase):
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
+
+    def _request(self, method, path, origin=None, payload=None):
+        url = f"http://127.0.0.1:{self.port}{path}"
+        data = json.dumps(payload).encode("utf-8") if payload is not None else None
+        headers = {}
+        if payload is not None:
+            headers["Content-Type"] = "application/json"
+        if origin:
+            headers["Origin"] = origin
+        req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status, dict(resp.headers)
+
+    def test_cors_allows_the_frontend_origin(self):
+        origin = "http://localhost:8000"
+        status, headers = self._request("OPTIONS", "/ideas", origin=origin)
+        self.assertEqual(status, 204)
+        self.assertEqual(headers.get("Access-Control-Allow-Origin"), origin)
+        self.assertIn("POST", headers.get("Access-Control-Allow-Methods", ""))
+
+        status, headers = self._request("GET", "/health", origin=origin)
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("Access-Control-Allow-Origin"), origin)
+
+    def test_cors_ignores_unknown_origins(self):
+        status, headers = self._request("GET", "/health", origin="http://evil.example")
+        self.assertEqual(status, 200)
+        self.assertIsNone(headers.get("Access-Control-Allow-Origin"))
+
+    def test_keep_alive_after_post_with_body(self):
+        # POST /plans/<id>/implement carries a body the route does not read; on a
+        # keep-alive connection the leftover bytes must not be parsed as the next
+        # request line (which would answer 501).
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        try:
+            conn.request("POST", "/ideas", json.dumps({"text": "keep-alive idea"}),
+                         {"Content-Type": "application/json"})
+            plan_id = json.loads(conn.getresponse().read())["plan"]["id"]
+
+            conn.request("POST", f"/plans/{plan_id}/implement", "{}",
+                         {"Content-Type": "application/json"})
+            conn.getresponse().read()
+
+            conn.request("GET", f"/plans/{plan_id}")
+            resp = conn.getresponse()
+            self.assertEqual(resp.status, 200)
+            self.assertEqual(json.loads(resp.read())["id"], plan_id)
+        finally:
+            conn.close()
 
     def test_http_smoke(self):
         status, body = self._get("/health")

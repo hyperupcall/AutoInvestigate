@@ -1,5 +1,6 @@
 import os
 import time
+from pathlib import Path
 from typing import List, Dict
 
 import streamlit as st
@@ -8,7 +9,10 @@ import plotly.express as px
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
+# All keys live in the single root .env (../.env).
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 st.set_page_config(
     page_title="Outshift Research Swarm",
@@ -50,11 +54,8 @@ DEMO_RESPONSES = {
     "Cisco Opportunity Scout": "Potential Cisco relevance depends on whether the idea improves networking, security, infrastructure, observability, or enterprise AI. I would not claim strategic fit until the use case and buyer are concrete. If the connection is weak, treat this as a general technology opportunity rather than forcing a Cisco narrative.",
 }
 
-def get_client(api_key: str = "ollama"):
-    return OpenAI(
-        base_url="http://localhost:11434/v1",
-        api_key="ollama"
-    )
+def get_client(api_key: str):
+    return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=api_key)
 
 def ask_agent(client, model: str, agent: Dict, topic: str, goal: str,
               context: str, transcript: List[Dict], task: str) -> str:
@@ -147,12 +148,12 @@ with st.sidebar:
     )
     goal = st.text_input("What do you want to decide?", value="Find a differentiated opportunity and define a prototype experiment.")
     rounds = st.slider("Debate rounds", min_value=1, max_value=4, value=2)
-    model = st.text_input("OpenAI model", value=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"))
+    model = st.text_input("Model", value=os.getenv("EVALREPORT_MODEL", "openai/gpt-4.1-mini"))
     api_key = st.text_input(
-        "OpenAI API key",
-        value=os.getenv("OPENAI_API_KEY", ""),
+        "OpenRouter API key",
+        value=os.getenv("OPENROUTER_API_KEY", ""),
         type="password",
-        help="Alternatively set OPENAI_API_KEY in a .env file. Your key is used only by this local app.",
+        help="Alternatively set OPENROUTER_API_KEY in the root .env file. Your key is used only by this local app.",
     )
     demo_mode = st.toggle("Run in demo mode (no API calls)", value=not bool(api_key))
     context = st.text_area(
@@ -176,7 +177,7 @@ if run_button:
         st.error("Enter a research topic first.")
         st.stop()
     if not demo_mode and not api_key.strip():
-        st.error("Add an OpenAI API key or turn on demo mode.")
+        st.error("Add an OpenRouter API key or turn on demo mode.")
         st.stop()
 
     st.session_state.transcript = []

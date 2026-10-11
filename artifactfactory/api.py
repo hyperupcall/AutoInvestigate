@@ -1,10 +1,23 @@
 import json
+import os
 import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
 
 from .service import Service
+
+# Origins allowed to call this API from a browser (the frontend served on its own
+# port). Override with AF_CORS_ORIGINS (comma-separated).
+CORS_ORIGINS = {
+    o.strip()
+    for o in os.environ.get(
+        "AF_CORS_ORIGINS",
+        "http://localhost:8000,http://127.0.0.1:8000,"
+        "http://localhost:8090,http://127.0.0.1:8090",
+    ).split(",")
+    if o.strip()
+}
 
 
 class ApiError(Exception):
@@ -22,9 +35,23 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     # ------------------------------------------------------------- responses
+    def _cors(self) -> None:
+        origin = self.headers.get("Origin")
+        if origin in CORS_ORIGINS:  # the frontend served on its own port
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors()
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
     def _send_json(self, status: int, payload: Any) -> None:
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
+        self._cors()
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -33,6 +60,7 @@ class Handler(BaseHTTPRequestHandler):
     def _send_bytes(self, status: int, data: bytes, content_type: str,
                     filename: Optional[str] = None) -> None:
         self.send_response(status)
+        self._cors()
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
         if filename:
@@ -41,10 +69,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def _read_json(self) -> Dict[str, Any]:
-        length = int(self.headers.get("Content-Length") or 0)
-        if length <= 0:
-            return {}
-        raw = self.rfile.read(length)
+        raw = getattr(self, "_body_bytes", b"")
         if not raw:
             return {}
         try:
@@ -61,6 +86,13 @@ class Handler(BaseHTTPRequestHandler):
 
     def _handle(self, method: str) -> None:
         try:
+            # Always drain the request body. With HTTP/1.1 keep-alive, any unread
+            # bytes would be parsed as the next request line (and answered 501).
+            self._body_bytes = b""
+            if method == "POST":
+                length = int(self.headers.get("Content-Length") or 0)
+                if length > 0:
+                    self._body_bytes = self.rfile.read(length)
             parsed = urlparse(self.path)
             query = parse_qs(parsed.query)
             self._route(method, parsed.path, query)

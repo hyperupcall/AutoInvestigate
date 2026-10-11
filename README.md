@@ -4,7 +4,7 @@
 |---|---|---|
 | `frontend/` | the three-column app (no build step) | served by the backend at http://localhost:8090/, or `frontend/run.sh` |
 | `backend/` | Part 2, idea evaluation: 13 agents on AGNTCY/SLIM, models via OpenRouter | `cd backend && ./setup.sh` (see `backend/README.md`) |
-| `artifactfactory/` | artifact factory service | `./run.sh` |
+| `artifactfactory/` | Part 3, idea execution: turns an idea into artifacts (the frontend's column 3) | `./run.sh` |
 | `evalreport/` | report viewer | see the folder |
 
 Quick start for the evaluation backend: install Docker, get an OpenRouter key, then `cd backend && ./setup.sh` and
@@ -18,7 +18,7 @@ A runnable Streamlit MVP for specialist emerging-technology analysis with Busine
 
 ## Requirements
 - Python 3.10+
-- An OpenAI API key with access to the model you select
+- An OpenRouter API key with access to the model you select
 
 ## Run everything with Docker Compose
 
@@ -26,21 +26,27 @@ A single `docker-compose.yml` at the repo root builds and starts every service:
 
 | Service | Host URL | What it is |
 | --- | --- | --- |
-| `artifactfactory` | http://localhost:8080 | Artifact Factory REST API (idea → plan → artifacts) |
 | `frontend` | http://localhost:8000 | Static three-column workspace (no build step) |
+| `artifactfactory` | http://localhost:8080 | Artifact Factory REST API (idea → plan → artifacts) — column 3 |
+| `web` (+ `slim`, `agent_host`) | http://localhost:8090 | Evaluation backend (multi-agent deliberation) — column 2 |
 | `evalreport` | http://localhost:8501 | Streamlit "Outshift Research Intelligence" app |
 
 ```bash
-cp .env.example .env      # then set OPENAI_API_KEY (used by evalreport)
+cp .env.example .env      # then set OPENROUTER_API_KEY (and OPENAI_API_KEY for evalreport)
 docker compose up --build
 ```
 
-Then open http://localhost:8000 (frontend) and http://localhost:8501 (evalreport).
-Generated artifacts and daemon state persist to `./_artifacts` and
-`./_artifactfactory-data` on the host. Stop with `docker compose down`.
+Everything runs on a **single OpenRouter key**. The root `.env` holds one
+`OPENROUTER_API_KEY`, and every service reads that one file (`backend/`,
+`backend/legacy/`, and `evalreport/`). The evaluation backend also needs a
+`SLIM_SHARED_SECRET`; `cd backend && ./setup.sh` writes both for you.
+
+Then open http://localhost:8000 (frontend). The evaluation backend also serves the
+same frontend at http://localhost:8090. Generated artifacts and daemon state persist
+to `./_artifacts` and `./_artifactfactory-data` on the host. Stop with `docker compose down`.
 
 Each service also has its own Dockerfile (`artifactfactory/`, `frontend/`,
-`evalreport/`) if you want to build or run one on its own.
+`backend/`, `evalreport/`) if you want to build or run one on its own.
 
 ## Run on macOS/Linux
 ```bash
@@ -49,7 +55,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-export OPENAI_API_KEY="your-api-key"
+# OPENROUTER_API_KEY is read from the root .env (../.env); or export it here:
+export OPENROUTER_API_KEY="sk-or-..."
 streamlit run app.py
 ```
 

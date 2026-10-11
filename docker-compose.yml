@@ -3,18 +3,43 @@
 #   docker compose up --build
 #
 # Host ports:
-#   8080  artifactfactory  REST API (idea generation / evaluation backend)
-#   8000  frontend         static site (no build step)
-#   8501  evalreport       Streamlit "Outshift Research Intelligence" app
+#   8000   frontend         static site (no build step)
+#   8080   artifactfactory  REST API (idea execution backend — the frontend's column 3)
+#   8090   web              evaluation backend (idea evaluation — the frontend's column 2)
+#   8501   evalreport       Streamlit "Outshift Research Intelligence" app
+#   46357  slim             AGNTCY/SLIM bus (used by the evaluation agents)
 #
-# evalreport reads OPENAI_API_KEY and OPENAI_MODEL. Copy `.env.example` to
-# `.env` and fill it in (compose loads `.env` automatically), or export them.
+# The evaluation backend (slim / agent_host / web) reads the single root .env
+# (OPENROUTER_API_KEY, SLIM_SHARED_SECRET, ...). Copy `.env.example` to `.env` and
+# fill it in, or run `cd backend && ./setup.sh`, which writes it for you.
 #
 # Generated artifacts and state are persisted to the host via the volumes below.
 
 name: outshift-research-intelligence
 
+# Shared config for the evaluation backend (idea evaluation).
+x-council: &council
+  build: ./backend
+  env_file: .env
+  volumes:
+    - ./backend/data:/app/data
+    - ./backend/logs:/app/logs
+    - ./backend/prompts:/app/prompts:ro
+    - ./backend/results:/app/results
+
 services:
+  # ------------------------------------------------------------- frontend
+  frontend:
+    build:
+      context: ./frontend
+    image: outshift/frontend:latest
+    ports:
+      - "8000:80"
+    depends_on:
+      - artifactfactory
+    restart: unless-stopped
+
+  # ------------------------------------------------------- idea execution
   artifactfactory:
     build:
       context: ./artifactfactory
@@ -30,16 +55,54 @@ services:
       - ./_artifactfactory-data:/app/_artifactfactory-data
     restart: unless-stopped
 
-  frontend:
-    build:
-      context: ./frontend
-    image: outshift/frontend:latest
+  # ------------------------------------------------------- idea evaluation
+  slim:
+    image: ghcr.io/agntcy/slim:1.4.0@sha256:7a7531cb81f1e24682f08364713da06a158411df3e90b687acf8d5836da5a78e
+    container_name: council-slim
     ports:
-      - "8000:80"
-    depends_on:
-      - artifactfactory
-    restart: unless-stopped
+      - "46357:46357"
+    environment:
+      - PASSWORD=${SLIM_SHARED_SECRET}
+      - CONFIG_PATH=/config.yaml
+    volumes:
+      - ./backend/slim/server-config.yaml:/config.yaml
+    command: ["/slim", "--config", "/config.yaml"]
 
+  agent_host:
+    <<: *council
+    command: python -m agent_host.main
+    restart: unless-stopped
+    depends_on:
+      - slim
+
+  web:
+    <<: *council
+    user: "${HOST_UID:-0}:${HOST_GID:-0}"   # files written to logs/ and results/ stay owned by you
+    command: python -m orchestrator.web
+    ports:
+      - "127.0.0.1:8090:8090"
+    environment:
+      - FRONTEND_DIR=/app/frontend
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/logs:/app/logs
+      - ./backend/prompts:/app/prompts:ro
+      - ./backend/results:/app/results
+      - ${FRONTEND_DIR:-./frontend}:/app/frontend:ro
+    restart: unless-stopped
+    depends_on:
+      - slim
+      - agent_host
+
+  orchestrator:
+    <<: *council
+    command: python -m orchestrator.cli
+    profiles: ["run"]
+    depends_on:
+      - slim
+      - agent_host
+
+  # ------------------------------------------------------------- report app
   evalreport:
     build:
       context: ./evalreport

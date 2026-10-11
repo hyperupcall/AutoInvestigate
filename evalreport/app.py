@@ -12,13 +12,19 @@ import os
 import re
 import time
 from dataclasses import dataclass, asdict
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
 import streamlit as st
+from dotenv import load_dotenv
 from openai import OpenAI
 
+# All keys live in the single root .env (../.env).
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
 APP_TITLE = "Outshift Research Intelligence"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 PERSPECTIVES = {
     "Business": {
         "weight": 0.30,
@@ -268,8 +274,8 @@ st.title("🔬 Outshift Research Intelligence")
 st.caption("Specialist emerging-technology evaluation · Business + VC + Technical · Benchmark against a baseline")
 with st.sidebar:
     st.header("Model configuration")
-    api_key = st.text_input("OpenAI API key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
-    model_name = st.text_input("Model name", value=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"))
+    api_key = st.text_input("OpenRouter API key", type="password", value=os.getenv("OPENROUTER_API_KEY", ""))
+    model_name = st.text_input("Model", value=os.getenv("EVALREPORT_MODEL", "openai/gpt-4.1-mini"))
     st.caption("The API key is used only by this running app process. Do not commit it to source control.")
     st.divider()
     st.markdown("**Perspective weights**")
@@ -289,12 +295,12 @@ with run_col2:
 
 if run_specialist_btn or run_compare_btn:
     if not api_key:
-        st.error("Add your API key in the sidebar, or set OPENAI_API_KEY in your environment.")
+        st.error("Add your OpenRouter API key in the sidebar, or set OPENROUTER_API_KEY in your environment.")
         st.stop()
     if not idea.strip():
         st.error("Enter a research objective first.")
         st.stop()
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=OPENROUTER_BASE_URL)
     with st.spinner("Evaluating the idea..."):
         try:
             specialist = run_specialist(client, model_name, idea)

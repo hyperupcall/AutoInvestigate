@@ -11,7 +11,7 @@
 SHELL := /bin/sh
 .DEFAULT_GOAL := help
 
-.PHONY: help run backend frontend evalreport examples tests js components css daemon smoke test
+.PHONY: help run backend frontend evalreport evalreport2 examples tests js components css daemon smoke test
 
 help: ## Show this help
 	@echo "Targets:"
@@ -29,6 +29,9 @@ frontend: ## Serve the frontend static site
 
 evalreport: ## Run the Outshift Research Intelligence Streamlit app
 	cd evalreport && ./run.sh $(ARGS)
+
+evalreport2: ## Run the Outshift Research Intelligence CLI (writes index.html)
+	cd evalreport2 && ./run.sh $(ARGS)
 
 examples: ## Run the backend end-to-end smoke test
 	cd artifactfactory/examples && ./run.sh $(ARGS)

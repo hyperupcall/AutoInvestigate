@@ -4,6 +4,7 @@
   const { uid } = Hack.util;
   const store = Hack.store;
   const backend = Hack.mockBackend;
+  const execBackend = Hack.mockExecution;
   const state = store.state;
 
   /* ------------------------------ helpers ------------------------------ */
@@ -287,6 +288,87 @@
     store.notify();
   }
 
+  /* --------------------------- execution --------------------------- */
+
+  /** Copy an idea into column 3 (from an evaluation run or an idea row). */
+  function sendToExecution({ ideaId, ideaText, title }) {
+    const text = ideaText != null ? ideaText : (store.ideaById(ideaId) || {}).text;
+    if (!text) return;
+    state.execution = {
+      ideaId: ideaId || null, ideaText: text, title: title || '',
+      plan: null, job: null, artifacts: [], pending: false, building: false, error: null,
+    };
+    store.notify();
+    showToast('Sent to Idea Execution.', 'ok');
+  }
+
+  function clearExecution() {
+    state.execution = {
+      ideaId: null, ideaText: '', title: '',
+      plan: null, job: null, artifacts: [], pending: false, building: false, error: null,
+    };
+    store.notify();
+  }
+
+  /** Create the plan for the chosen idea, then implement it and poll the job. */
+  async function buildArtifacts() {
+    const ex = state.execution;
+    if (!ex.ideaText || ex.pending || ex.building) return;
+    ex.pending = true;
+    ex.error = null;
+    store.notify();
+    try {
+      const { idea, plan } = await execBackend.createIdea({ text: ex.ideaText, title: ex.title });
+      if (state.execution !== ex) return; // the column was reset while we waited
+      ex.plan = plan;
+      ex.ideaId = ex.ideaId || idea.id;
+      ex.pending = false;
+      ex.building = true;
+      store.notify();
+
+      const { job } = await execBackend.implementPlan(plan.id);
+      if (state.execution !== ex) return;
+      ex.job = job;
+      store.notify();
+      pollJob(ex, plan.id, job.id);
+    } catch (err) {
+      ex.pending = false;
+      ex.building = false;
+      ex.error = String((err && err.message) || err);
+      store.notify();
+      showToast('Could not start the build.', 'error');
+    }
+  }
+
+  function pollJob(ex, planId, jobId) {
+    const tick = async () => {
+      if (state.execution !== ex) return; // reset since
+      try {
+        const job = await execBackend.getJob(jobId);
+        if (!job) return;
+        ex.job = job;
+        if (job.status === 'succeeded' || job.status === 'failed') {
+          const plan = await execBackend.getPlan(planId).catch(() => null);
+          if (plan) { ex.plan = plan; ex.artifacts = plan.artifacts || []; }
+          ex.building = false;
+          if (job.status === 'failed') ex.error = job.error || 'Build failed.';
+          store.notify();
+          showToast(job.status === 'succeeded' ? 'Artifacts built.' : 'Build failed.',
+                    job.status === 'succeeded' ? 'ok' : 'error');
+          return;
+        }
+        store.notify();
+      } catch (e) { /* transient: keep polling */ }
+      setTimeout(tick, 700);
+    };
+    setTimeout(tick, 400);
+  }
+
+  /** Download URL for a built artifact (a data: URL in mock mode). */
+  function artifactDownloadUrl(artifactId) {
+    return execBackend.artifactUrl(artifactId);
+  }
+
   /* --------------------------- settings popup --------------------------- */
   function openSettings() {
     state.ui.settingsOpen = true;
@@ -363,6 +445,10 @@
     startQueuedEvaluation,
     startEvaluation,
     cancelEvaluation,
+    sendToExecution,
+    clearExecution,
+    buildArtifacts,
+    artifactDownloadUrl,
     openModal,
     closeModal,
     setModalTab,

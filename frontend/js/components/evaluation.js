@@ -98,8 +98,14 @@
         : null,
       el('div', { class: 'run-foot' }, [
         el('span', { class: 'muted small', text: run.status === 'running' ? (run.currentPhase || '') : `${run.cluster ? run.cluster.length : 0} groups · ${agentCount} agents` }),
-        decision && Hack.deliberationOutcome ? el('span', { class: 'run-decision ' + Hack.deliberationOutcome(report.stop_go).cls, text: Hack.deliberationOutcome(report.stop_go).value }) : null,
-        el('span', { class: 'link-btn', text: 'Open →' }),
+        el('div', { class: 'run-foot-actions' }, [
+          decision && Hack.deliberationOutcome ? el('span', { class: 'run-decision ' + Hack.deliberationOutcome(report.stop_go).cls, text: Hack.deliberationOutcome(report.stop_go).value }) : null,
+          el('button', {
+            class: 'mini-btn', text: 'Execute →', title: 'Send this idea to Idea Execution',
+            onclick: (e) => { e.stopPropagation(); actions.sendToExecution({ ideaId: run.ideaId, ideaText: run.ideaText }); },
+          }),
+          el('span', { class: 'link-btn', text: 'Open →' }),
+        ]),
       ]),
     ]);
   }
