@@ -60,6 +60,8 @@ a.brand { color: inherit; text-decoration: none; }
 .header-actions .btn { background: white; }
 .header-actions .btn:hover { background: gainsboro; }
 .mock-badge { font-size: 11px; color: gray; border: 1px solid silver; padding: 2px 6px; background: white; }
+.agents-running { display: inline-flex; align-items: center; font-size: 11px; color: gray; border: 1px solid silver; padding: 2px 6px; background: white; }
+.agents-running.active { color: green; border-color: green; }
 
 /* ------------------------------- layout ------------------------------- */
 .columns {
@@ -441,6 +443,17 @@ a.link-btn { text-decoration: none; }
 .decision-col ul, .pros-cons ul { margin: 0; padding-left: 18px; }
 .decision-col li, .pros-cons li { font-size: 12.5px; }
 
+/* Evaluation Complex: the three stewards that watch the swarm in parallel */
+.complex-actions { display: flex; justify-content: flex-end; }
+.complex-votes { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.complex-vote-row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+.complex-vote-name { font-weight: 600; min-width: 150px; }
+.complex-vote { font-size: 11px; border: 1px solid silver; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+.complex-vote.go { color: green; border-color: green; }
+.complex-vote.stop { color: red; border-color: red; }
+.complex-signals { margin: 4px 0 0 16px; font-size: 12px; color: gray; }
+.complex-verdict { margin-top: 4px; }
+
 .result-group { border: 1px solid silver; padding: 10px; }
 .result-group-head h4 { font-size: 13px; }
 .result-summary { font-size: 13px; }
@@ -634,3 +647,110 @@ a.link-btn { text-decoration: none; }
   .columns { grid-template-columns: 1fr; overflow: visible; }
   .column { max-height: 80vh; }
 }
+
+/* --------------------------- ideation view --------------------------- */
+.spacer { flex: 1; }
+
+.ideation-page { display: flex; flex-direction: column; height: 100vh; }
+.ideation-main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 12px 16px; }
+.ideation-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+
+.ideation-columns { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 300px) minmax(220px, 300px) minmax(0, 1fr); gap: 12px; }
+.ideation-detail { min-height: 0; overflow-y: auto; border: 1px solid silver; padding: 10px; }
+
+.ideation-panel { border: 1px solid silver; display: flex; flex-direction: column; min-height: 0; }
+.ideation-panel-head { display: flex; align-items: baseline; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid gainsboro; }
+.ideation-panel-head h3 { margin: 0; font-size: 13px; }
+.ideation-panel-body { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* the long "Add Topic" button at the end of the topics list */
+.ideation-add-topic { display: block; width: 100%; text-align: left; border: none; border-top: 1px solid gainsboro; background: whitesmoke; padding: 9px 8px; cursor: pointer; font-size: 13px; color: blue; }
+.ideation-add-topic:hover { background: aliceblue; }
+
+/* topics */
+.ideation-topic { padding: 8px; border-bottom: 1px dotted gainsboro; }
+.ideation-topic:last-child { border-bottom: none; }
+.ideation-topic.off { opacity: 0.5; }
+.ideation-topic-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.ideation-topic-title { display: inline-flex; align-items: baseline; gap: 6px; }
+.ideation-topic-name { font-weight: 600; font-size: 13px; }
+.ideation-origin { font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: green; border: 1px solid green; padding: 0 4px; }
+.ideation-topic-rationale { margin: 2px 0 0; font-style: italic; }
+.ideation-topic-desc { margin: 3px 0; }
+.ideation-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.ideation-tag { font-size: 10px; color: gray; border: 1px solid silver; padding: 0 4px; background: whitesmoke; }
+
+/* sessions */
+.ideation-session { padding: 8px; border-bottom: 1px dotted gainsboro; cursor: pointer; }
+.ideation-session:last-child { border-bottom: none; }
+.ideation-session:hover { background: whitesmoke; }
+.ideation-session.active { background: aliceblue; }
+.ideation-session-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.ideation-session-topic { font-weight: 600; font-size: 13px; margin-top: 2px; }
+
+/* the final idea + idea cards */
+.ideation-final { border: 1px solid silver; background: whitesmoke; padding: 10px; margin: 10px 0; }
+.ideation-idea-card { border: 1px solid silver; padding: 10px; margin-bottom: 10px; }
+.ideation-final-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ideation-kind { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid silver; padding: 1px 5px; background: white; }
+.ideation-kind.abstract { color: blue; border-color: blue; }
+.ideation-kind.concrete { color: green; border-color: green; }
+.ideation-artifact { font-size: 10px; color: gray; border: 1px solid silver; padding: 1px 5px; font-family: monospace; }
+.ideation-idea { font-size: 14px; font-weight: 600; margin: 4px 0; }
+.ideation-justification { margin: 4px 0; padding-left: 18px; }
+.ideation-justification li { font-size: 12.5px; margin: 2px 0; }
+.ideation-context { margin: 6px 0; }
+.ideation-context summary { font-size: 11px; color: gray; cursor: pointer; }
+.ideation-context-text { font-size: 12px; color: black; white-space: pre-wrap; border-left: 2px solid gainsboro; padding-left: 8px; margin: 6px 0; }
+.ideation-sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ideation-source { font-size: 11px; color: blue; text-decoration: none; border-bottom: 1px dotted blue; }
+.ideation-score { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.ideation-score-chip { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 5px; }
+
+/* the starting prompt and the skills / MCP servers an agent can access */
+.agent-capabilities { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.agent-cap-group { display: flex; align-items: baseline; gap: 6px; }
+.agent-cap-label { flex: 0 0 auto; }
+.agent-cap-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.agent-cap-chip { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 5px; background: white; text-decoration: none; }
+.agent-cap-chip[href] { color: blue; border-color: blue; }
+.agent-prompt { margin-top: 6px; }
+.agent-prompt summary { font-size: 11px; color: gray; cursor: pointer; }
+.agent-prompt-text { font-size: 11px; color: black; white-space: pre-wrap; border-left: 2px solid gainsboro; padding-left: 8px; margin: 6px 0; max-height: 240px; overflow: auto; }
+.agent-config { border-bottom: 1px dotted gainsboro; padding-bottom: 6px; margin-bottom: 6px; }
+.agent-config:last-child { border-bottom: none; }
+
+/* memory */
+.ideation-memory { border-bottom: 1px dotted gainsboro; padding: 8px 0; }
+.ideation-memory:last-child { border-bottom: none; }
+
+/* event kinds in the streamed log */
+.kind-turn .ideation-idea, .kind-final .ideation-idea { font-size: 13px; }
+.kind-final { background: whitesmoke; }
+.kind-memory .event-text { color: green; }
+.kind-done .event-text { color: gray; font-style: italic; }
+
+@media (max-width: 1000px) {
+  .ideation-columns { grid-template-columns: 1fr; }
+  .ideation-panel { max-height: 40vh; }
+}
+
+/* ideas loaded from the ideation daemon into column 1 */
+.idea-origin { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.idea-justification { margin: 4px 0 0; padding-left: 16px; }
+.idea-justification li { font-size: 12px; color: gray; margin: 1px 0; }
+.idea-sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+/* the Builder's score and the Analyzer's verdict */
+.ideation-build, .ideation-analysis { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+.ideation-verdict { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; border: 1px solid silver; padding: 1px 6px; background: white; }
+.ideation-verdict.ok { color: green; border-color: green; }
+.ideation-verdict.warn { color: darkorange; border-color: darkorange; }
+.ideation-verdict.bad { color: red; border-color: red; }
+.ideation-finding { font-size: 11px; color: gray; }
+.ideation-blocker { font-size: 11px; color: red; border: 1px solid red; padding: 0 5px; }
+
+/* a model dropdown with a thinking toggle beside it */
+.model-row-controls { display: flex; align-items: center; gap: 8px; }
+.model-row-controls .select { flex: 1; }
+.thinking-toggle { display: flex; align-items: center; gap: 4px; font-size: 12px; color: gray; white-space: nowrap; }

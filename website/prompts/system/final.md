@@ -32,6 +32,10 @@ WHETHER THE DELIBERATION SHOULD CONTINUE (the stop-or-go decision):
 
 <<STOP_GO>>
 
+WHAT THE EVALUATION COMPLEX DECIDED (three stewards watching the swarm: usefulness, information gain, cost):
+
+<<COMPLEX>>
+
 WHETHER THE IDEA MAKES SENSE IN THE REAL WORLD AT ALL (a check that ran before the groups):
 
 <<REALITY_CHECK>>
@@ -81,6 +85,9 @@ validation. "validation" is required.
 
 If the reality check says the idea is nonsense, the headline and the recommendation must say so plainly and must not
 be a plain Go. Name the real-world blocker in the headline or the summary; do not soften it into a normal risk.
+
+If the Evaluation Complex stopped the swarm early, say so in the summary and note what was still open when it
+stopped. Do not present an early stop as a complete evaluation.
 
 Every group id above must appear under "groups". For "scores", use only these metric names, exactly as written:
 Feasibility, Technical risk, Market demand, Differentiation, Time to first value, Cost to build and run, Adoption

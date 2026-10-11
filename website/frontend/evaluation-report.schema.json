@@ -82,6 +82,25 @@
         "scores": {"$ref": "#/$defs/templateScores"}
       }
     },
+    "complex": {
+      "type": ["object", "null"],
+      "description": "The Evaluation Complex: three stewards that watched the swarm in parallel and decided whether it should continue or stop. Null when the complex was disabled.",
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "decision": {"enum": ["continue", "stop", null]},
+        "stopped_by": {"enum": ["votes", "time", "user", null]},
+        "rounds": {"type": "integer"},
+        "stop_votes": {"type": "integer"},
+        "max_seconds": {"type": "integer"},
+        "stewards": {"type": "array", "items": {
+          "type": "object", "required": ["id", "name"],
+          "properties": {"id": {"type": "string"}, "name": {"type": "string"}, "objective": {"type": "string"},
+            "model": {"type": ["string", "null"]}, "decision": {"enum": ["continue", "stop", null]},
+            "confidence": {"type": ["number", "null"]}, "reason": {"type": ["string", "null"]},
+            "signals": {"type": "array", "items": {"type": "string"}}}}},
+        "history": {"type": "array", "items": {"type": "object"}}
+      }
+    },
     "agntcy": {
       "type": "object",
       "required": ["transport", "protocol", "slim_groups_opened", "endpoints"],

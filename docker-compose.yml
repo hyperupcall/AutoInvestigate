@@ -3,6 +3,7 @@
 #   docker compose up --build
 #
 # Host ports:
+<<<<<<< HEAD
 #   80     caddy            the only public entry point (basic auth; see deploy/Caddyfile)
 #   8000   frontend         static site (no build step)      — bound to 127.0.0.1
 #   8080   artifactfactory  REST API (idea execution)         — bound to 127.0.0.1
@@ -11,6 +12,13 @@
 #
 # Caddy fronts everything on :80 with HTTP basic auth and proxies the API paths
 # to the right service on the same origin, so the browser needs no CORS overrides.
+=======
+#   8000   frontend         static site (no build step)
+#   8080   artifactfactory  REST API (idea execution backend — the frontend's column 3)
+#   8090   web              evaluation backend (idea evaluation — the frontend's column 2)
+#   8091   ideation         ideation collective daemon (topics, monitoring, idea generation)
+#   46357  slim             AGNTCY/SLIM bus (used by the evaluation agents)
+>>>>>>> merged
 #
 # The evaluation backend (slim / agent_host / web) reads the single root .env
 # (OPENROUTER_API_KEY, SLIM_SHARED_SECRET, ...). Copy `.env.example` to `.env` and
@@ -21,10 +29,20 @@
 name: outshift-research-intelligence
 
 # Shared config for the evaluation backend (idea evaluation).
+# The entrypoint starts as root, chowns the mounted dirs to HOST_UID:HOST_GID (Docker
+# creates a missing bind-mount dir as root), then drops to that user — so the app can
+# write to ./logs, ./website/data and ./website/council_results, and the files stay
+# owned by you on the host. (Run ./fix-permissions.sh to repair existing dirs.)
+x-deliberation-env: &deliberation-env
+  CHOWN_DIRS: /app/data:/app/logs:/app/council_results
+  HOST_UID: "${HOST_UID:-0}"
+  HOST_GID: "${HOST_GID:-0}"
+
 x-deliberation: &deliberation
   build: ./website
   env_file: .env
-  user: "${HOST_UID:-0}:${HOST_GID:-0}"   # run as you, so files written to the mounted dirs stay owned by you
+  entrypoint: ["python", "/app/docker-entrypoint.py"]
+  environment: *deliberation-env
   volumes:
     - ./website/data:/app/data
     - ./logs:/app/logs
@@ -48,7 +66,10 @@ services:
     build:
       context: ./artifactfactory
     image: outshift/artifactfactory:latest
-    user: "${HOST_UID:-0}:${HOST_GID:-0}"   # files written to _artifacts/ and _artifactfactory-data/ stay owned by you
+    # The entrypoint starts as root, chowns the mounted dirs to HOST_UID:HOST_GID
+    # (Docker creates a missing bind-mount dir as root), then drops to that user, so
+    # files written to _artifacts/ and _artifactfactory-data/ stay owned by you.
+    entrypoint: ["python", "/app/docker-entrypoint.py"]
     ports:
       - "127.0.0.1:8080:8080"
     env_file: .env   # OPENROUTER_API_KEY: real literature review and experiment repo (artifactfactory/evaluation.py)
@@ -58,9 +79,41 @@ services:
       AF_STORAGE: local
       AF_EVAL_API: http://web:8090   # the evaluation backend, to fetch the run's report
       AF_FRONTEND_DIR: /app/frontend  # the dashboard page (website/frontend/artifactfactory.html)
+      CHOWN_DIRS: /app/_artifacts:/app/_artifactfactory-data
+      HOST_UID: "${HOST_UID:-0}"
+      HOST_GID: "${HOST_GID:-0}"
     volumes:
       - ./_artifacts:/app/_artifacts
       - ./_artifactfactory-data:/app/_artifactfactory-data
+      - ${FRONTEND_DIR:-./website/frontend}:/app/frontend:ro
+    restart: unless-stopped
+
+  # ------------------------------------------------------- idea generation
+  # The ideation collective: a long-running daemon that watches the internet for
+  # signals on a tagged watchlist of topics and turns them into ideas. Its SQLite
+  # database lives on a named volume (./_ideation-data) so it survives a rebuild.
+  ideation:
+    build:
+      context: ./website
+    image: outshift/ideation:latest
+    # The entrypoint starts as root, chowns the data volume to HOST_UID:HOST_GID
+    # (Docker creates a missing bind-mount dir as root), then drops to that user,
+    # so the SQLite database is owned by you on the host.
+    entrypoint: ["python", "/app/docker-entrypoint.py"]
+    command: ["python", "-m", "ideation.daemon"]
+    ports:
+      - "8091:8091"
+    env_file: .env   # OPENROUTER_API_KEY for the ideation agents
+    environment:
+      ID_HOST: 0.0.0.0
+      ID_PORT: "8091"
+      ID_DATA_DIR: /app/_ideation-data   # the SQLite database (a volume)
+      ID_FRONTEND_DIR: /app/frontend     # the Ideation View page (website/frontend/ideation.html)
+      ID_POLL_INTERVAL: "900"
+      HOST_UID: "${HOST_UID:-0}"
+      HOST_GID: "${HOST_GID:-0}"
+    volumes:
+      - ./_ideation-data:/app/_ideation-data
       - ${FRONTEND_DIR:-./website/frontend}:/app/frontend:ro
     restart: unless-stopped
 
@@ -90,7 +143,8 @@ services:
     ports:
       - "127.0.0.1:8090:8090"
     environment:
-      - FRONTEND_DIR=/app/frontend
+      <<: *deliberation-env
+      FRONTEND_DIR: /app/frontend
     volumes:
       - ./website/data:/app/data
       - ./logs:/app/logs

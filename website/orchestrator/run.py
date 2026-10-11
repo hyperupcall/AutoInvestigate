@@ -34,6 +34,13 @@ class Run:
         self._sources_task = None
         self.transcripts: dict[str, list] = {}  # each group's latest discussion (shown to it in the next round)
         self.latest_evals: dict[str, dict[str, str]] = {}  # each group's latest evaluations (read by the final writer)
+        self.summaries: dict[str, str] = {}  # each group's latest summary (read by the Evaluation Complex)
+        # The Evaluation Complex (see orchestrator/complex.py): three stewards that watch the swarm in parallel
+        # and can ask it to stop. complex_stop is set by the stewards' vote, the time limit, or the user.
+        self.complex = None
+        self.complex_task = None
+        self.complex_stop = asyncio.Event()
+        self._stop_reason: str | None = None
         if bus is None:
             from orchestrator.bus import Bus  # imported lazily so the pipeline logic is testable without SLIM
             bus = Bus()
@@ -46,6 +53,15 @@ class Run:
         with open(self.path, "a") as f:
             f.write(json.dumps(ev) + "\n")
         return ev
+
+    def request_stop(self, by: str, detail: str = "") -> None:
+        """Ask the swarm to stop and go straight to the final verdict. Set by the stewards' vote, the time
+        limit, or the user (see web.py /api/finalize). Idempotent; safe to call from the event loop thread."""
+        if self.complex_stop.is_set():
+            return
+        self._stop_reason = by
+        self.log("complex_stop", by=by, reason=detail or f"stopped by {by}")
+        self.complex_stop.set()
 
     async def start(self) -> None:
         if self.bus.client is None:
@@ -101,6 +117,8 @@ class Run:
         t0, turn = time.monotonic(), 0
         self.log("stage_start", stage=stage, group=group["id"], seconds=seconds, order=members)
         while turn < MAX_TURNS_PER_GROUP:
+            if self.complex_stop.is_set():
+                break  # the Evaluation Complex asked the swarm to stop: go to the final verdict
             if turn >= len(agents) and (self.quick or time.monotonic() - t0 >= seconds):
                 break  # quick: one pass, every member speaks once; deep: keep going until the time is up
             self.budget.check()

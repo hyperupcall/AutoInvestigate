@@ -77,6 +77,24 @@ def test_report_keeps_implementation_options_and_validation():
     assert r["verdict"]["implementation_options"][0]["feasibility"] == "not_feasible"
 
 
+def test_report_includes_complex():
+    from deliberation.report import build
+    events = [
+        {"kind": "run_start", "t": "2026-01-01T00:00:00+00:00", "run": "r1", "idea": "x", "max_cost": 1, "mode": "quick",
+         "groups": [{"id": "g", "name": "G", "consensus": "converge", "use_sources": False,
+                     "agents": [{"id": "a", "name": "A", "model": "m", "prompt": None}]}]},
+        {"kind": "complex_final", "t": "2026-01-01T00:00:01+00:00", "enabled": True, "decision": "stop",
+         "stopped_by": "votes", "rounds": 2, "stop_votes": 2, "max_seconds": 300,
+         "stewards": [{"id": "roi", "name": "ROI Steward", "objective": "worth it?", "model": "m",
+                       "decision": "stop", "confidence": 70, "reason": "cheap now", "signals": []}],
+         "history": []},
+        {"kind": "run_end", "t": "2026-01-01T00:00:02+00:00", "status": "done", "calls": 1, "spent": 0.01},
+    ]
+    r = build(events)
+    assert r["complex"]["decision"] == "stop" and r["complex"]["stopped_by"] == "votes"
+    assert r["complex"]["stewards"][0]["id"] == "roi"
+
+
 def test_exported_reports_match_the_schema():
     import glob
     import json

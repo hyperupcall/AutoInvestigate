@@ -400,6 +400,11 @@
         id: g.id, name: g.name, style: g.style,
         agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question, who_they_are: a.who_they_are })),
       })),
+      // The Evaluation Complex: three stewards watching the swarm in parallel (see modal.js).
+      complex: report.complex ? {
+        agents: (report.complex.stewards || []).map((s) => ({ id: s.id, name: s.name, model: s.model, objective: s.objective })),
+        decision: null, stoppedBy: null, report: null,
+      } : null,
       startedAt: Date.now(),
       finishedAt: null,
       currentPhase: 'Starting…',
@@ -418,6 +423,15 @@
         run.events.push(ev);
         run.currentPhase = ev.phase;
         run.currentAgent = ev.agent_id || '';
+        if (run.complex) {
+          if (ev.kind === 'complex-verdict') run.complex.decision = ev.decision;
+          if (ev.kind === 'complex-stop') run.complex.stoppedBy = ev.by;
+          if (ev.kind === 'complex-final') {
+            run.complex.report = ev.report;
+            run.complex.decision = ev.report.decision;
+            run.complex.stoppedBy = ev.report.stopped_by;
+          }
+        }
         store.notify();
       },
       onDone(finalReport) {
@@ -442,6 +456,15 @@
     run.finishedAt = Date.now();
     store.notify();
     showToast('Research run cancelled.', 'warn');
+  }
+
+  /** Force stop: stop the swarm now and write the final verdict from what exists (not a cancel). */
+  function forceFinalize(runId) {
+    const run = store.runById(runId);
+    if (!run || run.status !== 'running') return;
+    if (run._handle && run._handle.finalize) run._handle.finalize();
+    else if (run.backendRunId && Hack.apiBackend) Hack.apiBackend.forceFinalize(run.backendRunId);
+    showToast('Stopping the swarm and writing the verdict…', 'warn');
   }
 
   /** Hide a run: stop it if it is still running, then drop it from the list. */
@@ -746,6 +769,7 @@
     startQueuedEvaluation,
     startEvaluation,
     cancelEvaluation,
+    forceFinalize,
     removeRun,
     clearFinishedRuns,
     sendToExecution,

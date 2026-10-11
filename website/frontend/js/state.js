@@ -22,6 +22,7 @@
       //   { id, text, level, sourceIdeaId, addedAt }
       queue: [],
       // run: { id, ideaId, ideaText, model, status, events, report, cluster,
+      //        complex: { agents, decision, stoppedBy, report } | null,
       //        startedAt, finishedAt, currentPhase, currentAgent }
       runs: [],
       activeRunId: null,

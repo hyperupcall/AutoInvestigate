@@ -212,6 +212,27 @@ def _groups() -> list[dict]:
 LIBRARY_MODELS = ["meta-llama/llama-3.1-8b-instruct", "google/gemma-3-4b-it", "openai/gpt-oss-120b"]
 
 
+def _steward(slug: str, name: str, objective: str, prompt: str, model: str, effort: str = "low") -> dict:
+    return {"id": slug, "name": name, "objective": objective, "prompt": prompt, "model": model,
+            "api_key": "", "reasoning_effort": effort}
+
+
+def _stewards() -> list[dict]:
+    """The three Evaluation Complex stewards. They share one goal (continue or stop the swarm) but optimize for
+    different things, so they genuinely disagree (see orchestrator/complex.py)."""
+    return [
+        _steward("usefulness", "Usefulness Steward",
+                 "Is there a useful or implementable result in what the collectives produced?",
+                 "prompts/system/complex_usefulness.md", "openai/gpt-oss-120b"),
+        _steward("convergence", "Convergence Steward",
+                 "Would another round actually change anything (information gain)?",
+                 "prompts/system/complex_convergence.md", "openai/gpt-oss-120b"),
+        _steward("roi", "ROI Steward",
+                 "Is another round worth its cost in time and money?",
+                 "prompts/system/complex_roi.md", "openai/gpt-oss-120b"),
+    ]
+
+
 def archetype_library() -> list[dict]:
     """Extra customer archetypes that can be added to the market group from the settings popup."""
     out = []
@@ -237,6 +258,11 @@ DEFAULT_SETTINGS = {
         "final": {"model": "openai/gpt-oss-120b", "api_key": ""},  # the final report writer (see prompts/system/final.md)
         "reality_check": {"model": "openai/gpt-oss-120b", "api_key": ""},
     },
+    # The Evaluation Complex: three stewards that watch the swarm in parallel and decide whether it should
+    # continue or stop (see orchestrator/complex.py). max_seconds force-stops the swarm and writes the verdict;
+    # stop_votes is how many of the three must vote stop to stop the swarm early.
+    "complex": {"enabled": True, "max_seconds": 300, "interval_seconds": 45, "stop_votes": 2,
+                "stewards": _stewards()},
     "groups": _groups(),
 }
 

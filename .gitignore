@@ -122,6 +122,15 @@ coverage/
 _artifacts/
 _artifactfactory-data/
 
+# Runtime dirs moved aside when a root process (e.g. `docker compose up` without
+# run.sh) created them root-owned and the app could not write to them.
+*.root-owned/
+
+# ---------------------------------------------------------------------------
+# Ideation collective (generated output — the SQLite database + settings)
+# ---------------------------------------------------------------------------
+_ideation-data/
+
 # ---------------------------------------------------------------------------
 # Environment / secrets
 # ---------------------------------------------------------------------------

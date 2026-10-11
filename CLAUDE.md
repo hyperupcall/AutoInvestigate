@@ -148,6 +148,17 @@ The pipeline should be simple and use **models configured by the user**.
 **Prompts** must be configurable via a file on the filesystem and selectable in
 settings.
 
+**Evaluation Complex** (added): three **steward** agents run in parallel to the swarm for the whole run and decide
+whether it should continue or stop. They share one goal but optimize for different things, so they genuinely disagree:
+**Usefulness** (is there a useful or implementable result?), **Convergence** (would another round change anything —
+information gain?), and **ROI** (is another round worth its cost in time and money?). They re-assess after each swarm
+round and on a timer, each writing a `continue`/`stop` vote with a reason. When `complex.stop_votes` of them vote stop,
+the swarm stops and the run writes its final verdict from what exists; a time limit (`complex.max_seconds`) and the
+user (`POST /api/finalize`) can also force the stop. The complex lives in `orchestrator/complex.py`, its prompts in
+`prompts/system/complex_*.md`, its settings in the `complex` block, and its votes/report in the report's `complex`
+section. It streams to the frontend as `complex-cluster` / `complex-turn` / `complex-verdict` / `complex-stop` /
+`complex-final` events (the **Evaluation Complex** tab).
+
 ---
 
 ## 4. Frontend UI (as built)
@@ -170,8 +181,11 @@ the backend's real settings and saves them (`PUT /api/settings`); without a back
 it falls back to the in-memory mock settings.
 
 The header is a **navbar**: the brand on the left, the primary links (**Agent View**,
-**Artifact Factory**) in the middle, and the actions (**MOCK BACKEND** badge,
-**Information**, **Settings**) on the right. It is **one
+**Artifact Factory**) in the middle, and the actions (**agents running** badge, **MOCK BACKEND** badge,
+**Information**, **Settings**) on the right. The **agents running** badge polls the reachable backends'
+`/api/status` (the evaluation backend and the ideation daemon) every few seconds and shows the total number
+of agents active across them (swarm agents + Evaluation Complex stewards + ideation team members), with a
+per-service breakdown in its tooltip. It is **one
 shared component** (`website/frontend/js/components/navbar.js`) mounted on every page, so it
 looks and behaves the same on all routes — the workspace mounts it from `app.js`, the
 other pages from `website/frontend/js/shell.js` (which also mounts the popups it opens). The
@@ -297,7 +311,7 @@ dropdown to add another. Save, and the next run uses it.
 - Queued ideas and runs share **one regular list** (no separate "Queued" / "Research
   runs" sections). A running run can be **cancelled** (from its card or the popup
   header); any run can be **hidden** with ✕, and **Hide finished** clears all
-  completed/cancelled runs. Clicking a run opens a large popup with **two tabs**:
+  completed/cancelled runs. Clicking a run opens a large popup with **three tabs**:
   - **Evaluation Swarm** — each group is drawn as a **graph**: one circle per agent
     with the agent's name beside it (the agent currently speaking is highlighted).
     Clicking a circle shows that agent's stream — a **summary** of each of its
@@ -305,6 +319,10 @@ dropdown to add another. Save, and the next run uses it.
     panel under the graph. Below the graphs is the live stream of the whole run:
     summarized turns, evaluations, summaries, cross-group analysis, the stop-or-go
     decision and the verdict, as the backend emits them.
+  - **Evaluation Complex** — the three stewards that watch the swarm in parallel
+    (Usefulness, Convergence, ROI), drawn the same way: one circle per steward, click to
+    read its reasoning, with each assessment round's votes streamed below. A **Force stop
+    & finalize** button stops the swarm now and writes the verdict from what exists.
   - **Evaluation** — the finished report, shaped exactly like
     `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, the **final report**
     (headline, recommendation, executive summary, case for/against, ordered plan, kill
@@ -367,8 +385,12 @@ website/frontend/
       infoModal.js        "Information" popup (about, connections, models, links)
       runConfigModal.js   per-run group picker (Start Deeper Research)
       variationsModal.js  "Create variations" popup (generate, regenerate, pick)
+<<<<<<< HEAD
       artifactModal.js    artifact popup (what it is, download / interact)
       modal.js            the two-tab popup (evaluation swarm / evaluation)
+=======
+      modal.js            the three-tab popup (evaluation swarm / evaluation complex / evaluation)
+>>>>>>> merged
       toast.js            notifications
     app.js                bootstrap
   artifactfactory.html    Artifact Factory dashboard (served by the factory at GET /)
@@ -409,6 +431,13 @@ defines the evaluation backend with `env_file: .env` (and `website/setup.sh` /
 ../.env`), `evalreport/` via `load_dotenv(<repo-root>/.env)` (OpenAI SDK pointed at
 OpenRouter), and `artifactfactory/run.sh` sources it.
 
+**Volume ownership:** Docker creates a bind-mount source directory as `root` when it does not already exist, so a
+container running as the host user cannot write to it (e.g. `PermissionError: [Errno 13] Permission denied:
+'logs/runs'`, or SQLite's "unable to open database file"). The services therefore start as root and run
+`docker-entrypoint.py` (`website/` and `artifactfactory/`), which chowns the mounted dirs (`CHOWN_DIRS`, plus
+`ID_DATA_DIR` for ideation) to `HOST_UID:HOST_GID` and then drops to that user. `./fix-permissions.sh` (repo root)
+repairs existing root-owned dirs without a rebuild.
+
 ---
 
 ## 6. Mock backend contract
@@ -441,8 +470,10 @@ handle.cancel();
 
 Event kinds streamed to `onEvent`: `phase`, `cluster`, `reality-check`,
 `group-start`, `round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
-`cross-group`, `stop-go`, `verdict`. The **Evaluation Swarm** tab renders these live;
-the **Evaluation** tab renders the final `report`.
+`cross-group`, `stop-go`, `verdict`, plus the Evaluation Complex's `complex-cluster`,
+`complex-turn`, `complex-verdict`, `complex-stop`, `complex-final`. The **Evaluation
+Swarm** tab renders the swarm events live, the **Evaluation Complex** tab renders the
+complex events, and the **Evaluation** tab renders the final `report`.
 
 The report fixture (`js/mock-report.js`) is generated from
 `20261011-014311-b2e9.json` and conforms to `evaluation-report.schema.json`.
@@ -452,8 +483,8 @@ The report fixture (`js/mock-report.js`) is generated from
 ## 7. Status & next steps
 
 **Done (mocked):** three-column UI, level tree with per-level/per-idea iteration,
-lineage labels, evaluation runs with the two-tab popup (**Evaluation Swarm** live
-stream + **Evaluation** report with raw JSON), settings popup + page,
+lineage labels, evaluation runs with the three-tab popup (**Evaluation Swarm** live
+stream + **Evaluation Complex** + **Evaluation** report with raw JSON), settings popup + page,
 light/minimal styling.
 
 **Done (real): Part 2 backend** in `website/` (see `website/README.md`, routes documented there).
@@ -477,6 +508,12 @@ advisory (a failed call does not stop the run), feeds the stop-or-go and final p
 cannot get a plain "Go", lands in the report as `reality_check`, and shows as a banner in the Evaluation tab and
 a `reality-check` event in Evaluation Swarm. The mock mirrors it with a small keyword heuristic.
 
+**Done (real): Evaluation Complex** — three stewards (Usefulness, Convergence, ROI) run in parallel to the swarm
+(`orchestrator/complex.py`, prompts `prompts/system/complex_*.md`, the `complex` settings block) and vote
+continue/stop. Enough stop votes, the time limit, or `POST /api/finalize` stop the swarm and write the verdict from
+what exists. Shown in the modal's **Evaluation Complex** tab (stewards as a graph, their votes streamed, a **Force
+stop & finalize** button) and in the report's `complex` section. The mock mirrors it.
+
 **Done (real): Column 3 · Idea Execution** — `website/frontend/js/api-execution.js` swaps the mock for the real
 `artifactfactory/` service whenever it answers (same origin, or `localhost:8080` from `run.sh` on :8000; the
 factory allows that origin via `AF_CORS_ORIGINS`). "Execute →" on a research run sends its idea to column 3,
@@ -486,10 +523,37 @@ inline**: clicking a finished entry opens a popup (`website/frontend/js/componen
 what the artifact is and how to download or interact with it (a sandboxed preview, "Open full screen", "Download").
 Artifact content is still dummy.
 
+**Done (real): Part 1 · the ideation collective** — `website/ideation/` is a long-running daemon (the `ideation`
+service, port 8091) that watches the internet for a tagged watchlist of topics and turns what it finds into ideas.
+It stores everything in **SQLite** (`_ideation-data/ideation.db`, a Docker volume): topics, signals, ideas,
+sessions, events and memory. A **team of three agents works together** (not in competition) — **Idea Generator**
+(researches the idea and finalizes it, or replaces it with a better one), **Builder** (scores how well it can be
+built as an MVP/artifact), **Analyzer** (researches it and judges whether it makes sense or is nonsense) — round
+by round. Each agent's model is configurable in the Ideation View's Settings. Every message has a **large `context`**
+(the background and the text of the websites read), the **idea itself in one sentence**, and **3-4 justification
+bullets**. The **Ideation View** (`website/frontend/ideation.html`, the navbar's **Research and Ideation** link) is
+three columns — **Topics** and **Sessions** side by side (each scrolls on its own) and the main view to their
+right — and draws a session as an agent graph, the same visual language as the Evaluation Swarm, with the selected
+agent's messages beside it. Clicking an agent also shows its **starting prompt** and the **skills and MCP servers
+it can access** (the same is shown under each agent in Settings): skills are `website/skills/` directories whose
+`SKILL.md` is folded into the agent's system prompt, and MCP servers are ids from the shared catalog
+(`deliberation/defaults.py` `MCP_CATALOG`) that the agent may call tools on when MCP is enabled. A long **+ Add Topic** button ends the topics list: describe a topic and the AI fills
+in the name, description, tags and keywords (`POST /api/topics/draft`). A **topic finder** agent also runs on its
+own (every `discovery_interval_seconds`, default 1h, and on demand via the **Find topics** button /
+`POST /api/topics/discover`): it reads the newest signals plus a broad trending fetch (Hacker News front page,
+recent arXiv) and adds topics, each carrying `origin: "finder"` and a `rationale`. The prompt
+(`prompts/topic_finder.md`) insists that **topics do not need to be small** and **should combine only one or two
+things** (e.g. "using a Rust library to implement and validate a quick idea"). Settings cover a model and a **Thinking**
+toggle for each agent and for the topic drafter, the topic finder (on/off, interval, model), plus the MCP settings
+(enabled, tool calls per turn, timeout). `website/frontend/js/api-generation.js` connects column 1: the seed box's `generateIdeas` calls
+`POST /api/generate`, and the daemon's ideas load from `GET /api/tree` into the same level tree (abstract at
+level 1, concrete at level 2).
+
 **Not done:**
 
-- **Part 1 backend (idea generation)** — `generateIdeas` is still the mock.
-- **Settings persistence** — currently in-memory only.
+- **Ideation scheduling** — the daemon polls on a fixed interval; there is no per-topic cadence, back-off or
+  signal-retention policy yet.
+- **Settings persistence** — currently in-memory only (the ideation daemon does persist its own settings).
 - **Prompt files** — the spec wants prompts loaded from the filesystem and
   selectable in settings; currently only preset names are mocked.
 
