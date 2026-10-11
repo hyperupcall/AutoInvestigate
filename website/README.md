@@ -1,7 +1,7 @@
 # Evaluation backend (Part 2: idea evaluation over AGNTCY)
 
 Give it one idea as a string. Three groups of AI agents evaluate it and reach a verdict. Every agent is its own
-**AGNTCY/SLIM** endpoint (`council/agents/<id>`), and every model call goes through **OpenRouter**.
+**AGNTCY/SLIM** endpoint (`deliberation/agents/<id>`), and every model call goes through **OpenRouter**.
 
 | Group | Default members | Style |
 |---|---|---|
@@ -58,14 +58,14 @@ papers, who cited each, and any citation of an id that was not in the list. Togg
 
 ## MCP servers (agents can use tools)
 
-Each agent carries `mcp_servers`: ids from `MCP_CATALOG` in `council/defaults.py`, curated from
+Each agent carries `mcp_servers`: ids from `MCP_CATALOG` in `deliberation/defaults.py`, curated from
 [Smithery](https://smithery.ai/servers) across three categories — Academic Research, Finance and Reasoning. The
 mapping is by role: researchers get arXiv / Semantic Scholar / Crossref / citation checkers; the private-equity
 partners get finance data and reasoning servers; the market archetypes get calculators and decision servers.
 
 During the `evaluate` / `cross_review` stages (deep mode) the agent host connects to the agent's servers over
-Streamable HTTP (`council/mcp.py`), lists their tools and offers them to the model via OpenRouter tool-calling
-(`council/openrouter.py`, `chat_with_tools`). Tool names are prefixed with the server id (`arxiv__search`) so two
+Streamable HTTP (`deliberation/mcp.py`), lists their tools and offers them to the model via OpenRouter tool-calling
+(`deliberation/openrouter.py`, `chat_with_tools`). Tool names are prefixed with the server id (`arxiv__search`) so two
 servers can expose the same name. It is bounded by `mcp.max_tool_calls` and **fail-safe**: if a server is down or a
 call fails, the agent answers without tools. The Smithery key comes from `SMITH_API_KEY` in the root `.env`
 (see `../.env.example`); a stored `mcp.api_key` is only a fallback. Other settings: `mcp.enabled`,
@@ -120,7 +120,7 @@ Examples of finished reports: `examples/`.
 ```
 setup.sh, Dockerfile, Makefile   (the services are defined in the root ../docker-compose.yml)
 frontend/       the three-column app (static, no build step)
-council/        settings, prompts loader, OpenRouter client, MCP client, report builder, SLIM glue
+deliberation/   settings, prompts loader, OpenRouter client, MCP client, report builder, SLIM glue
 agent_host/     one process per agent (each a SLIM endpoint)
 orchestrator/   pipeline, run, SLIM bus client, web routes, frontend compatibility, live view (static/)
 prompts/        every agent's role and the system prompts (markdown, editable, mounted live)

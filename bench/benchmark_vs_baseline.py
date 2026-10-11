@@ -1,6 +1,6 @@
-"""Benchmark: the multi-agent council vs. one plain model call, same model everywhere.
+"""Benchmark: the multi-agent deliberation vs. one plain model call, same model everywhere.
 
-Track A (council): every agent, the summarizer, the judge, the reality check and the arXiv source picker run on
+Track A (deliberation): every agent, the summarizer, the judge, the reality check and the arXiv source picker run on
 BASE_MODEL. The idea goes through the normal pipeline over AGNTCY/SLIM and we take its final report.
 Track B (baseline): the idea is pasted into BASE_MODEL with one plain request to evaluate it.
 
@@ -9,12 +9,12 @@ actionability and specificity, 1-5 each, plus the concrete errors it found in ea
 good or bad the idea is.
 
 Needs the stack running (docker compose up -d) and OPENROUTER_API_KEY in the environment or the root .env.
-The council settings are changed for the run and reset to the repo defaults at the end.
+The deliberation settings are changed for the run and reset to the repo defaults at the end.
 
   python3 bench/benchmark_vs_baseline.py                          # the default ideas, Quick mode
   python3 bench/benchmark_vs_baseline.py "idea one" "idea two"
-  MODE=deep PARALLEL=2 python3 bench/benchmark_vs_baseline.py ...  # Deep mode, two councils at a time
-  REUSE_AFTER=<run id> ...       # reuse finished council runs of the same ideas started at or after that run id
+  MODE=deep PARALLEL=2 python3 bench/benchmark_vs_baseline.py ...  # Deep mode, two deliberations at a time
+  REUSE_AFTER=<run id> ...       # reuse finished deliberation runs of the same ideas started at or after that run id
   ... --blind                    # no judge: a page with the two reports as "Report A"/"Report B" plus a key file
   python3 bench/benchmark_vs_baseline.py --reformat bench/results/<stamp>-KEY.json
                                  # rewrite both reports of a --blind run into one identical plain layout
@@ -84,8 +84,8 @@ def chat(model: str, prompt: str, max_tokens: int, timeout=300, json_mode=False)
     raise RuntimeError(f"{model} gave no answer: {err}")
 
 
-# ---------------------------------------------------------------- track A: the council
-def council_settings_all_base_model():
+# ---------------------------------------------------------------- track A: the deliberation
+def deliberation_settings_all_base_model():
     s = http("GET", f"{API}/api/settings")
     s.pop("archetype_library", None)
     s["mode"] = MODE
@@ -100,11 +100,11 @@ def council_settings_all_base_model():
             a["model"] = BASE_MODEL  # also drops ":online" web search, so both tracks use the bare model
     r = http("PUT", f"{API}/api/settings", s)
     if not r.get("ok"):
-        sys.exit(f"could not save council settings: {r}")
+        sys.exit(f"could not save deliberation settings: {r}")
 
 
 def earlier_run(idea: str) -> str | None:
-    """A council run of this idea from this benchmark (id at or after REUSE_AFTER), finished or still running."""
+    """A deliberation run of this idea from this benchmark (id at or after REUSE_AFTER), finished or still running."""
     if not REUSE_AFTER:
         return None
     for r in http("GET", f"{API}/api/runs"):
@@ -113,7 +113,7 @@ def earlier_run(idea: str) -> str | None:
     return None
 
 
-def run_council(idea: str) -> dict:
+def run_deliberation(idea: str) -> dict:
     t0 = time.time()
     rid = earlier_run(idea)
     while not rid:
@@ -137,12 +137,12 @@ def run_council(idea: str) -> dict:
     if models != {BASE_MODEL}:
         sys.exit(f"run {rid} did not use {BASE_MODEL} for every agent: {models}")
     secs = (rep.get("run") or {}).get("duration_seconds") or round(time.time() - t0)
-    return {"run_id": rid, "text": council_text(rep), "seconds": round(secs),
+    return {"run_id": rid, "text": deliberation_text(rep), "seconds": round(secs),
             "cost_usd": (rep.get("run") or {}).get("cost_usd"), "missed_replies": missed}
 
 
-def council_text(r: dict) -> str:
-    """The council's final report as plain text: what a user reads, without internal ids."""
+def deliberation_text(r: dict) -> str:
+    """The deliberation's final report as plain text: what a user reads, without internal ids."""
     out = []
     v = r.get("verdict") or {}
     out += ["FINAL VERDICT", v.get("headline", ""), v.get("conclusion", ""), ""]
@@ -219,15 +219,15 @@ Reply with JSON only:
 METRICS = ["plausibility", "actionability", "specificity"]
 
 
-def judge(idea: str, council: str, baseline: str) -> dict:
+def judge(idea: str, deliberation: str, baseline: str) -> dict:
     """One blind grading of both reports; which one is shown first is random."""
-    council_first = random.random() < 0.5
-    r1, r2 = (council, baseline) if council_first else (baseline, council)
+    deliberation_first = random.random() < 0.5
+    r1, r2 = (deliberation, baseline) if deliberation_first else (baseline, deliberation)
     text, cost = chat(JUDGE, JUDGE_PROMPT.format(idea=idea, r1=r1, r2=r2), max_tokens=6000, json_mode=True)
     o = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
-    c, b = (o["report_1"], o["report_2"]) if council_first else (o["report_2"], o["report_1"])
-    better = "council" if (o.get("better") == 1) == council_first else "baseline"
-    return {"council_first": council_first, "council": c, "baseline": b, "better": better,
+    c, b = (o["report_1"], o["report_2"]) if deliberation_first else (o["report_2"], o["report_1"])
+    better = "deliberation" if (o.get("better") == 1) == deliberation_first else "baseline"
+    return {"deliberation_first": deliberation_first, "deliberation": c, "baseline": b, "better": better,
             "why": o.get("why", ""), "cost_usd": cost}
 
 
@@ -235,8 +235,8 @@ def judge(idea: str, council: str, baseline: str) -> dict:
 def summarize(items: list[dict]) -> dict:
     graded = [it for it in items if it.get("grade")]
     s = {side: {k: round(statistics.mean(float(it["grade"][side][k]) for it in graded), 2) for k in METRICS}
-         for side in ("council", "baseline")}
-    s["council_wins"] = sum(it["grade"]["better"] == "council" for it in graded)
+         for side in ("deliberation", "baseline")}
+    s["deliberation_wins"] = sum(it["grade"]["better"] == "deliberation" for it in graded)
     s["graded"] = len(graded)
     return s
 
@@ -244,31 +244,31 @@ def summarize(items: list[dict]) -> dict:
 def write_html(res: dict, path: str):
     e = html.escape
     S = res["summary"]
-    rows = "".join(f"<tr><td>{k.capitalize()}</td><td><b>{S['council'][k]}</b></td><td>{S['baseline'][k]}</td>"
-                   f"<td class=\"{'ok' if S['council'][k] > S['baseline'][k] else 'bad'}\">{S['council'][k] - S['baseline'][k]:+.2f}</td></tr>"
+    rows = "".join(f"<tr><td>{k.capitalize()}</td><td><b>{S['deliberation'][k]}</b></td><td>{S['baseline'][k]}</td>"
+                   f"<td class=\"{'ok' if S['deliberation'][k] > S['baseline'][k] else 'bad'}\">{S['deliberation'][k] - S['baseline'][k]:+.2f}</td></tr>"
                    for k in METRICS)
     idea_rows, per = "", ""
     for n, it in enumerate(res["items"], 1):
         g = it.get("grade")
         if not g:
             continue
-        gc, gb = g["council"], g["baseline"]
+        gc, gb = g["deliberation"], g["baseline"]
         idea_rows += (f"<tr><td>{n}. {e(it['idea'][:70])}{'…' if len(it['idea']) > 70 else ''}</td>"
                       + "".join(f"<td><b>{gc[k]}</b></td><td>{gb[k]}</td>" for k in METRICS)
-                      + f"<td class=\"{'ok' if g['better'] == 'council' else 'bad'}\">{g['better']}</td></tr>")
+                      + f"<td class=\"{'ok' if g['better'] == 'deliberation' else 'bad'}\">{g['better']}</td></tr>")
         per += (f"<div class=\"card\"><h3>{n}. {e(it['idea'])}</h3>"
                 f"<p class=\"small\">Judge prefers <b>{g['better']}</b>. {e(g['why'])}</p>"
                 f"<table><tr><th></th>{''.join(f'<th>{k.capitalize()}</th>' for k in METRICS)}</tr>"
-                f"<tr><td>Council</td>{''.join(f'<td>{gc[k]}</td>' for k in METRICS)}</tr>"
+                f"<tr><td>Deliberation</td>{''.join(f'<td>{gc[k]}</td>' for k in METRICS)}</tr>"
                 f"<tr><td>Baseline</td>{''.join(f'<td>{gb[k]}</td>' for k in METRICS)}</tr></table>"
-                f"<p class=\"small muted\">Errors the judge found in the council report: {e('; '.join(g['council'].get('errors') or []) or 'none')}</p>"
+                f"<p class=\"small muted\">Errors the judge found in the deliberation report: {e('; '.join(g['deliberation'].get('errors') or []) or 'none')}</p>"
                 f"<p class=\"small muted\">Errors the judge found in the baseline report: {e('; '.join(g['baseline'].get('errors') or []) or 'none')}</p>"
-                f"<p class=\"small muted\">Council: {it['council']['seconds']} s, ${it['council']['cost_usd'] or 0:.3f}, "
-                f"{it['council'].get('missed_replies', 0)} missed replies. Baseline: {it['baseline']['seconds']} s, ${it['baseline']['cost_usd']:.4f}.</p>"
-                f"<details><summary>Council final report</summary><pre>{e(it['council']['text'])}</pre></details>"
+                f"<p class=\"small muted\">Deliberation: {it['deliberation']['seconds']} s, ${it['deliberation']['cost_usd'] or 0:.3f}, "
+                f"{it['deliberation'].get('missed_replies', 0)} missed replies. Baseline: {it['baseline']['seconds']} s, ${it['baseline']['cost_usd']:.4f}.</p>"
+                f"<details><summary>Deliberation final report</summary><pre>{e(it['deliberation']['text'])}</pre></details>"
                 f"<details><summary>Baseline report</summary><pre>{e(it['baseline']['text'])}</pre></details></div>")
     doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Council vs Baseline</title><style>
+<title>Deliberation vs Baseline</title><style>
 *{{box-sizing:border-box}}body{{margin:0;font-family:system-ui,sans-serif;font-size:14px;line-height:1.5;color:black;background:white}}
 header{{padding:8px 12px;border-bottom:1px solid silver}}header h1{{font-size:15px;margin:0}}header p{{font-size:12px;color:gray;margin:0}}
 main{{max-width:1000px;margin:0 auto;padding:10px 12px}}h2{{font-size:14px;margin:14px 0 6px}}h3{{font-size:13px;margin:0 0 4px}}
@@ -276,15 +276,15 @@ main{{max-width:1000px;margin:0 auto;padding:10px 12px}}h2{{font-size:14px;margi
 table{{border-collapse:collapse;width:100%}}th,td{{border-bottom:1px solid gainsboro;padding:4px 6px;text-align:left}}th{{font-size:12px;color:gray}}
 .ok{{color:green}}.bad{{color:red}}details{{border:1px solid silver;padding:4px 8px;margin-top:6px}}summary{{cursor:pointer;font-size:12px;color:gray}}
 pre{{white-space:pre-wrap;font-size:12px;background:whitesmoke;padding:6px}}</style></head><body>
-<header><h1>Multi-agent council vs single-model baseline</h1>
+<header><h1>Multi-agent deliberation vs single-model baseline</h1>
 <p>Same model ({e(res['base_model'])}) on both sides &middot; {len(res['items'])} ideas &middot; graded blind by {e(res['judge'])} &middot; {e(res['finished_at'])}</p></header>
 <main>
 <h2>Result</h2>
-<div class="card"><p>The judge preferred the <b>council</b> report for <b>{S['council_wins']} of {S['graded']}</b> ideas.</p>
-<table><tr><th>Score (1-5, mean over ideas)</th><th>Council (13 agents)</th><th>Baseline (one call)</th><th>Difference</th></tr>{rows}</table></div>
-<div class="card"><table><tr><th>Idea</th>{''.join(f'<th>Council {k}</th><th>Baseline {k}</th>' for k in METRICS)}<th>Preferred</th></tr>{idea_rows}</table></div>
+<div class="card"><p>The judge preferred the <b>deliberation</b> report for <b>{S['deliberation_wins']} of {S['graded']}</b> ideas.</p>
+<table><tr><th>Score (1-5, mean over ideas)</th><th>Deliberation (13 agents)</th><th>Baseline (one call)</th><th>Difference</th></tr>{rows}</table></div>
+<div class="card"><table><tr><th>Idea</th>{''.join(f'<th>Deliberation {k}</th><th>Baseline {k}</th>' for k in METRICS)}<th>Preferred</th></tr>{idea_rows}</table></div>
 <h2>Method</h2>
-<div class="card small"><p><b>Council:</b> the AutoInvestigate pipeline in {e(res.get('mode', 'quick').capitalize())} mode. 13 agents in three groups (research, private equity,
+<div class="card small"><p><b>Deliberation:</b> the AutoInvestigate pipeline in {e(res.get('mode', 'quick').capitalize())} mode. 13 agents in three groups (research, private equity,
 market), each with its own persona and question, each its own AGNTCY/SLIM endpoint; reality check, deliberation, evaluations,
 group summaries, cross-group review, stop-or-go and a final verdict. arXiv papers are retrieved for two groups. Every model call uses
 {e(res['base_model'])} at its lowest reasoning effort (it cannot run with reasoning off).</p>
@@ -311,7 +311,7 @@ Content rules (strict):
 - Do not add anything, do not drop anything, do not fix or soften anything, even if you think it is wrong.
 - Keep sub-labels such as "Strengths:" and "Weaknesses:" so it stays clear which points are which.
 - Remove only references to how the report was produced (named groups, agents, panels, personas, rounds,
-  deliberation, a "council", researchers/investors/customers/the team "found" or "recommend"): state those
+  deliberation, researchers/investors/customers/the team "found" or "recommend"): state those
   conclusions directly, keeping what they say about the idea.
 - Section headings name the topic, not who wrote it (for example TECHNICAL ASSESSMENT, INVESTMENT ASSESSMENT,
   MARKET ASSESSMENT, RISKS, NEXT STEPS, SOURCES).
@@ -327,22 +327,22 @@ def reformat(key_path: str):
     A/B assignment. The original texts stay in the key file."""
     data = json.load(open(key_path))
 
-    for it in data["items"]:  # re-render the council text from its report with the current council_text()
-        it["council"]["text"] = council_text(http("GET", f"{API}/api/runs/{it['council']['run_id']}/report", timeout=300))
+    for it in data["items"]:  # re-render the deliberation text from its report with the current deliberation_text()
+        it["deliberation"]["text"] = deliberation_text(http("GET", f"{API}/api/runs/{it['deliberation']['run_id']}/report", timeout=300))
 
     def one(text):
         return chat(FORMAT_MODEL, FORMAT_PROMPT.format(text=text), max_tokens=12000)[0]
 
     with cf.ThreadPoolExecutor(10) as pool:
         jobs = {(i, side): pool.submit(one, it[side]["text"]) for i, it in enumerate(data["items"])
-                for side in ("council", "baseline")}
+                for side in ("deliberation", "baseline")}
         for (i, side), f in jobs.items():
             data["items"][i][side]["plain_text"] = f.result()
     json.dump(data, open(key_path, "w"), indent=2, ensure_ascii=False)
     stamp = os.path.basename(key_path).replace("-KEY.json", "")
-    items = [{**it, "council": {**it["council"], "text": it["council"]["plain_text"]},
+    items = [{**it, "deliberation": {**it["deliberation"], "text": it["deliberation"]["plain_text"]},
               "baseline": {**it["baseline"], "text": it["baseline"]["plain_text"]}} for it in data["items"]]
-    write_blind(items, stamp + "-plain", order=[k["A"] == "council" for k in data["key"]], key_extra=data)
+    write_blind(items, stamp + "-plain", order=[k["A"] == "deliberation" for k in data["key"]], key_extra=data)
 
 
 def write_blind(items: list[dict], stamp: str, order: list[bool] | None = None, key_extra: dict | None = None):
@@ -351,11 +351,11 @@ def write_blind(items: list[dict], stamp: str, order: list[bool] | None = None, 
     e = html.escape
     key, cards = [], ""
     for n, it in enumerate(items, 1):
-        council_is_a = order[n - 1] if order else random.random() < 0.5
-        a, b = (it["council"], it["baseline"]) if council_is_a else (it["baseline"], it["council"])
-        key.append({"idea": it["idea"], "A": "council" if council_is_a else "baseline",
-                    "B": "baseline" if council_is_a else "council", "council_run_id": it["council"]["run_id"],
-                    "council_missed_replies": it["council"].get("missed_replies")})
+        deliberation_is_a = order[n - 1] if order else random.random() < 0.5
+        a, b = (it["deliberation"], it["baseline"]) if deliberation_is_a else (it["baseline"], it["deliberation"])
+        key.append({"idea": it["idea"], "A": "deliberation" if deliberation_is_a else "baseline",
+                    "B": "baseline" if deliberation_is_a else "deliberation", "deliberation_run_id": it["deliberation"]["run_id"],
+                    "deliberation_missed_replies": it["deliberation"].get("missed_replies")})
         cards += (f"<section><h2>Idea {n}</h2><p class=\"idea\">{e(it['idea'])}</p><div class=\"pair\">"
                   f"<div class=\"card\"><h3>Report A</h3><pre>{e(a['text'])}</pre></div>"
                   f"<div class=\"card\"><h3>Report B</h3><pre>{e(b['text'])}</pre></div></div></section>")
@@ -383,25 +383,25 @@ def main():
     ideas = sys.argv[1:] or IDEAS
     os.makedirs(OUT, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    council_settings_all_base_model()
-    print(f"council set to {BASE_MODEL} everywhere, {MODE} mode; {len(ideas)} ideas", flush=True)
+    deliberation_settings_all_base_model()
+    print(f"deliberation set to {BASE_MODEL} everywhere, {MODE} mode; {len(ideas)} ideas", flush=True)
     items = []
     try:
         with cf.ThreadPoolExecutor(4) as pool:
             baselines = [pool.submit(run_baseline, i) for i in ideas]
-            with cf.ThreadPoolExecutor(PARALLEL) as councils:
-                runs = [councils.submit(run_council, i) for i in ideas]
+            with cf.ThreadPoolExecutor(PARALLEL) as deliberations:
+                runs = [deliberations.submit(run_deliberation, i) for i in ideas]
                 for idea, rf, bf in zip(ideas, runs, baselines):
-                    items.append({"idea": idea, "council": rf.result(), "baseline": bf.result()})
-                    print(f"  done: {idea[:50]}... ({items[-1]['council']['run_id']}, {items[-1]['council']['seconds']} s)", flush=True)
+                    items.append({"idea": idea, "deliberation": rf.result(), "baseline": bf.result()})
+                    print(f"  done: {idea[:50]}... ({items[-1]['deliberation']['run_id']}, {items[-1]['deliberation']['seconds']} s)", flush=True)
     finally:
         http("POST", f"{API}/api/settings/reset", {})
-        print("council settings reset to the repo defaults", flush=True)
+        print("deliberation settings reset to the repo defaults", flush=True)
     if BLIND:
         return write_blind(items, stamp)
     print(f"grading with {JUDGE}...", flush=True)
     with cf.ThreadPoolExecutor(5) as pool:
-        futs = {pool.submit(judge, it["idea"], it["council"]["text"], it["baseline"]["text"]): it for it in items}
+        futs = {pool.submit(judge, it["idea"], it["deliberation"]["text"], it["baseline"]["text"]): it for it in items}
         for f in cf.as_completed(futs):
             try:
                 futs[f]["grade"] = f.result()
@@ -414,9 +414,9 @@ def main():
     json.dump(res, open(jpath, "w"), indent=2, ensure_ascii=False)
     write_html(res, hpath)
     S = res["summary"]
-    print(f"\njudge preferred the council for {S['council_wins']}/{S['graded']} ideas")
+    print(f"\njudge preferred the deliberation for {S['deliberation_wins']}/{S['graded']} ideas")
     for k in METRICS:
-        print(f"  {k:<14} council {S['council'][k]:<5}  baseline {S['baseline'][k]}")
+        print(f"  {k:<14} deliberation {S['deliberation'][k]:<5}  baseline {S['baseline'][k]}")
     print(f"\n{os.path.abspath(hpath)}")
 
 

@@ -58,7 +58,7 @@
       })),
       cross_group: { disagreements: [], agreements: [] }, stop_go: null, verdict: null,
       agntcy: { transport: 'SLIM', protocol: 'A2A', slim_groups_opened: 0,
-                endpoints: groups.flatMap((g) => g.agents.map((a) => `council/agents/${a.id}`)) },
+                endpoints: groups.flatMap((g) => g.agents.map((a) => `deliberation/agents/${a.id}`)) },
       analysis: null,
     };
   }

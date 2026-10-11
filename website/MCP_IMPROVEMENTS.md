@@ -60,12 +60,12 @@ It has essentially none of C1, C2, C6, C7, C8, C9, C10.
 |---|---|---|
 | Pipeline | `orchestrator/pipeline.py` | `round_()` = deliberate → evaluate → summarize; `stop_or_go()`; `conclude()`; `analyze()` |
 | One run | `orchestrator/run.py` | `Run.deliberate()` (timed round-robin), `Run.evaluate()`, `Run.log()`, `RunBudget` |
-| Transport | `orchestrator/bus.py`, `council/slim.py` | one SLIM group per command, A2A messages, replies collected |
+| Transport | `orchestrator/bus.py`, `deliberation/slim.py` | one SLIM group per command, A2A messages, replies collected |
 | Agent process | `agent_host/executor.py` | builds a prompt from `prompts.system(...)` and calls `orr.chat` |
-| Model client | `council/openrouter.py` | `chat`, `chat_json`, retries, reasoning effort, `:online` web search, budget |
+| Model client | `deliberation/openrouter.py` | `chat`, `chat_json`, retries, reasoning effort, `:online` web search, budget |
 | Prompts | `prompts/system/*.md`, `prompts/<group>/*.md` | `<<PLACEHOLDER>>` templates, editable, mounted live |
-| Settings | `council/settings.py`, `council/defaults.py` | groups/agents/models, stages, budget; keys server-side |
-| Report | `council/report.py`, `schema/evaluation-report.schema.json` | deterministic reshape of the event log |
+| Settings | `deliberation/settings.py`, `deliberation/defaults.py` | groups/agents/models, stages, budget; keys server-side |
+| Report | `deliberation/report.py`, `schema/evaluation-report.schema.json` | deterministic reshape of the event log |
 | Disagreement analysis | `orchestrator/analysis.py` | one model call + **word-for-word quote verification** |
 | Live UI | `orchestrator/compat.py`, `orchestrator/static/` | event kinds the frontend renders |
 | Tests | `tests/` | pipeline control flow, report parsing, quote verification, compat shapes |
@@ -73,7 +73,7 @@ It has essentially none of C1, C2, C6, C7, C8, C9, C10.
 Two relevant facts:
 
 - **Retrieval exists but is uncontrolled.** `:online` models do a web search inside the model call
-  (`council/openrouter.py` `_body`), but the backend never sees the sources, cannot verify them, and
+  (`deliberation/openrouter.py` `_body`), but the backend never sees the sources, cannot verify them, and
   cannot share them between agents. That is the opposite of `MCP_INFO.md`'s "return source URLs and
   publication metadata".
 - **Verification exists but only for agent quotes.** `analysis.verify()` already drops quotes that
@@ -86,16 +86,16 @@ Two relevant facts:
 
 | Capability | Backend today | Gap | Proposed fix |
 |---|---|---|---|
-| C1 MCP tools | none | no tool layer at all | `council/mcp.py` client + `mcp_servers` in settings |
+| C1 MCP tools | none | no tool layer at all | `deliberation/mcp.py` client + `mcp_servers` in settings |
 | C2 Evidence-first | none | agents reason from priors | `orchestrator/evidence.py` stage + `<<EVIDENCE>>` in prompts |
 | C3 Specialists | 3 groups, 13 agents, per-metric medians | criteria not weighted into one number | deterministic weighted score in `report.py` |
 | C4 Critic | `critical_reviewer` inside research group; `analysis.py` finds disagreements | no cross-group red-team stage | `prompts/system/critic.md` + `Run.critic()` |
 | C5 Consensus | `stop_or_go` judge + `final` verdict | no transparent weighted score, no next-experiment field | weighted score + `next_experiment` in report |
-| C6 Memory | `council_results/` is a write-only archive | nothing is read back into new runs | `council/memory.py` (local) or memory MCP |
+| C6 Memory | `council_results/` is a write-only archive | nothing is read back into new runs | `deliberation/memory.py` (local) or memory MCP |
 | C7 GitHub | none | no repo inspection | GitHub MCP via C1 |
 | C8 Sandbox | `artifactfactory/` exists but is separate and dummy | no measured experiment | wire artifactfactory + a sandbox runner |
 | C9 Baseline | `evalreport/` has a baseline | backend has none | `orchestrator/baseline.py` + benchmark harness |
-| C10 Security | keys server-side, budget cap, timeouts | no untrusted-content handling, no read-only policy, no audit | policy in `council/mcp.py` + settings |
+| C10 Security | keys server-side, budget cap, timeouts | no untrusted-content handling, no read-only policy, no audit | policy in `deliberation/mcp.py` + settings |
 
 ---
 
@@ -125,7 +125,7 @@ nothing. The research and critic stages are **gatherers and challengers, not dec
 "no central decision-maker" property is preserved. The only judgement calls remain the existing
 `stop_or_go` and `final` stages.
 
-### 5.1 New module: `council/mcp.py` (C1, C7, C10)
+### 5.1 New module: `deliberation/mcp.py` (C1, C7, C10)
 
 A thin, provider-agnostic MCP client. It connects to servers configured in settings, lists tools,
 and calls them under a strict policy. Sketch:
@@ -218,7 +218,7 @@ conclusions. It reuses `orr.chat_json` and the existing `RunBudget`, and its out
 ### 5.4 Weighted score and next experiment (C5)
 
 `MCP_INFO.md` §9 gives weights Business 30 / VC 25 / Technical 45. The backend already computes
-per-metric medians in `council/report.py` (`scores` per group). Add a **deterministic** roll-up:
+per-metric medians in `deliberation/report.py` (`scores` per group). Add a **deterministic** roll-up:
 
 - Map each group's metrics onto the three lenses (research → Technical, private_equity → Business
   and VC, market → adoption signal).
@@ -233,7 +233,7 @@ the Evaluation tab.
 
 Two options, in order of effort:
 
-1. **Local store (recommended first).** `council/memory.py` writes a compact record per run
+1. **Local store (recommended first).** `deliberation/memory.py` writes a compact record per run
    (idea, verdict, scores, evidence source ids, experiments and their outcomes) to a JSON/SQLite
    file next to `council_results/`. `recall(idea)` returns the nearest prior runs by simple keyword overlap
    and feeds a short "what we learned before" block into the research stage. This is the "learnings
@@ -268,10 +268,10 @@ memory. This is the last phase; it is the most expensive and the least necessary
 | File | Change |
 |---|---|
 | `pyproject.toml` | add `mcp` dependency |
-| `council/mcp.py` | **new** — MCP client + policy |
-| `council/memory.py` | **new** — local memory store |
-| `council/defaults.py` | add `mcp_servers`, `evidence` stage, `weights`, `memory` to `DEFAULT_SETTINGS` |
-| `council/settings.py` | validate `mcp_servers`, `weights`; mask any server secrets in `public_view` |
+| `deliberation/mcp.py` | **new** — MCP client + policy |
+| `deliberation/memory.py` | **new** — local memory store |
+| `deliberation/defaults.py` | add `mcp_servers`, `evidence` stage, `weights`, `memory` to `DEFAULT_SETTINGS` |
+| `deliberation/settings.py` | validate `mcp_servers`, `weights`; mask any server secrets in `public_view` |
 | `orchestrator/evidence.py` | **new** — `gather()` |
 | `orchestrator/baseline.py`, `orchestrator/benchmark.py` | **new** — baseline + comparison |
 | `orchestrator/pipeline.py` | call `evidence.gather()` before `round_(...,1)`; optional refresh after round 1; call `critic` after rounds; add weighted score before `conclude` |
@@ -279,7 +279,7 @@ memory. This is the last phase; it is the most expensive and the least necessary
 | `agent_host/executor.py` | accept `evidence` in `_run()`; add `EVIDENCE=` to prompt values |
 | `prompts/system/research.md`, `critic.md` | **new** prompts |
 | `prompts/system/deliberation.md`, `evaluation.md`, `cross_review.md` | add `<<EVIDENCE>>` |
-| `council/report.py` | add `evidence`, `critic`, `score`, `baseline` sections; extend `verify` to sources |
+| `deliberation/report.py` | add `evidence`, `critic`, `score`, `baseline` sections; extend `verify` to sources |
 | `orchestrator/compat.py` | new UI event kinds: `evidence`, `critic`, `score` |
 | `schema/evaluation-report.schema.json` | extend with the new sections |
 | `orchestrator/web.py` | `POST /api/benchmark`, `GET /api/memory` |
@@ -287,7 +287,7 @@ memory. This is the last phase; it is the most expensive and the least necessary
 | `tests/` | policy tests, evidence-package parsing, weighted-score math, baseline shape |
 
 The event-log design means **nothing needs a database migration**: new stages just append new event
-kinds, and `council/report.py` reshapes them exactly as it does today.
+kinds, and `deliberation/report.py` reshapes them exactly as it does today.
 
 ---
 
@@ -295,13 +295,13 @@ kinds, and `council/report.py` reshapes them exactly as it does today.
 
 | Phase | `MCP_INFO.md` | Backend work | Demo value |
 |---|---|---|---|
-| 1 | one MCP server, one tool | `council/mcp.py` + `mcp_servers` in settings; smoke-test `list_tools` | plumbing |
+| 1 | one MCP server, one tool | `deliberation/mcp.py` + `mcp_servers` in settings; smoke-test `list_tools` | plumbing |
 | 2 | research retrieval + source tracking | `orchestrator/evidence.py`, `research.md`, `<<EVIDENCE>>` | **high** |
 | 3 | Business/VC/Technical agents | already present; add weighted score | medium |
 | 4 | critic + consensus | `critic.md`, `Run.critic()`, `next_experiment` | **high** |
 | 5 | GitHub inspection | GitHub MCP via phase 1 | medium |
 | 6 | sandboxed prototype | artifactfactory + sandbox runner | low (late) |
-| 7 | memory + benchmark dashboard | `council/memory.py`, `benchmark.py`, `/api/benchmark` | **high** |
+| 7 | memory + benchmark dashboard | `deliberation/memory.py`, `benchmark.py`, `/api/benchmark` | **high** |
 | 8 | AGNTCY interoperability | already done | — |
 
 Recommended MVP for a hackathon timeline: **phases 1, 2, 4, 7** — MCP client, evidence stage,

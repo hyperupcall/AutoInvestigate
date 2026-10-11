@@ -4,9 +4,9 @@ import asyncio
 import logging
 import sys
 
-from council import settings
+from deliberation import settings
 
-logger = logging.getLogger("council.host")
+logger = logging.getLogger("deliberation.host")
 
 
 def wanted_ids() -> list[str]:

@@ -3,8 +3,8 @@
 import asyncio
 import os
 
-from council import openrouter as orr
-from council import settings
+from deliberation import openrouter as orr
+from deliberation import settings
 
 
 def load_env():

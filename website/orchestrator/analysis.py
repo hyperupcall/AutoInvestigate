@@ -3,8 +3,8 @@ the cited agent actually said. Unverifiable quotes are dropped and counted, so t
 invented quote."""
 import re
 
-from council import openrouter as orr
-from council import prompts, settings
+from deliberation import openrouter as orr
+from deliberation import prompts, settings
 
 
 def _norm(s: str) -> str:

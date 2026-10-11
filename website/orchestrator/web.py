@@ -24,8 +24,8 @@ import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from council import settings
-from council.prompts import ROOT
+from deliberation import settings
+from deliberation.prompts import ROOT
 from orchestrator import compat
 from orchestrator.bus import Bus
 from orchestrator.pipeline import pipeline
@@ -111,7 +111,7 @@ def report_for(run_id: str) -> dict | None:
     ev = read_events(run_id)
     if not ev or not any(e["kind"] == "run_start" for e in ev):
         return None
-    from council.report import build
+    from deliberation.report import build
     return build(ev)
 
 

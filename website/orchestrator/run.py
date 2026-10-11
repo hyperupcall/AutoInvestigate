@@ -7,9 +7,9 @@ import time
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from council import settings
-from council.openrouter import BudgetExceeded, RunBudget
-from council.prompts import resolve_consensus
+from deliberation import settings
+from deliberation.openrouter import BudgetExceeded, RunBudget
+from deliberation.prompts import resolve_consensus
 
 MAX_TURNS_PER_GROUP = 40  # hard stop so a long time-box can never run away on cost
 RUNS_DIR = "logs/runs"

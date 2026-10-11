@@ -5,9 +5,9 @@ import tempfile
 
 import httpx
 
-from council import openrouter as orr
-from council import prompts, settings
-from council.defaults import archetype_library, default_settings
+from deliberation import openrouter as orr
+from deliberation import prompts, settings
+from deliberation.defaults import archetype_library, default_settings
 
 
 def mock(handler):

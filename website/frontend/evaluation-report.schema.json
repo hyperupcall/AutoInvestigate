@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/msureshc21/research-council/schema/evaluation-report.schema.json",
+  "$id": "https://github.com/msureshc21/research-deliberation/schema/evaluation-report.schema.json",
   "title": "AutoInvestiage evaluation report",
   "description": "Everything one idea evaluation produced: groups, agents, every discussion turn, evaluations, summaries, disagreements within and across groups, the stop-or-go decision and the verdict. One file per run in results/<run_id>.json; results/index.json lists all runs.",
   "type": "object",
