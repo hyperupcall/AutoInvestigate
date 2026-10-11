@@ -53,9 +53,10 @@
     return frame;
   }
 
-  function renderArtifact(a) {
+  function renderArtifact(item, a) {
     const url = actions.artifactDownloadUrl(a.id);
     const view = a.type === 'mvp_prototype' ? actions.artifactViewUrl(a.id) : null;
+    const server = (item.servers || {})[a.id] || null;
     return el('div', { class: 'artifact-block' }, [
       el('div', { class: 'artifact-block-head' }, [
         el('div', {}, [
@@ -68,6 +69,7 @@
         ]),
       ]),
       el('p', { class: 'artifact-desc', text: describe(a, view) }),
+      view ? renderRunControls(item, a, server) : null,
       view ? previewFrame(a.id, view) : null,
       (a.files || []).length
         ? el('details', { class: 'artifact-files' }, [
@@ -75,6 +77,33 @@
             el('ul', {}, a.files.map((f) => el('li', { text: f }))),
           ])
         : null,
+    ]);
+  }
+
+  /* Run the generated artifact as a local server: start it, open the URL, stop it. */
+  function renderRunControls(item, a, server) {
+    const status = server && server.status;
+    const running = status === 'running';
+    const starting = status === 'starting';
+    const url = running ? actions.serverUrl(server) : null;
+    return el('div', { class: 'artifact-run' }, [
+      el('div', { class: 'artifact-run-head' }, [
+        el('span', { class: 'exec-section-label', text: 'Run it' }),
+        el('div', { class: 'artifact-run-actions' }, [
+          running
+            ? el('button', { class: 'mini-btn', text: 'Stop server', onclick: () => actions.stopArtifactServer(item.id, a.id) })
+            : el('button', {
+                class: 'mini-btn', text: starting ? 'Starting…' : 'Start server',
+                disabled: starting ? true : null,
+                onclick: () => actions.startArtifactServer(item.id, a.id),
+              }),
+          url ? el('a', { class: 'mini-btn', href: url, target: '_blank', rel: 'noopener', text: 'Open ↗' }) : null,
+        ]),
+      ]),
+      url
+        ? el('p', { class: 'muted small', text: `Serving at ${url}` })
+        : el('p', { class: 'muted small', text: 'Start a local server to open this prototype at a URL.' }),
+      server && server.error ? el('div', { class: 'section-error', text: server.error }) : null,
     ]);
   }
 
@@ -95,7 +124,7 @@
       ]),
       item.error ? el('div', { class: 'section-error', text: item.error }) : null,
       item.artifacts.length
-        ? el('div', { class: 'artifact-list' }, item.artifacts.map(renderArtifact))
+        ? el('div', { class: 'artifact-list' }, item.artifacts.map((a) => renderArtifact(item, a)))
         : el('p', { class: 'muted small', text: 'No artifacts yet.' }),
     ]);
   }
@@ -136,7 +165,11 @@
     // Only rebuild when the shown item changes: rebuilding recreates the preview frame,
     // which would reload the prototype and throw away whatever the viewer just clicked.
     const item = store.state.execution.items.find((x) => x.id === am.itemId);
-    const sig = JSON.stringify([am.itemId, item ? [item.pending, item.building, item.error, item.artifacts.map((a) => a.id)] : null]);
+    const sig = JSON.stringify([
+      am.itemId,
+      item ? [item.pending, item.building, item.error, item.artifacts.map((a) => a.id),
+              Object.keys(item.servers || {}).map((k) => [k, item.servers[k] && item.servers[k].status])] : null,
+    ]);
     if (sig === lastSignature) return;
     lastSignature = sig;
     clear(bodyEl);

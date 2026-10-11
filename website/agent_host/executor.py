@@ -86,7 +86,7 @@ class AgentWorker(AgentExecutor):
             reasoning_effort="none" if quick else (agent.get("reasoning_effort") or s["reasoning_effort"][stage]),
             web_results=s["web_search_results"], on_length="trim" if cmd["kind"] == "turn" else "retry")
         res = await self._answer(agent, s, cmd, model, [{"role": "user", "content": prompt}],
-                                 settings.resolve_key(agent["api_key"], s), kw)
+                                 settings.resolve_key(), kw)
         text = trim_to_sentence(res.text) if res.finish_reason == "length" else res.text
         return {"text": text, "cost": res.cost, "model": model, "truncated": res.finish_reason == "length"}
 

@@ -32,7 +32,8 @@
     execution: {
       // One entry per prototype; several build at the same time.
       //   { id, ideaId, ideaText, title, evaluationRunId, createdAt,
-      //     plan, job, artifacts, pending, building, error }
+      //     plan, job, artifacts, servers, pending, building, error }
+      // servers: { [artifactId]: { id, status, url, path, ... } } — a run artifact server
       // plan: { id, title, idea_text, status, artifact_specs, steps, artifacts }
       // job:  { id, status, artifact_ids, error }
       items: [],

@@ -136,7 +136,7 @@ async def find(idea: str, s: dict, budget: orr.RunBudget | None = None) -> dict:
     if cached:
         return {k: v for k, v in cached.items() if k != "at"} | {"cached": True}
     cfg = s["sources"]
-    key = settings.resolve_key("", s)
+    key = settings.resolve_key()
     kw = dict(max_tokens=600, reasoning_effort="none", budget=budget)
 
     def valid_queries(o):

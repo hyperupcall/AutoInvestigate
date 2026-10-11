@@ -5,3 +5,4 @@ Only use these models when using AI configuration.
 - Meta: Llama 3.1 8B Instruct (meta-llama/llama-3.1-8b-instruct)
 - Google: Gemma 3 4B (gemma-3-4b-it)
 - OpenAI: gpt-oss-120b *gpt-oss-120b()
+- Google: Gemini 3.8 Flash (google/gemini-3.8-flash) — used for ideas vaguely related to the topics

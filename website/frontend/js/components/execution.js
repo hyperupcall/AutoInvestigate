@@ -80,6 +80,10 @@
     return { cls: '', text: 'Queued' };
   }
 
+  function runningServers(item) {
+    return Object.keys(item.servers || {}).filter((k) => item.servers[k] && item.servers[k].status === 'running').length;
+  }
+
   function renderItem(item) {
     const status = itemStatus(item);
     const ready = !item.pending && !item.building && (item.artifacts.length > 0 || !!item.error);
@@ -105,7 +109,10 @@
       item.plan ? el('p', { class: 'muted small', text: item.plan.title || 'Plan' }) : null,
       item.error ? el('div', { class: 'section-error', text: item.error }) : null,
       el('div', { class: 'exec-item-foot' }, [
-        el('span', { class: 'muted small', text: item.artifacts.length ? `${item.artifacts.length} artifact${item.artifacts.length === 1 ? '' : 's'}` : '' }),
+        el('div', { class: 'exec-item-foot-left' }, [
+          el('span', { class: 'muted small', text: item.artifacts.length ? `${item.artifacts.length} artifact${item.artifacts.length === 1 ? '' : 's'}` : '' }),
+          runningServers(item) ? el('span', { class: 'exec-item-running', text: '● server running' }) : null,
+        ]),
         el('div', { class: 'exec-item-actions' }, [
           item.error
             ? el('button', { class: 'mini-btn', text: 'Retry', onclick: (e) => { e.stopPropagation(); actions.buildArtifacts(item.id); } })

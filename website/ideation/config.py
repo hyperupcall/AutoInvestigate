@@ -32,6 +32,8 @@ class Config:
     topic_thinking: bool = True                 # thinking mode for the topic drafter
     finder_model: str = ""                      # model the topic finder uses ("" = the default model)
     finder_thinking: bool = True                # thinking mode for the topic finder
+    related_model: str = "google/gemini-3.8-flash"  # model that sketches ideas vaguely related to the topics
+    related_thinking: bool = True               # thinking mode for the related-idea generator
     discovery_enabled: bool = True              # let the topic finder add topics on its own
     discovery_interval_seconds: int = 3600      # how often the finder runs (seconds)
     discovery_signals: int = 20                 # recent signals fed to the finder

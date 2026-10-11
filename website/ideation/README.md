@@ -196,6 +196,7 @@ plus the resolved agent roster; `PUT /api/settings` accepts any subset (an
 | GET | `/api/sessions/{id}` | One session |
 | GET | `/api/sessions/{id}/events?since=N` | The live event stream |
 | GET | `/api/sessions/{id}/report` | The session report |
+| POST | `/api/sessions/{id}/stop` | Terminate a running session |
 | POST | `/api/generate` | The Part 1 generation contract |
 | POST | `/api/poll` | Run a cycle now |
 | GET | `/api/status` | Daemon + scheduler status (incl. `running_agents`) |

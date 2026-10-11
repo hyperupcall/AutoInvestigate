@@ -522,7 +522,7 @@
       id: uid('exec'),
       ideaId: ideaId || null, ideaText: text, title: title || '',
       evaluationRunId: evaluationRunId || null, // lets the factory build from the real evaluation report
-      plan: null, job: null, artifacts: [], pending: false, building: false, error: null,
+      plan: null, job: null, artifacts: [], servers: {}, pending: false, building: false, error: null,
       createdAt: Date.now(),
     };
     state.execution.items.push(item);
@@ -564,7 +564,7 @@
       const { idea, plan } = await execBackend.createIdea({
         text: ex.ideaText, title: ex.title,
         metadata: ex.evaluationRunId ? { evaluation_run_id: ex.evaluationRunId } : undefined,
-        options: { artifacts: ['mvp_prototype'] }, // Execute builds one clickable prototype of the idea
+        options: { artifacts: ['mvp_prototype', 'tarball'] }, // one clickable prototype, packaged as a tarball
       });
       if (executionItem(itemId) !== ex) return; // the item was removed while we waited
       ex.plan = plan;
@@ -618,6 +618,47 @@
 
   function artifactViewUrl(artifactId) {
     return execBackend.viewUrl ? execBackend.viewUrl(artifactId) : null;
+  }
+
+  /** Run a built artifact as a local server; the URL is shown in the artifact popup. */
+  async function startArtifactServer(itemId, artifactId) {
+    const ex = executionItem(itemId);
+    if (!ex) return;
+    ex.servers = ex.servers || {};
+    ex.servers[artifactId] = { status: 'starting' };
+    store.notify();
+    try {
+      const server = await execBackend.startServer(artifactId);
+      if (executionItem(itemId) !== ex) return; // the item was removed while we waited
+      ex.servers[artifactId] = server;
+      store.notify();
+      showToast('Server running.', 'ok');
+    } catch (err) {
+      if (executionItem(itemId) !== ex) return;
+      ex.servers[artifactId] = { status: 'error', error: String((err && err.message) || err) };
+      store.notify();
+      showToast('Could not start the server.', 'error');
+    }
+  }
+
+  async function stopArtifactServer(itemId, artifactId) {
+    const ex = executionItem(itemId);
+    const server = ex && ex.servers && ex.servers[artifactId];
+    if (!server || !server.id) return;
+    try {
+      const stopped = await execBackend.stopServer(server.id);
+      if (executionItem(itemId) !== ex) return;
+      ex.servers[artifactId] = stopped;
+      store.notify();
+      showToast('Server stopped.', 'ok');
+    } catch (err) {
+      showToast('Could not stop the server.', 'error');
+    }
+  }
+
+  /** The URL to open a running server at (through the factory's port when live). */
+  function serverUrl(server) {
+    return execBackend.serverUrl ? execBackend.serverUrl(server) : (server && server.url) || null;
   }
 
   function openArtifactModal(itemId) {
@@ -778,6 +819,9 @@
     buildArtifacts,
     artifactDownloadUrl,
     artifactViewUrl,
+    startArtifactServer,
+    stopArtifactServer,
+    serverUrl,
     openArtifactModal,
     closeArtifactModal,
     openModal,

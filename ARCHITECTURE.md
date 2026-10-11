@@ -161,7 +161,7 @@ process.
   agent card on SLIM, and waits. It patches the SLIM transport so a `SILENT`
   reply is not posted to the group.
 - `agent_host/executor.py` is the actual worker. It is **stateless**: every
-  command carries everything it needs, and the agent's model, key and role are
+  command carries everything it needs, and the agent's model and role are
   re-read from the shared settings file at command time — so a settings change
   applies to the next command without restarting anything.
 
@@ -297,16 +297,17 @@ The Smithery key comes from `SMITH_API_KEY` in the root `.env`; a stored
 
 ### 4.9 Settings
 
-`deliberation/settings.py` is the settings store. Keys live in
-`data/settings.json` (gitignored, mode 600) and are **masked** in the public view
-sent to a browser. `deliberation/defaults.py` defines the defaults: the three
+`deliberation/settings.py` is the settings store. The Smithery key lives in
+`data/settings.json` (gitignored, mode 600) and is **masked** in the public view
+sent to a browser; every model call uses the single `OPENROUTER_API_KEY` from the
+root `.env`. `deliberation/defaults.py` defines the defaults: the three
 group perspectives, their agents, the MCP catalog, and the stage configuration.
 
-Settings cover: mode (quick/deep), arXiv sources, the default OpenRouter key,
+Settings cover: mode (quick/deep), arXiv sources,
 deliberation time, cost cap, web search, a per-stage token/effort table, the
-summarizer / judge / final / reality-check models and keys, the MCP settings, and
+summarizer / judge / final / reality-check models, the MCP settings, and
 the group perspectives (name, discussion style, arXiv use, and each agent's
-model, key, reasoning effort, prompt and MCP servers).
+model, reasoning effort, prompt and MCP servers).
 
 The default group perspectives:
 

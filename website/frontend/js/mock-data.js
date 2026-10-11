@@ -26,8 +26,8 @@
       agents: [
         { id: 'p1', name: 'Elena Voss', role: 'Tech Risk Partner', lens: 'techRisk', model: 'openai/gpt-oss-120b', mcp_servers: ['arxiv', 'crossref', 'logic-verifier', 'invinoveritas'] },
         { id: 'p2', name: 'David Okafor', role: 'Market Partner', lens: 'market', model: 'google/gemma-3-4b-it', mcp_servers: ['finance-mcp', 'flatland', 'prereason', 'openalex'] },
-        { id: 'p3', name: 'Sofia Marchetti', role: 'Strategic Fit Partner', lens: 'strategicFit', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['finance-mcp', 'flatland', 'semantic-scholar'] },
-        { id: 'p4', name: 'James Whitfield', role: 'Horizon Partner', lens: 'horizon', model: 'openai/gpt-oss-120b', mcp_servers: ['finance-mcp', 'prereason', 'quorum', 'arxiv', 'semantic-scholar'] },
+        { id: 'p3', name: 'Sofia Marchetti', role: 'Strategic Fit Partner', lens: 'strategicFit', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['finance-mcp', 'flatland', 'paper-search'] },
+        { id: 'p4', name: 'James Whitfield', role: 'Horizon Partner', lens: 'horizon', model: 'openai/gpt-oss-120b', mcp_servers: ['finance-mcp', 'prereason', 'quorum', 'arxiv', 'scholar-feed'] },
       ],
     },
     {
@@ -35,11 +35,11 @@
       name: 'Market Reaction',
       blurb: 'The people you are trying to serve. They rarely agree.',
       agents: [
-        { id: 'm1', name: 'Priya · Power User', role: 'Senior SRE', lens: 'powerUser', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['thoughtbox', 'clear-thought', 'arxiv', 'semantic-scholar'] },
+        { id: 'm1', name: 'Priya · Power User', role: 'Senior SRE', lens: 'powerUser', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['thoughtbox', 'clear-thought', 'arxiv', 'paper-search'] },
         { id: 'm2', name: 'Tom · Free-tier', role: 'Hobbyist Developer', lens: 'freeTier', model: 'google/gemma-3-4b-it', mcp_servers: ['everycalc', 'monsitools', 'clear-thought'] },
-        { id: 'm3', name: 'Karen · Enterprise Buyer', role: 'VP Engineering', lens: 'enterprise', model: 'openai/gpt-oss-120b', mcp_servers: ['invinoveritas', 'decide-runtime', 'securelend', 'crossref', 'citation-checker'] },
+        { id: 'm3', name: 'Karen · Enterprise Buyer', role: 'VP Engineering', lens: 'enterprise', model: 'openai/gpt-oss-120b', mcp_servers: ['invinoveritas', 'decide-runtime', 'securelend', 'citation-checker', 'scholar-sidekick'] },
         { id: 'm4', name: 'Ahmed · Security Lead', role: 'CISO Office', lens: 'security', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['logic-verifier', 'citation-checker', 'invinoveritas'] },
-        { id: 'm5', name: 'Lena · Founder', role: 'Seed-stage Founder', lens: 'founder', model: 'google/gemma-3-4b-it', mcp_servers: ['finance-mcp', 'everycalc', 'thoughtbox', 'openalex', 'semantic-scholar'] },
+        { id: 'm5', name: 'Lena · Founder', role: 'Seed-stage Founder', lens: 'founder', model: 'google/gemma-3-4b-it', mcp_servers: ['finance-mcp', 'everycalc', 'thoughtbox', 'paper-search', 'scholar-feed'] },
       ],
     },
   ];

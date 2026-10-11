@@ -98,7 +98,7 @@ async def analyze(events: list[dict], s: dict, budget: orr.RunBudget | None = No
         if not isinstance(o.get("within_group"), dict) or not isinstance(o.get("cross_group"), list):
             return "need within_group (object) and cross_group (list)"
         return None
-    obj, res = await orr.chat_json(cfg["model"], [{"role": "user", "content": prompt}], settings.resolve_key(cfg.get("api_key", ""), s),
+    obj, res = await orr.chat_json(cfg["model"], [{"role": "user", "content": prompt}], settings.resolve_key(),
                                    validate, max_tokens=6000, reasoning_effort=s["reasoning_effort"]["summarize"], budget=budget)
     clean, kept, dropped, dropped_items = verify(obj, said, group_of)
     return {**clean, "model": res.model, "verified_quotes": kept, "dropped_quotes": dropped, "dropped_items": dropped_items}

@@ -228,9 +228,10 @@
     const chars = run.events.reduce((n, ev) => n + ((ev.text || '').length), 0);
     const elapsed = ((run.finishedAt || Date.now()) - run.startedAt) / 1000;
     body.appendChild(el('div', { class: 'cluster-status-bar' }, [
-      el('span', { class: 'muted small', text: 'Click an agent to read its reasoning' }),
+      el('span', { class: 'muted small', text: 'Click an agent to read its reasoning. Nodes take each agent\u2019s latest verdict; a dashed red edge is a disagreement.' }),
       el('span', { class: 'muted small', text: `${run.events.length} events · ${formatCount(chars)} chars · ${formatDuration(elapsed)}` }),
     ]));
+    body.appendChild(renderVerdictLegend('swarm'));
 
     // The agent swarm as a graph — one circle per agent, click to read its stream.
     body.appendChild(renderClusterGraph(run));
@@ -283,6 +284,140 @@
     return idx;
   }
 
+  /* ---------------------- disagreement helpers ---------------------- */
+
+  /** The latest evaluation per agent in a bucket: { agentId: { verdict, scores, round } }.
+   *  The newest non-null verdict and non-empty scores win, so a later evaluation that
+   *  omitted its template part does not erase an agent's earlier position. */
+  function latestEvaluations(bucket) {
+    const out = {};
+    for (const ev of bucket.events) {
+      if (!ev.agent_id) continue;
+      if (ev.kind === 'evaluation') {
+        const cur = out[ev.agent_id] || { verdict: null, scores: {}, round: null };
+        const scores = ev.template_scores && Object.keys(ev.template_scores).length ? ev.template_scores : cur.scores;
+        out[ev.agent_id] = { verdict: ev.template_verdict || cur.verdict, scores, round: ev.round };
+      } else if (ev.kind === 'complex-turn') {
+        out[ev.agent_id] = { verdict: ev.decision || null, scores: {}, round: ev.round };
+      }
+    }
+    return out;
+  }
+
+  /** Map a verdict (or a complex continue/stop vote) to a colour class. */
+  function verdictClass(v) {
+    const s = String(v == null ? '' : v).toLowerCase();
+    if (s === 'go' || s === 'continue') return 'support';
+    if (s === 'go with changes') return 'conditional';
+    if (s === 'hold') return 'hold';
+    if (s === 'no-go' || s === 'no go' || s === 'stop') return 'oppose';
+    return '';
+  }
+
+  function median(nums) {
+    const a = nums.slice().sort((x, y) => x - y);
+    if (!a.length) return null;
+    const m = Math.floor(a.length / 2);
+    return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  }
+
+  /** A small key for the graph colours: verdict colours plus the disagreement edge. */
+  function renderVerdictLegend(kind) {
+    const items = kind === 'complex'
+      ? [['Continue', 'support'], ['Stop', 'oppose']]
+      : [['Go', 'support'], ['Go with changes', 'conditional'], ['Hold', 'hold'], ['No-go', 'oppose']];
+    return el('div', { class: 'verdict-legend' }, [
+      ...items.map(([label, cls]) => el('span', { class: 'legend-item' }, [
+        el('span', { class: 'legend-dot verdict-' + cls }),
+        el('span', { text: label }),
+      ])),
+      el('span', { class: 'legend-item' }, [
+        el('span', { class: 'legend-line disagree' }),
+        el('span', { text: 'disagreement' }),
+      ]),
+    ]);
+  }
+
+  /** The verdict split within a group, e.g. "3 Go · 1 No-go". Null when everyone agrees
+   *  (or nobody has voted yet), so it only appears where there is a real split. */
+  function renderSplitChip(bucket, agents) {
+    const latest = latestEvaluations(bucket);
+    const counts = {};
+    (agents || []).forEach((a) => {
+      const v = latest[a.id] && latest[a.id].verdict;
+      if (v) counts[v] = (counts[v] || 0) + 1;
+    });
+    const keys = Object.keys(counts);
+    if (keys.length < 2) return null;
+    return el('span', { class: 'split-chip', title: 'Members do not agree' }, keys.map((k) =>
+      el('span', { class: 'split-part verdict-' + verdictClass(k) }, [
+        el('span', { class: 'split-count', text: String(counts[k]) }),
+        el('span', { text: ' ' + k }),
+      ])
+    ));
+  }
+
+  /** Where the selected agent stands apart from the rest of its group: a different verdict,
+   *  metrics it scored far from the group median, and the group's own "where they disagreed" note. */
+  function renderAgentDisagreement(group, agent, bucket) {
+    const latest = latestEvaluations(bucket);
+    const mine = latest[agent.id];
+    if (!mine || (!mine.verdict && !Object.keys(mine.scores || {}).length)) return null;
+
+    const others = (group.agents || []).filter((a) => a.id !== agent.id && latest[a.id]);
+    const rows = [];
+
+    // Verdict split: who voted differently from this agent.
+    if (mine.verdict) {
+      const myCls = verdictClass(mine.verdict);
+      const voters = others.filter((a) => latest[a.id].verdict);
+      const against = voters.filter((a) => verdictClass(latest[a.id].verdict) !== myCls);
+      if (!voters.length) {
+        rows.push(el('p', { class: 'muted small', text: 'No other verdicts yet to compare against.' }));
+      } else if (!against.length) {
+        rows.push(el('p', { class: 'muted small', text: `Agrees with all ${voters.length} other member${voters.length === 1 ? '' : 's'} (${mine.verdict}).` }));
+      } else {
+        rows.push(el('p', { class: 'disagree-lead' }, [
+          el('span', { class: 'verdict-tag ' + myCls, text: mine.verdict }),
+          el('span', { text: ` — disagrees with ${against.length} of ${voters.length}` }),
+        ]));
+        rows.push(el('div', { class: 'disagree-list' }, against.map((a) => el('div', { class: 'disagree-row' }, [
+          el('span', { class: 'disagree-who', text: a.name }),
+          el('span', { class: 'verdict-tag ' + verdictClass(latest[a.id].verdict), text: latest[a.id].verdict }),
+        ]))));
+      }
+    }
+
+    // Metrics this agent scored far from the group median (a 2-point gap or more).
+    const gaps = [];
+    for (const k of Object.keys(mine.scores || {})) {
+      const vals = others.map((a) => (latest[a.id].scores || {})[k]).filter((v) => typeof v === 'number');
+      const med = median(vals);
+      if (med == null) continue;
+      const diff = mine.scores[k] - med;
+      if (Math.abs(diff) >= 2) gaps.push({ k, mine: mine.scores[k], med, diff });
+    }
+    gaps.sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+    if (gaps.length) {
+      rows.push(el('div', { class: 'disagree-metrics' }, gaps.slice(0, 4).map((g) =>
+        el('div', { class: 'disagree-metric' }, [
+          el('span', { class: 'disagree-metric-key', text: g.k }),
+          el('span', { class: 'disagree-metric-val ' + (g.diff > 0 ? 'up' : 'down'), text: `${g.mine} vs ${g.med} group` }),
+        ])
+      )));
+    }
+
+    // The group's own "where they disagreed" note from the latest summary.
+    const summary = [...bucket.events].reverse().find((ev) => ev.kind === 'summary' && ev.summary && ev.summary.disagreements);
+    const note = summary && summary.summary.disagreements;
+
+    return el('div', { class: 'agent-disagreement' }, [
+      el('div', { class: 'agent-disagreement-head', text: 'Where this agent disagrees' }),
+      ...rows,
+      note ? el('p', { class: 'disagree-note', text: truncate(note, 320) }) : null,
+    ]);
+  }
+
   function renderClusterGraph(run) {
     const groups = run.cluster || [];
     if (!groups.length) {
@@ -304,10 +439,11 @@
         el('span', { class: 'cluster-group-name', text: group.name }),
         el('span', { class: 'cluster-style', text: group.style }),
         el('span', { class: 'muted small', text: `${agents.length} agents` }),
+        renderSplitChip(bucket, agents),
       ]),
       el('div', { class: 'cluster-graph-wrap' }, [
         renderGroupGraph(run, group, bucket, selectedId),
-        renderAgentStream(run, group, selected, agentEvents),
+        renderAgentStream(run, group, selected, agentEvents, bucket),
       ]),
     ]);
   }
@@ -323,15 +459,23 @@
       return { agent: a, ang, x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
     });
     const spoken = (id) => (bucket.byAgent[id] || []).some((ev) => ev.kind === 'turn' || ev.kind === 'evaluation' || ev.kind === 'complex-turn');
+    const latest = latestEvaluations(bucket);
+    const verdictOf = (id) => (latest[id] && latest[id].verdict) || null;
 
-    // Edges: everyone can hear everyone. Solid once both ends have spoken.
+    // Edges: everyone can hear everyone. A dashed red edge means the two agents' latest
+    // verdicts differ; a green edge means they match. Otherwise it just shows who has spoken.
     const edges = [];
     for (let i = 0; i < nodes.length; i += 1) {
       for (let j = i + 1; j < nodes.length; j += 1) {
         const a = nodes[i], b = nodes[j];
         const touchesSelected = a.agent.id === selectedId || b.agent.id === selectedId;
         const bothSpoken = spoken(a.agent.id) && spoken(b.agent.id);
-        const cls = 'graph-edge' + (touchesSelected ? ' selected' : bothSpoken ? ' spoken' : '');
+        const va = verdictOf(a.agent.id), vb = verdictOf(b.agent.id);
+        const disagree = va && vb && verdictClass(va) !== verdictClass(vb);
+        const agree = va && vb && !disagree;
+        const cls = 'graph-edge'
+          + (touchesSelected ? ' selected' : '')
+          + (disagree ? ' disagree' : agree ? ' agree' : bothSpoken ? ' spoken' : '');
         edges.push(svg('line', { class: cls, x1: a.x, y1: a.y, x2: b.x, y2: b.y }));
       }
     }
@@ -340,10 +484,11 @@
       const a = node.agent;
       const isSelected = a.id === selectedId;
       const isLive = run.status === 'running' && (liveId || run.currentAgent) === a.id;
-      const cls = 'graph-node' + (isSelected ? ' selected' : '') + (isLive ? ' live' : '') + (spoken(a.id) ? ' spoken' : '');
+      const vcls = verdictClass(verdictOf(a.id));
+      const cls = 'graph-node' + (isSelected ? ' selected' : '') + (isLive ? ' live' : '') + (spoken(a.id) ? ' spoken' : '') + (vcls ? ' verdict-' + vcls : '');
       const label = labelPlacement(node, r, a.name);
       return svg('g', { class: cls, onclick: () => selectAgent(group.id, a.id) }, [
-        svg('title', { text: `${a.name}\n${agentMeta(a)}` }),
+        svg('title', { text: `${a.name}\n${agentMeta(a)}${verdictOf(a.id) ? '\nVerdict: ' + verdictOf(a.id) : ''}` }),
         isLive ? svg('circle', { class: 'node-ring', cx: node.x, cy: node.y, r: r + 5 }) : null,
         svg('circle', { class: 'node-circle', cx: node.x, cy: node.y, r }),
         svg('text', { class: 'node-initials', x: node.x, y: node.y + 4, 'text-anchor': 'middle', text: initials(a.name) }),
@@ -406,7 +551,7 @@
   }
 
   /** The selected agent's full reasoning, streamed to the right of the graph. */
-  function renderAgentStream(run, group, agent, agentEvents) {
+  function renderAgentStream(run, group, agent, agentEvents, bucket) {
     if (!agent) {
       return el('div', { class: 'agent-stream empty-state small' }, [el('p', { class: 'muted', text: 'No agents in this group.' })]);
     }
@@ -437,7 +582,8 @@
       kept.forEach((ev) => body.appendChild(renderAgentEvent(run, ev)));
     }
 
-    return el('div', { class: 'agent-stream' }, [head, about, body]);
+    const disagreement = bucket ? renderAgentDisagreement(group, agent, bucket) : null;
+    return el('div', { class: 'agent-stream' }, [head, about, disagreement, body]);
   }
 
   /** Keep only the newest outputs that fit the caps, so the panel stays bounded. */
@@ -606,6 +752,7 @@
       el('span', { class: 'muted small', text: 'Three stewards watch the swarm in parallel and vote continue or stop. Click one to read its reasoning.' }),
       el('span', { class: 'muted small', text: `${cxEvents.length} events · ${formatDuration(elapsed)}` }),
     ]));
+    body.appendChild(renderVerdictLegend('complex'));
     body.appendChild(renderComplexBanner(run, cx));
     body.appendChild(renderComplexGraph(run, cx, cxEvents));
     if (run.status === 'running') {
@@ -661,15 +808,16 @@
         el('span', { class: 'cluster-group-name', text: 'Evaluation Complex' }),
         el('span', { class: 'cluster-style', text: 'parallel' }),
         el('span', { class: 'muted small', text: `${cx.agents.length} stewards` }),
+        renderSplitChip(bucket, cx.agents),
       ]),
       el('div', { class: 'cluster-graph-wrap' }, [
         renderGroupGraph(run, group, bucket, selectedId, liveId),
-        renderComplexStream(run, selected, selected ? (bucket.byAgent[selected.id] || []) : []),
+        renderComplexStream(run, group, selected, selected ? (bucket.byAgent[selected.id] || []) : [], bucket),
       ]),
     ]);
   }
 
-  function renderComplexStream(run, agent, agentEvents) {
+  function renderComplexStream(run, group, agent, agentEvents, bucket) {
     if (!agent) return el('div', { class: 'agent-stream empty-state small' }, [el('p', { class: 'muted', text: 'No stewards.' })]);
     const items = agentEvents.filter((ev) => ev.kind === 'complex-turn');
     const chars = items.reduce((n, ev) => n + ((ev.text || '').length), 0);
@@ -687,7 +835,8 @@
     } else {
       items.forEach((ev) => body.appendChild(renderComplexTurn(run, ev)));
     }
-    return el('div', { class: 'agent-stream' }, [head, about, body]);
+    const disagreement = bucket ? renderAgentDisagreement(group, agent, bucket) : null;
+    return el('div', { class: 'agent-stream' }, [head, about, disagreement, body]);
   }
 
   function renderComplexTurn(run, ev) {
@@ -1115,6 +1264,14 @@
       (summary.pros || []).length ? el('div', { class: 'pros-cons' }, [
         el('div', { class: 'pc-col' }, [el('h5', { text: 'Pros' }), el('ul', {}, summary.pros.map((p) => el('li', { text: p })))]),
         el('div', { class: 'pc-col' }, [el('h5', { text: 'Cons' }), el('ul', {}, (summary.cons || []).map((c) => el('li', { text: c })))]),
+      ]) : null,
+      summary.disagreements ? el('div', {}, [
+        el('h5', { class: 'sub-head', text: 'Where they disagreed' }),
+        el('p', { class: 'event-text', text: summary.disagreements }),
+      ]) : null,
+      summary.scores_and_verdicts ? el('div', {}, [
+        el('h5', { class: 'sub-head', text: 'Scores and verdicts' }),
+        el('p', { class: 'event-text', text: summary.scores_and_verdicts }),
       ]) : null,
       (summary.open_questions || []).length ? el('div', {}, [
         el('h5', { class: 'sub-head', text: 'Open questions' }),

@@ -15,7 +15,7 @@ from deliberation.prompts import ROOT, role_name
 def _agent(slug: str, prompt: str, model: str, effort: str | None = None,
            mcp_servers: list[str] | None = None) -> dict:
     return {"id": slug, "name": role_name(prompt), "prompt": prompt, "model": model,
-            "api_key": "", "reasoning_effort": effort,  # None = use the stage default
+            "reasoning_effort": effort,  # None = use the stage default
             "mcp_servers": mcp_servers or []}
 
 
@@ -186,22 +186,22 @@ def _groups() -> list[dict]:
              _agent("market_revenue_partner", "prompts/private_equity/market_revenue_partner.md", "google/gemma-3-4b-it:online",
                     mcp_servers=["finance-mcp", "flatland", "prereason", "openalex"]),
              _agent("competitive_strategy_partner", "prompts/private_equity/competitive_strategy_partner.md", "meta-llama/llama-3.1-8b-instruct",
-                    mcp_servers=["finance-mcp", "flatland", "semantic-scholar"]),
+                    mcp_servers=["finance-mcp", "flatland", "paper-search"]),
              _agent("horizon_returns_partner", "prompts/private_equity/horizon_returns_partner.md", "openai/gpt-oss-120b",
-                    mcp_servers=["finance-mcp", "prereason", "quorum", "arxiv", "semantic-scholar"]),
+                    mcp_servers=["finance-mcp", "prereason", "quorum", "arxiv", "scholar-feed"]),
          ]},
         {"id": "market", "name": "Market Reaction",
          "description": "Customer archetypes reacting to the idea. They are not expected to agree.",
          "consensus": "diverge", "use_sources": False,
          "agents": [
              _agent("power_user", "prompts/market/power_user.md", "meta-llama/llama-3.1-8b-instruct",
-                    mcp_servers=["thoughtbox", "clear-thought", "arxiv", "semantic-scholar"]),
+                    mcp_servers=["thoughtbox", "clear-thought", "arxiv", "paper-search"]),
              _agent("enterprise_decision_maker", "prompts/market/enterprise_decision_maker.md", "google/gemma-3-4b-it",
-                    mcp_servers=["invinoveritas", "decide-runtime", "securelend", "crossref", "citation-checker"]),
+                    mcp_servers=["invinoveritas", "decide-runtime", "securelend", "citation-checker", "scholar-sidekick"]),
              _agent("skeptical_technical_critic", "prompts/market/skeptical_technical_critic.md", "openai/gpt-oss-120b",
                     mcp_servers=["citation-checker", "crossref", "logic-verifier"]),
              _agent("startup_builder", "prompts/market/startup_builder.md", "meta-llama/llama-3.1-8b-instruct",
-                    mcp_servers=["finance-mcp", "everycalc", "thoughtbox", "openalex", "semantic-scholar"]),
+                    mcp_servers=["finance-mcp", "everycalc", "thoughtbox", "paper-search", "scholar-feed"]),
              _agent("free_tier_maximizer", "prompts/market/free_tier_maximizer.md", "google/gemma-3-4b-it",
                     mcp_servers=["everycalc", "monsitools", "clear-thought"]),
          ]},
@@ -214,7 +214,7 @@ LIBRARY_MODELS = ["meta-llama/llama-3.1-8b-instruct", "google/gemma-3-4b-it", "o
 
 def _steward(slug: str, name: str, objective: str, prompt: str, model: str, effort: str = "low") -> dict:
     return {"id": slug, "name": name, "objective": objective, "prompt": prompt, "model": model,
-            "api_key": "", "reasoning_effort": effort}
+            "reasoning_effort": effort}
 
 
 def _stewards() -> list[dict]:
@@ -253,10 +253,10 @@ DEFAULT_SETTINGS = {
     "max_tokens": {"deliberate": 500, "evaluate": 4500, "summarize": 5000, "judge": 4000, "final": 9000, "reality_check": 1200},
     "reasoning_effort": {"deliberate": "none", "evaluate": "low", "summarize": "none", "judge": "low", "final": "low", "reality_check": "low"},
     "stages": {
-        "summarizer": {"model": "openai/gpt-oss-120b", "api_key": ""},
-        "judge": {"model": "openai/gpt-oss-120b", "api_key": ""},
-        "final": {"model": "openai/gpt-oss-120b", "api_key": ""},  # the final report writer (see prompts/system/final.md)
-        "reality_check": {"model": "openai/gpt-oss-120b", "api_key": ""},
+        "summarizer": {"model": "openai/gpt-oss-120b"},
+        "judge": {"model": "openai/gpt-oss-120b"},
+        "final": {"model": "openai/gpt-oss-120b"},  # the final report writer (see prompts/system/final.md)
+        "reality_check": {"model": "openai/gpt-oss-120b"},
     },
     # The Evaluation Complex: three stewards that watch the swarm in parallel and decide whether it should
     # continue or stop (see orchestrator/complex.py). max_seconds force-stops the swarm and writes the verdict;

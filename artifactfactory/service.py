@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from .artifacts import BuildContext, get_builder
 from .models import Idea, Job, new_id, now_iso
 from .planner import create_plan as build_plan
+from .runtime import Runtime
 from .storage import build_storage
 from .store import Store
 
@@ -16,6 +17,7 @@ class Service:
         self.config = config
         self.store = Store(os.path.join(config.data_dir, "state.json"))
         self.storage = build_storage(config)
+        self.runtime = Runtime(self.storage, getattr(config, "run_host", "127.0.0.1"))
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.RLock()
 
@@ -164,3 +166,20 @@ class Service:
                     zf.writestr(fkey, self.storage.get_bytes(fkey))
         filename = f"{artifact.get('name') or artifact['type']}.zip"
         return (filename, "application/zip", buf.getvalue())
+
+    # -------------------------------------------------------- run / stop server
+    def start_artifact_server(self, artifact_id: str) -> Optional[Dict[str, Any]]:
+        """Run a built artifact as a local HTTP server; None if the artifact is unknown."""
+        artifact = self.store.get("artifacts", artifact_id)
+        if artifact is None:
+            return None
+        return self.runtime.start(artifact)
+
+    def stop_artifact_server(self, server_id: str) -> Optional[Dict[str, Any]]:
+        return self.runtime.stop(server_id)
+
+    def get_server(self, server_id: str) -> Optional[Dict[str, Any]]:
+        return self.runtime.get(server_id)
+
+    def list_servers(self) -> List[Dict[str, Any]]:
+        return self.runtime.list()

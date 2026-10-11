@@ -135,7 +135,7 @@ class Complex:
         prompt = prompts.render(prompts.read(steward["prompt"]), IDEA=self.run.idea, ROUNDS=str(n),
                                 ELAPSED=str(int(elapsed)), SPENT=str(round(self.run.budget.spent, 4)),
                                 MAX_COST=str(self.run.budget.max_usd), SWARM=swarm, PRIOR_VERDICTS=prior)
-        key = settings.resolve_key(steward.get("api_key", ""), self.run.s)
+        key = settings.resolve_key()
         obj, res = await orr.chat_json(steward["model"], [{"role": "user", "content": prompt}], key, _validate,
                                        max_tokens=700, reasoning_effort=steward.get("reasoning_effort") or "low",
                                        budget=self.run.budget, web_results=0)

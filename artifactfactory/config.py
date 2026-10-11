@@ -24,6 +24,7 @@ class Config:
     s3_bucket: str = ""
     s3_prefix: str = ""
     frontend_dir: str = DEFAULT_FRONTEND_DIR  # where the dashboard page lives
+    run_host: str = "127.0.0.1"  # bind host for a run artifact server (AF_RUN_HOST)
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -36,4 +37,5 @@ class Config:
             s3_bucket=os.environ.get("AF_S3_BUCKET", ""),
             s3_prefix=os.environ.get("AF_S3_PREFIX", ""),
             frontend_dir=os.environ.get("AF_FRONTEND_DIR", DEFAULT_FRONTEND_DIR),
+            run_host=os.environ.get("AF_RUN_HOST", "127.0.0.1"),
         )

@@ -2,6 +2,8 @@ import json
 import mimetypes
 import os
 import re
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 from urllib.parse import parse_qs, urlparse
@@ -10,17 +12,28 @@ from . import mvp
 from .service import Service
 from .web import dashboard_html
 
-# Origins allowed to call this API from a browser (the frontend served on its own
-# port). Override with AF_CORS_ORIGINS (comma-separated).
+# Origins allowed to call this API from a browser. The frontend may be served on
+# its own port (run.sh defaults to 8000; the evaluation backend serves it on 8090)
+# or opened straight from disk, where the browser sends "Origin: null". Override
+# with AF_CORS_ORIGINS (comma-separated).
 CORS_ORIGINS = {
     o.strip()
     for o in os.environ.get(
         "AF_CORS_ORIGINS",
+        "null,"
         "http://localhost:8000,http://127.0.0.1:8000,"
         "http://localhost:8090,http://127.0.0.1:8090",
     ).split(",")
     if o.strip()
 }
+
+# Any port on the local machine is fine too, so run.sh can be started on a
+# non-default port without the dashboard losing the API.
+LOCAL_ORIGIN = re.compile(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$")
+
+
+def origin_allowed(origin: str) -> bool:
+    return origin in CORS_ORIGINS or bool(LOCAL_ORIGIN.match(origin))
 
 
 class ApiError(Exception):
@@ -40,7 +53,7 @@ class Handler(BaseHTTPRequestHandler):
     # ------------------------------------------------------------- responses
     def _cors(self) -> None:
         origin = self.headers.get("Origin")
-        if origin in CORS_ORIGINS:  # the frontend served on its own port
+        if origin and origin_allowed(origin):  # the frontend served on its own port, or file://
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Vary", "Origin")
 
@@ -180,6 +193,13 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
+        m = re.fullmatch(r"/artifacts/([^/]+)/run", path)
+        if method == "POST" and m:  # run the built artifact as a local server
+            server = self.service.start_artifact_server(m.group(1))
+            if server is None:
+                raise ApiError(404, "artifact not found")
+            return self._send_json(201, {"server": server})
+
         m = re.fullmatch(r"/artifacts/([^/]+)/download", path)
         if method == "GET" and m:
             result = self.service.download_artifact(m.group(1))
@@ -195,12 +215,53 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(404, "artifact not found")
             return self._send_json(200, artifact)
 
+        if method == "GET" and path == "/servers":
+            return self._send_json(200, {"servers": self.service.list_servers()})
+
+        m = re.fullmatch(r"/servers/([^/]+)/stop", path)
+        if method == "POST" and m:
+            server = self.service.stop_artifact_server(m.group(1))
+            if server is None:
+                raise ApiError(404, "server not found")
+            return self._send_json(200, {"server": server})
+
+        m = re.fullmatch(r"/servers/([^/]+)", path)
+        if method == "GET" and m:
+            server = self.service.get_server(m.group(1))
+            if server is None:
+                raise ApiError(404, "server not found")
+            return self._send_json(200, server)
+
+        # A running artifact, proxied through the factory's own port so the URL works
+        # when the factory runs in a container (the run's ephemeral port is not published).
+        m = re.fullmatch(r"/run/([^/]+)(/.*)?", path)
+        if method == "GET" and m:
+            return self._proxy_server(m.group(1), m.group(2) or "/")
+
         # Everything else that is not an API route is a frontend static asset
         # (the dashboard page and its shared css/js).
         if method == "GET" and not path.startswith("/api/") and self._serve_static(path):
             return
 
         raise ApiError(404, f"no route for {method} {path}")
+
+    def _proxy_server(self, server_id: str, rest: str) -> None:
+        server = self.service.get_server(server_id)
+        if server is None:
+            raise ApiError(404, "server not found")
+        if server.get("status") != "running":
+            raise ApiError(409, "server is not running")
+        target = f"http://127.0.0.1:{server['port']}{rest}"
+        try:
+            with urllib.request.urlopen(target, timeout=10) as resp:
+                body = resp.read()
+                ctype = resp.headers.get("Content-Type", "application/octet-stream")
+        except urllib.error.HTTPError as exc:
+            return self._send_bytes(exc.code, exc.read(),
+                                    exc.headers.get("Content-Type", "text/plain; charset=utf-8"))
+        except (urllib.error.URLError, OSError):
+            raise ApiError(502, "the artifact server is not reachable")
+        return self._send_bytes(200, body, ctype)
 
     def _render_home(self) -> str:
         return dashboard_html(self.service.config.frontend_dir)
@@ -246,6 +307,8 @@ class Handler(BaseHTTPRequestHandler):
                 "GET /ideas/{id}", "GET /plans", "GET /plans/{id}",
                 "POST /plans/{id}/implement", "GET /jobs", "GET /jobs/{id}",
                 "GET /artifacts/{id}", "GET /artifacts/{id}/download", "GET /artifacts/{id}/view",
+                "POST /artifacts/{id}/run", "GET /servers", "GET /servers/{id}",
+                "POST /servers/{id}/stop", "GET /run/{id}/ (the running artifact)",
             ],
         }
 

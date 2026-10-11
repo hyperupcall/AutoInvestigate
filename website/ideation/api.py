@@ -132,7 +132,8 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(400, "field 'description' is required")
             return self._send_json(200, svc.draft_topic(description))
         if method == "POST" and path == "/api/topics/discover":
-            return self._send_json(200, svc.find_topics(trigger="manual"))
+            body = self._read_json()
+            return self._send_json(200, svc.find_topics(trigger="manual", preview=bool(body.get("preview"))))
         m = re.fullmatch(r"/api/topics/([^/]+)", path)
         if m and method == "PUT":
             topic = svc.store.update_topic(m.group(1), **self._read_json())
@@ -151,6 +152,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(200, {"ideas": svc.store.list_ideas(topic_id=topic_id, kind=kind)})
         if method == "GET" and path == "/api/tree":
             return self._send_json(200, self._tree())
+        if method == "POST" and path == "/api/ideas/related":
+            return self._send_json(200, svc.generate_related())
         m = re.fullmatch(r"/api/ideas/([^/]+)", path)
         if m and method == "GET":
             idea = svc.store.get_idea(m.group(1))
@@ -182,6 +185,12 @@ class Handler(BaseHTTPRequestHandler):
         if m and method == "GET":
             since = int((query.get("since") or ["0"])[0])
             return self._send_json(200, {"events": svc.store.list_events(m.group(1), since=since)})
+        m = re.fullmatch(r"/api/sessions/([^/]+)/stop", path)
+        if m and method == "POST":
+            session = svc.stop_session(m.group(1))
+            if session is None:
+                raise ApiError(404, "session not found")
+            return self._send_json(200, session)
         m = re.fullmatch(r"/api/sessions/([^/]+)/report", path)
         if m and method == "GET":
             session = svc.store.get_session(m.group(1))
@@ -270,9 +279,11 @@ class Handler(BaseHTTPRequestHandler):
                 "GET/POST /api/topics", "POST /api/topics/draft", "POST /api/topics/discover",
                 "PUT/DELETE /api/topics/{id}",
                 "GET /api/ideas", "GET /api/ideas/{id}", "GET /api/tree",
+                "POST /api/ideas/related",
                 "GET /api/signals", "GET /api/memory", "POST /api/generate",
                 "GET/POST /api/sessions", "GET /api/sessions/{id}",
                 "GET /api/sessions/{id}/events", "GET /api/sessions/{id}/report",
+                "POST /api/sessions/{id}/stop",
                 "POST /api/poll", "GET /api/status", "GET/PUT /api/settings",
             ],
         }

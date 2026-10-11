@@ -26,6 +26,7 @@ SETTING_FIELDS = ("model", "thinking", "poll_interval_seconds", "max_cost_usd", 
                   "signals_per_topic", "autostart", "agent_models", "agent_thinking",
                   "topic_model", "topic_thinking", "mcp_enabled", "mcp_max_tool_calls",
                   "mcp_timeout_seconds", "finder_model", "finder_thinking",
+                  "related_model", "related_thinking",
                   "discovery_enabled", "discovery_interval_seconds")
 # Fields whose value is a map of agent id -> value (filtered against the known agents).
 AGENT_MAP_FIELDS = ("agent_models", "agent_thinking")
@@ -41,6 +42,7 @@ class Service:
         self.store = store
         self._lock = threading.RLock()
         self._running: set[str] = set()   # session ids currently running
+        self._cancel: set[str] = set()    # session ids asked to stop
         self._last_discovery_at: Optional[float] = None   # monotonic time of the last topic-finder run
         self._last_discovery: Optional[Dict[str, Any]] = None
 
@@ -101,6 +103,7 @@ class Service:
         finally:
             with self._lock:
                 self._running.discard(session_id)
+                self._cancel.discard(session_id)
 
     def run_session(self, topic_id: str, trigger: str = "manual") -> Optional[Dict[str, Any]]:
         """Run a session synchronously (used by the scheduler)."""
@@ -114,7 +117,37 @@ class Service:
         finally:
             with self._lock:
                 self._running.discard(session["id"])
+                self._cancel.discard(session["id"])
         return self.store.get_session(session["id"])
+
+    def stop_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """Ask a running session to stop. The team finishes the turn it is on, then stops
+        before the next one; a session that is not actually running is marked cancelled
+        right away. Returns the session, or None when it does not exist."""
+        session = self.store.get_session(session_id)
+        if session is None:
+            return None
+        with self._lock:
+            self._cancel.add(session_id)
+            running = session_id in self._running
+        if session.get("status") == "running":
+            # Reflect the request immediately; the running thread sees the flag and stops
+            # before its next turn without overwriting this status.
+            self.store.update_session(session_id, status="cancelled", finished_at=now_iso())
+            self._emit(session_id, "cancelled", {"reason": "stopped by user"})
+            if not running:
+                self._emit(session_id, "done", {"cost": session.get("cost", 0.0),
+                                                 "idea_id": None, "cancelled": True})
+        return self.store.get_session(session_id)
+
+    def _cancelled(self, session_id: str) -> bool:
+        with self._lock:
+            return session_id in self._cancel
+
+    def _finish_cancelled(self, session_id: str, budget) -> None:
+        """Close out a session whose thread noticed the stop flag between turns."""
+        self.store.update_session(session_id, status="cancelled", cost=budget.spent, finished_at=now_iso())
+        self._emit(session_id, "done", {"cost": budget.spent, "idea_id": None, "cancelled": True})
 
     def _emit(self, session_id: str, kind: str, data: Dict[str, Any]) -> None:
         self.store.add_event(session_id, kind, data)
@@ -146,9 +179,15 @@ class Service:
 
         # The team speaks in a fixed order each round: generate, then score, then analyze.
         for r in range(1, self.config.rounds + 1):
+            if self._cancelled(session_id):
+                self._finish_cancelled(session_id, budget)
+                return
             self._emit(session_id, "phase", {"text": f"Round {r}"})
             round_turns = []
             for agent_id in agents.TEAM_ORDER:
+                if self._cancelled(session_id):
+                    self._finish_cancelled(session_id, budget)
+                    return
                 agent = agents.agent_by_id(agent_id)
                 try:
                     msg = agents.run_agent(
@@ -284,26 +323,55 @@ class Service:
                       for i in result.get("ideas", [])],
         }
 
+    def generate_related(self) -> Dict[str, Any]:
+        """Ask the related-idea model (Gemini 3.8 Flash by default) for ideas vaguely related
+        to the watchlist topics, and store them so they show up in the idea list / tree."""
+        budget = openrouter.RunBudget(self.config.max_cost_usd)
+        topics = self.store.list_topics(enabled_only=True)
+        result = agents.generate_related_ideas(topics, model=self._related_model(),
+                                               thinking=self.config.related_thinking, budget=budget)
+        added = []
+        for raw in result["ideas"]:
+            text = str(raw.get("text", "")).strip()
+            if not text:
+                continue
+            idea = self.store.add_idea({
+                "id": new_id("idea"), "topic_id": None, "session_id": None,
+                "kind": "abstract", "text": text,
+                "justification": [str(j).strip() for j in (raw.get("justification") or []) if str(j).strip()],
+                "context": "", "sources": [], "tags": ["related"],
+                "parent_idea_ids": [], "artifact_type": "", "score": {},
+            })
+            added.append(idea)
+        return {"added": added, "model": result["model"], "cost": result["cost"],
+                "subject": result.get("subject", "")}
+
     # ------------------------------------------------------- topic finder
-    def find_topics(self, trigger: str = "manual") -> Dict[str, Any]:
-        """The topic finder: read the internet and add the topics it proposes.
+    def find_topics(self, trigger: str = "manual", preview: bool = False) -> Dict[str, Any]:
+        """The topic finder: read the internet and propose topics.
 
         Topics combine one or two things and do not need to be small (see the prompt).
-        Deduplicated against the existing watchlist by name."""
+        Deduplicated against the existing watchlist by name. With ``preview`` the
+        proposals are returned but not stored, so the user can pick which to keep.
+        """
         budget = openrouter.RunBudget(self.config.max_cost_usd)
         material = self._discovery_material()
         result = agents.find_topics(material, self.store.list_topics(), model=self._finder_model(),
                                     thinking=self.config.finder_thinking, budget=budget)
+        proposed = []
         added = []
         for raw in result["topics"]:
             topic = self._topic_from_finder(raw)
             if topic is None or self._topic_exists(topic["name"]):
                 continue
-            self.store.add_topic(topic)
-            added.append(topic)
-        self._last_discovery_at = time.monotonic()
-        self._last_discovery = {"added": added, "model": result["model"],
-                                "cost": result["cost"], "trigger": trigger}
+            proposed.append(topic)
+            if not preview:
+                self.store.add_topic(topic)
+                added.append(topic)
+        if not preview:
+            self._last_discovery_at = time.monotonic()
+        self._last_discovery = {"added": added, "proposed": proposed, "model": result["model"],
+                                "cost": result["cost"], "trigger": trigger, "preview": preview}
         return self._last_discovery
 
     def _discovery_due(self) -> bool:
@@ -341,6 +409,9 @@ class Service:
 
     def _finder_model(self) -> str:
         return self.config.finder_model or self.config.model
+
+    def _related_model(self) -> str:
+        return self.config.related_model or self.config.model
 
     # ------------------------------------------------------------ settings
     def _settings_path(self) -> str:
@@ -391,7 +462,7 @@ class Service:
             elif key == "max_cost_usd":
                 value = float(value)
             elif key in ("autostart", "thinking", "topic_thinking", "mcp_enabled",
-                         "finder_thinking", "discovery_enabled"):
+                         "finder_thinking", "related_thinking", "discovery_enabled"):
                 value = bool(value)
             setattr(self.config, key, value)
         os.makedirs(self.config.data_dir, exist_ok=True)

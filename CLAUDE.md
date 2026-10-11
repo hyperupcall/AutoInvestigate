@@ -241,12 +241,12 @@ Each agent carries `mcp_servers` (catalog ids), correlated with its role:
 | Research · Critical Reviewer | Citation Checker, CiteMe, Crossref, Logic Verifier, Invinoveritas |
 | PE · Technical Risk Partner | arXiv, Crossref, Logic Verifier, Invinoveritas |
 | PE · Market and Revenue Partner | Finance MCP, Flatland, PreReason, OpenAlex |
-| PE · Competitive Strategy Partner | Finance MCP, Flatland, Semantic Scholar |
-| PE · Horizon and Returns Partner | Finance MCP, PreReason, Quorum, arXiv, Semantic Scholar |
-| Market · Power User | Thoughtbox, Clear Thought, arXiv, Semantic Scholar |
-| Market · Enterprise Decision-Maker | Invinoveritas, Decide Runtime, SecureLend, Crossref, Citation Checker |
+| PE · Competitive Strategy Partner | Finance MCP, Flatland, Paper Search |
+| PE · Horizon and Returns Partner | Finance MCP, PreReason, Quorum, arXiv, Scholar Feed |
+| Market · Power User | Thoughtbox, Clear Thought, arXiv, Paper Search |
+| Market · Enterprise Decision-Maker | Invinoveritas, Decide Runtime, SecureLend, Citation Checker, Scholar Sidekick |
 | Market · Skeptical Technical Critic | Citation Checker, Crossref, Logic Verifier |
-| Market · Startup Builder | Finance MCP, EveryCalc, Thoughtbox, OpenAlex, Semantic Scholar |
+| Market · Startup Builder | Finance MCP, EveryCalc, Thoughtbox, Paper Search, Scholar Feed |
 | Market · Free-Tier Maximizer | EveryCalc, MonsiTools, Clear Thought |
 
 **Access:** the agent host (`website/agent_host/executor.py`) connects to the agent's
@@ -336,9 +336,9 @@ One settings surface. When the backend is connected the popup renders the backen
 real settings and saves them with
 `PUT /api/settings`: mode, arXiv sources, deliberation
 time, cost cap, web search, the per-stage token/effort table, the summarizer / judge /
-final / reality-check models and keys, the MCP settings, the MCP server catalog, and the group
+final / reality-check models, the MCP settings, the MCP server catalog, and the group
 perspectives (name, discussion style — **automatic** lets the backend pick per group,
-`converge` or `diverge` — arXiv use, and each agent's model, key, reasoning effort,
+`converge` or `diverge` — arXiv use, and each agent's model, reasoning effort,
 prompt and MCP servers). Without a backend it falls back to the in-memory mock settings
 (models, prompts, group perspectives). **API keys live on the backend** and are masked in
 the public view.
@@ -517,7 +517,12 @@ which creates a plan and implements it. The column holds **one entry per prototy
 time**; each entry shows its status ("Building prototype…" → "Done generating"). The prototype is **not shown
 inline**: clicking a finished entry opens a popup (`website/frontend/js/components/artifactModal.js`) that explains
 what the artifact is and how to download or interact with it (a sandboxed preview, "Open full screen", "Download").
-Artifact content is still dummy.
+The build asks for `options.artifacts = ["mvp_prototype", "tarball"]`, so each prototype also comes with a `.tar.gz`
+of the generated files (the `tarball` builder packages everything built so far). The popup also **runs the artifact as
+a server**: `POST /artifacts/{id}/run` starts a real HTTP server (`artifactfactory/runtime.py`) on an ephemeral port
+and returns its URL; the factory proxies it through its own port at `/run/{server-id}/` so the URL works in Docker
+too, and `POST /servers/{id}/stop` shuts it down (the URL then returns `409`). The card shows a "● server running"
+marker. Artifact content is still dummy.
 
 **Done (real): Part 1 · the ideation collective** — `website/ideation/` is a long-running daemon (the `ideation`
 service, port 8091) that watches the internet for a tagged watchlist of topics and turns what it finds into ideas.
@@ -533,15 +538,20 @@ right — and draws a session as an agent graph, the same visual language as the
 agent's messages beside it. Clicking an agent also shows its **starting prompt** and the **skills and MCP servers
 it can access** (the same is shown under each agent in Settings): skills are `website/skills/` directories whose
 `SKILL.md` is folded into the agent's system prompt, and MCP servers are ids from the shared catalog
-(`deliberation/defaults.py` `MCP_CATALOG`) that the agent may call tools on when MCP is enabled. A long **+ Add Topic** button ends the topics list: describe a topic and the AI fills
+(`deliberation/defaults.py` `MCP_CATALOG`) that the agent may call tools on when MCP is enabled. A running session can be **terminated** from its card in the Sessions list or from the session view (`POST /api/sessions/{id}/stop`): the team finishes the turn it is on, then stops before the next one and the session is marked `cancelled`. A long **+ Add Topic** button ends the topics list: describe a topic and the AI fills
 in the name, description, tags and keywords (`POST /api/topics/draft`). A **topic finder** agent also runs on its
 own (every `discovery_interval_seconds`, default 1h, and on demand via the **Find topics** button /
 `POST /api/topics/discover`): it reads the newest signals plus a broad trending fetch (Hacker News front page,
 recent arXiv) and adds topics, each carrying `origin: "finder"` and a `rationale`. The prompt
 (`prompts/topic_finder.md`) insists that **topics do not need to be small** and **should combine only one or two
 things** (e.g. "using a Rust library to implement and validate a quick idea"). Settings cover a model and a **Thinking**
-toggle for each agent and for the topic drafter, the topic finder (on/off, interval, model), plus the MCP settings
-(enabled, tool calls per turn, timeout). `website/frontend/js/api-generation.js` connects column 1: the seed box's `generateIdeas` calls
+toggle for each agent and for the topic drafter, the topic finder (on/off, interval, model), the **related-idea**
+model (`related_model`, default **`google/gemini-3.8-flash`**) and its Thinking toggle, plus the MCP settings
+(enabled, tool calls per turn, timeout). A **Related ideas** button in the toolbar (`POST /api/ideas/related`) asks
+that model for ideas **vaguely related to the watchlist topics** and stores them (tag `related`, no topic) so they
+appear in the idea list / tree. The default watchlist also carries five **business-focused, everyday topics**
+(small-business automation, everyday AI productivity, personal finance, local services, no-code tools) that skip
+arXiv, so the team also produces ideas a normal person or small business could use. `website/frontend/js/api-generation.js` connects column 1: the seed box's `generateIdeas` calls
 `POST /api/generate`, and the daemon's ideas load from `GET /api/tree` into the same level tree (abstract at
 level 1, concrete at level 2).
 

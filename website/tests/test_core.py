@@ -113,13 +113,14 @@ def test_settings_mask_roundtrip_and_permissions():
         assert settings.save(s) == []
         view = settings.public_view(settings.load())
         assert "sk-or-env" not in json.dumps(view)
-        assert view["groups"][0]["agents"][0]["api_key"] == settings.MASK
-        assert settings.save(view | {"deliberation_seconds": 30}) == []  # masked values keep the stored keys
+        assert "sk-agent" not in json.dumps(view)  # per-agent keys are neither stored nor exposed
+        assert "api_key" not in view["groups"][0]["agents"][0]
+        assert settings.save(view | {"deliberation_seconds": 30}) == []
         again = settings.load()
-        assert again["groups"][0]["agents"][0]["api_key"] == "sk-agent"
+        assert "api_key" not in again["groups"][0]["agents"][0]
         assert again["deliberation_seconds"] == 30
         assert oct(os.stat(os.environ["SETTINGS_PATH"]).st_mode & 0o777) == "0o600"
-        assert settings.resolve_key("", again) == "sk-or-env" and settings.resolve_key("own", again) == "own"
+        assert settings.resolve_key() == "sk-or-env"
         bad = settings.load(); bad["deliberation_seconds"] = 1
         assert settings.save(bad) and settings.load()["deliberation_seconds"] == 30  # invalid input is not stored
         del os.environ["SETTINGS_PATH"]

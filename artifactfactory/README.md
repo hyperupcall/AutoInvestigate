@@ -4,15 +4,16 @@ A small, self-contained Python daemon that turns a **validated research idea**
 into a set of tangible implementation artifacts. It is the backend for the
 frontend's third column ("Idea Execution").
 
-> **Execute → builds an interactive prototype (`mvp_prototype`).** One self-contained HTML page (`mvp.py`):
-> a clickable product screen for the idea's narrow first version, with demo data, a step-through workflow, live
-> SVG/canvas visualizations and the evaluation panel's concerns built in (approval steps, cost, privacy...).
-> It is generated from the idea and, when `metadata.evaluation_run_id` is set, from that run's report. External
-> resources and network APIs are stripped, a strict Content-Security-Policy is injected, and
-> `GET /artifacts/{id}/view` serves it with the same policy plus `sandbox allow-scripts`; the frontend shows it
-> in a sandboxed iframe. Model: `AF_MVP_MODEL` (default `anthropic/claude-haiku-5.5`, about 40 s and under a
-> cent). If generation fails, a plain page with the idea and verdict is built instead. The frontend asks only for
-> this type (`options.artifacts = ["mvp_prototype"]`); the API's default plan is unchanged.
+> **Execute → builds an interactive prototype (`mvp_prototype`) and packages it as a tarball.** One self-contained
+> HTML page (`mvp.py`): a clickable product screen for the idea's narrow first version, with demo data, a
+> step-through workflow, live SVG/canvas visualizations and the evaluation panel's concerns built in (approval
+> steps, cost, privacy...). It is generated from the idea and, when `metadata.evaluation_run_id` is set, from that
+> run's report. External resources and network APIs are stripped, a strict Content-Security-Policy is injected, and
+> `GET /artifacts/{id}/view` serves it with the same policy plus `sandbox allow-scripts`; the frontend shows it in a
+> sandboxed iframe. The frontend asks for `options.artifacts = ["mvp_prototype", "tarball"]`, so the same build also
+> produces a `.tar.gz` of the generated files (the `tarball` builder packages every artifact built so far). Model:
+> `AF_MVP_MODEL` (default `anthropic/claude-haiku-5.5`, about 40 s and under a cent). If generation fails, a plain
+> page with the idea and verdict is built instead. The API's default plan is unchanged.
 >
 > **Two artifact types are real when the idea comes from an evaluation run.** If the idea's
 > `metadata.evaluation_run_id` is set (the frontend's **Execute →** sends it), `evaluation.py` fetches that
@@ -71,6 +72,7 @@ API, so all frontend code lives in one place; the daemon serves it at `GET /`
 | `AF_S3_BUCKET` | `--s3-bucket` | `` | S3 bucket (s3 backend) |
 | `AF_S3_PREFIX` | `--s3-prefix` | `` | Key prefix (s3 backend) |
 | `AF_FRONTEND_DIR` | `--frontend-dir` | `<repo>/website/frontend` | Where the dashboard page + assets live |
+| `AF_RUN_HOST` | — | `127.0.0.1` | Bind host for a run artifact server (see below) |
 
 CLI flags override environment variables. The defaults are anchored to the
 project root (the directory containing the `artifactfactory` package), so they
@@ -114,6 +116,11 @@ configured bucket/prefix.
 | GET | `/jobs/{id}` | Get one job |
 | GET | `/artifacts/{id}` | Artifact metadata |
 | GET | `/artifacts/{id}/download` | Download artifact (raw `.tar.gz`, else a zip) |
+| POST | `/artifacts/{id}/run` | Run the artifact as a local server → `201` `{server}` |
+| GET | `/servers` | List running artifact servers |
+| GET | `/servers/{id}` | One running artifact server |
+| POST | `/servers/{id}/stop` | Stop a running artifact server |
+| GET | `/run/{id}/...` | The running artifact, proxied through the factory's port |
 
 Errors are JSON: `{"error": "..."}` with `400` (bad input), `404` (missing),
 `500` (unexpected).
@@ -151,6 +158,24 @@ or `failed`.
 
 Default plan order: `source_repository` → `npm_package` → `docker_image` →
 `literature_review` → `tarball`.
+
+## Running a built artifact
+
+`POST /artifacts/{id}/run` starts the artifact as a real HTTP server (`runtime.py`): a `ThreadingHTTPServer` on an
+ephemeral port bound to `AF_RUN_HOST` (default `127.0.0.1`) that serves the artifact's files from storage — the
+entry page (`index.html`) at `/` and every other file at its path relative to the artifact's key. Only files that
+belong to the artifact are served. The response is `{ "server": { id, url, path, port, status, ... } }`.
+
+Because a container's ephemeral port is not published, the factory also exposes each run through its **own** port at
+`/run/{server-id}/` (the `path` field), proxying to the run server. The frontend opens that URL, so it works whether
+the factory runs locally or in Docker. `POST /servers/{id}/stop` shuts the server down, after which the URL returns
+`409`. Runs are in-memory and stop with the process.
+
+```bash
+curl -s -X POST http://127.0.0.1:8080/artifacts/artifact-abc123/run
+# {"server": {"id": "server-...", "url": "http://127.0.0.1:54321/", "path": "/run/server-.../", "status": "running", ...}}
+curl -s -X POST http://127.0.0.1:8080/servers/server-.../stop
+```
 
 ## How to plug in S3 / AI later
 

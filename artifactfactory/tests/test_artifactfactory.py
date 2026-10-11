@@ -1,10 +1,13 @@
 import json
+import io
 import os
 import shutil
+import tarfile
 import tempfile
 import threading
 import time
 import unittest
+import urllib.error
 import urllib.request
 import http.client
 from http.server import ThreadingHTTPServer
@@ -89,6 +92,54 @@ class ServiceTests(unittest.TestCase):
         self.assertGreater(len(data), 0)
         self.assertEqual(data[:2], b"\x1f\x8b")
 
+    def test_execution_plan_tarballs_the_generated_prototype(self):
+        # What the frontend's Execute -> asks for: one prototype, packaged as a tarball.
+        result = self.service.add_idea("A homomorphic encryption toolkit.",
+                                       options={"artifacts": ["mvp_prototype", "tarball"]})
+        plan_id = result["plan"]["id"]
+        job = self.service.start_implementation(plan_id)
+        assert job is not None
+        self._wait_job(job["id"])
+        plan = self.service.get_plan(plan_id)
+        assert plan is not None
+        tarball = next(a for a in plan["artifacts"] if a["type"] == "tarball")
+        dl = self.service.download_artifact(tarball["id"])
+        assert dl is not None
+        _filename, _content_type, data = dl
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+            names = tar.getnames()
+        self.assertTrue(any(n.endswith("index.html") for n in names), names)
+
+    def test_run_and_stop_artifact_server(self):
+        result = self.service.add_idea("A homomorphic encryption toolkit.",
+                                       options={"artifacts": ["mvp_prototype"]})
+        plan_id = result["plan"]["id"]
+        job = self.service.start_implementation(plan_id)
+        assert job is not None
+        self._wait_job(job["id"])
+        plan = self.service.get_plan(plan_id)
+        assert plan is not None
+        proto = next(a for a in plan["artifacts"] if a["type"] == "mvp_prototype")
+
+        server = self.service.start_artifact_server(proto["id"])
+        assert server is not None
+        self.assertEqual(server["status"], "running")
+        self.assertTrue(server["url"].startswith("http://127.0.0.1:"))
+        self.assertEqual(server["path"], f"/run/{server['id']}/")
+        try:
+            with urllib.request.urlopen(server["url"], timeout=10) as resp:
+                body = resp.read().decode("utf-8")
+            self.assertIn("<!DOCTYPE html>", body)
+        finally:
+            stopped = self.service.stop_artifact_server(server["id"])
+        assert stopped is not None
+        self.assertEqual(stopped["status"], "stopped")
+        self.assertEqual(self.service.list_servers()[0]["status"], "stopped")
+
+    def test_start_server_for_unknown_artifact(self):
+        self.assertIsNone(self.service.start_artifact_server("artifact-nope"))
+        self.assertIsNone(self.service.stop_artifact_server("server-nope"))
+
 
 class HttpTests(unittest.TestCase):
     def setUp(self):
@@ -148,6 +199,20 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(headers.get("Access-Control-Allow-Origin"), origin)
         self.assertIn("POST", headers.get("Access-Control-Allow-Methods", ""))
 
+        status, headers = self._request("GET", "/health", origin=origin)
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("Access-Control-Allow-Origin"), origin)
+
+    def test_cors_allows_a_file_page(self):
+        # A page opened straight from disk (file://) sends "Origin: null"; the
+        # dashboard must still reach the API.
+        status, headers = self._request("GET", "/health", origin="null")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("Access-Control-Allow-Origin"), "null")
+
+    def test_cors_allows_localhost_on_any_port(self):
+        # run.sh can be started on a non-default port.
+        origin = "http://localhost:9000"
         status, headers = self._request("GET", "/health", origin=origin)
         self.assertEqual(status, 200)
         self.assertEqual(headers.get("Access-Control-Allow-Origin"), origin)
@@ -235,6 +300,42 @@ class HttpTests(unittest.TestCase):
             time.sleep(0.05)
         assert final is not None
         self.assertEqual(final["status"], "succeeded")
+
+    def test_run_route_starts_and_stops_a_server(self):
+        _, body = self._post("/ideas", {"text": "A homomorphic encryption toolkit.",
+                                        "options": {"artifacts": ["mvp_prototype"]}})
+        plan_id = body["plan"]["id"]
+        _, job = self._post(f"/plans/{plan_id}/implement", {})
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            _, final = self._get(f"/jobs/{job['id']}")
+            if final["status"] in ("succeeded", "failed"):
+                break
+            time.sleep(0.05)
+        self.assertEqual(final["status"], "succeeded")
+
+        _, plan = self._get(f"/plans/{plan_id}")
+        proto = next(a for a in plan["artifacts"] if a["type"] == "mvp_prototype")
+
+        status, res = self._post(f"/artifacts/{proto['id']}/run", {})
+        self.assertEqual(status, 201)
+        server = res["server"]
+        self.assertEqual(server["status"], "running")
+
+        # The run is reachable through the factory's own port (the proxy path).
+        status, content_type, html = self._get_raw(server["path"])
+        self.assertEqual(status, 200)
+        self.assertIn("html", content_type)
+        self.assertIn("<!DOCTYPE html>", html)
+
+        status, res = self._post(f"/servers/{server['id']}/stop", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(res["server"]["status"], "stopped")
+
+        # A stopped server is no longer served through the proxy.
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self._get_raw(server["path"])
+        self.assertEqual(ctx.exception.code, 409)
 
 
 if __name__ == "__main__":

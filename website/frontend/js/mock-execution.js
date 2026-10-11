@@ -8,6 +8,8 @@
  *   getPlan(planId)                      -> plan (with joined `artifacts`)
  *   listPlans()                          -> [plan]
  *   artifactUrl(artifactId)              -> a download URL (a data: URL here)
+ *   startServer(artifactId)              -> server  (run a built artifact)
+ *   stopServer(serverId)                 -> server  (status "stopped")
  *
  * api-execution.js swaps these bodies for fetch() calls when the factory is
  * reachable; the shapes returned here are the contract the UI expects. Output is
@@ -38,6 +40,7 @@
   const plans = {};      // id -> plan
   const jobs = {};       // id -> job
   const artifacts = {};  // id -> artifact
+  const servers = {};    // id -> running artifact server
 
   const clone = (value) => JSON.parse(JSON.stringify(value));
   const nowIso = () => new Date().toISOString();
@@ -198,8 +201,34 @@
     return 'data:text/plain;charset=utf-8,' + encodeURIComponent(manifest);
   }
 
+  /** Run a built artifact as a local server (mock: a fake port and URL). */
+  async function startServer(artifactId) {
+    await sleep(250);
+    const a = artifacts[artifactId];
+    if (!a) throw new Error('artifact not found');
+    const id = uid('server');
+    const port = 9100 + Object.keys(servers).length;
+    const server = {
+      id, artifact_id: artifactId, plan_id: a.plan_id, type: a.type, name: a.name,
+      status: 'running', host: '127.0.0.1', port,
+      url: `http://127.0.0.1:${port}/`, path: `/run/${id}/`,
+      started_at: nowIso(), files: a.files,
+    };
+    servers[id] = server;
+    return clone(server);
+  }
+
+  async function stopServer(serverId) {
+    await sleep(150);
+    const s = servers[serverId];
+    if (!s) throw new Error('server not found');
+    s.status = 'stopped';
+    return clone(s);
+  }
+
   Hack.mockExecution = {
     createIdea, implementPlan, getJob, getPlan, listPlans, artifactUrl,
+    startServer, stopServer,
     DEFAULT_ARTIFACTS,
   };
 })();

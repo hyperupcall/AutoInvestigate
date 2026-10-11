@@ -26,10 +26,10 @@ async def main():
     for g in s["groups"]:
         for a in g["agents"]:
             effort = a.get("reasoning_effort") or s["reasoning_effort"]["deliberate"]
-            jobs.append((f"{g['id']}/{a['id']}", a["model"], settings.resolve_key(a["api_key"], s), effort))
+            jobs.append((f"{g['id']}/{a['id']}", a["model"], settings.resolve_key(), effort))
     for st in ("summarizer", "judge"):
         c = s["stages"][st]
-        jobs.append((f"stage/{st}", c["model"], settings.resolve_key(c["api_key"], s), s["reasoning_effort"]["judge"]))
+        jobs.append((f"stage/{st}", c["model"], settings.resolve_key(), s["reasoning_effort"]["judge"]))
     budget = orr.RunBudget(0.25)
 
     async def one(name, model, key, effort):

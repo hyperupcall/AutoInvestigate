@@ -54,6 +54,29 @@ DEFAULT_TOPICS: List[Dict[str, Any]] = [
            "Programmable networks, telemetry, and the systems that keep them healthy.",
            ["networking", "enterprise", "cisco"], ["network telemetry", "eBPF", "intent-based networking", "observability"],
            priority=2),
+    # Business-focused, everyday topics. Simpler and more understandable to a normal
+    # person than the research topics above, so the team also produces ideas a small
+    # business or an ordinary user could actually use. They skip arXiv (not academic).
+    _topic("small_business_automation", "Small Business Automation",
+           "Simple tools that take the admin off a small business owner's plate: invoices, scheduling, customer replies.",
+           ["business", "automation", "smb"], ["small business software", "invoicing automation", "appointment scheduling", "customer support automation"],
+           priority=2, sources=["hackernews", "reddit", "news"]),
+    _topic("everyday_productivity", "Everyday AI Productivity",
+           "Assistants that help normal people with email, notes, planning and everyday chores.",
+           ["business", "productivity", "consumer"], ["AI assistant", "email assistant", "note taking app", "personal productivity"],
+           priority=2, sources=["hackernews", "reddit", "news"]),
+    _topic("personal_finance", "Personal Finance & Budgeting",
+           "Simple apps that help people track money, subscriptions and savings.",
+           ["business", "finance", "consumer"], ["budgeting app", "subscription tracker", "personal finance", "savings app"],
+           priority=2, sources=["hackernews", "reddit", "news"]),
+    _topic("local_services", "Local Services & Marketplaces",
+           "Apps that connect customers with local services and small sellers.",
+           ["business", "marketplace", "local"], ["local marketplace", "booking platform", "gig economy", "small business directory"],
+           priority=1, sources=["hackernews", "reddit", "news"]),
+    _topic("no_code_tools", "No-Code Business Tools",
+           "Letting people build simple business apps and websites without writing code.",
+           ["business", "no-code", "tools"], ["no-code builder", "website builder", "low-code", "internal tools"],
+           priority=2, sources=["hackernews", "reddit", "news"]),
 ]
 
 

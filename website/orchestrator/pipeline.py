@@ -96,7 +96,7 @@ async def stage_call(run: Run, stage_cfg: str, budget_key: str, prompt: str, val
     kw = dict(max_tokens=quick_tokens[budget_key] if run.quick else s["max_tokens"][budget_key],
               reasoning_effort="none" if run.quick else s["reasoning_effort"][budget_key],
               budget=run.budget, web_results=s["web_search_results"])
-    key = settings.resolve_key(cfg.get("api_key", ""), s)
+    key = settings.resolve_key()
     if validate is None:
         res = await orr.chat(cfg["model"], [{"role": "user", "content": prompt}], key, **kw)
         return res.text, res

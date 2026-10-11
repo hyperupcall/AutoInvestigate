@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><link rel="stylesheet" href="css/styles.css" /></head>
+<body>
+  <header class="app-header" id="app-header"></header>
+  <main class="columns">
+    <section class="column" id="col-generation"></section>
+    <section class="column" id="col-evaluation"></section>
+    <section class="column" id="col-execution"></section>
+  </main>
+  <div id="modal-root"></div><div id="settings-root"></div><div id="info-root"></div>
+  <div id="run-config-root"></div><div id="variations-root"></div><div id="artifact-root"></div><div id="toast-root"></div>
+
+  <script src="js/util.js"></script>
+  <script src="js/model-info.js"></script>
+  <script src="js/mcp-servers.js"></script>
+  <script src="js/mock-data.js"></script>
+  <script src="js/mock-report.js"></script>
+  <script src="js/mock-backend.js"></script>
+  <script src="js/mock-execution.js"></script>
+  <script src="js/api-backend.js"></script>
+  <script src="js/api-execution.js"></script>
+  <script src="js/api-generation.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/components/generation.js"></script>
+  <script src="js/components/evaluation.js"></script>
+  <script src="js/components/execution.js"></script>
+  <script src="js/components/settings.js"></script>
+  <script src="js/components/settingsModal.js"></script>
+  <script src="js/components/infoModal.js"></script>
+  <script src="js/components/runConfigModal.js"></script>
+  <script src="js/components/variationsModal.js"></script>
+  <script src="js/components/artifactModal.js"></script>
+  <script src="js/components/modal.js"></script>
+  <script src="js/components/toast.js"></script>
+  <script src="js/components/navbar.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const out = [];
+        const S = window.Hack.store.state;
+        S.levels.push({ level: 1, ideas: [{ id: 'idea-1', text: 'Test idea for removal', level: 1 }], iteration: null, pending: false, error: null });
+        window.Hack.actions.queueIdeaForEvaluation('idea-1');
+        const btn = document.querySelector('#col-evaluation .eval-target .mini-btn');
+        const r = btn.getBoundingClientRect();
+        out.push('rect=' + JSON.stringify({ x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }));
+        const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+        const hit = document.elementFromPoint(cx, cy);
+        out.push('elementFromPoint=' + (hit ? hit.tagName + '.' + hit.className + ' text=' + JSON.stringify(hit.textContent) : 'null'));
+        out.push('isButton=' + (hit === btn));
+        document.body.setAttribute('data-test-result', out.join(' | '));
+      }, 300);
+    });
+  </script>
+</body>
+</html>

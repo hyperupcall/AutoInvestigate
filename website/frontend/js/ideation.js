@@ -194,16 +194,22 @@
     }
     for (const s of state.sessions) {
       const active = s.id === state.selectedSessionId;
+      const running = s.status === 'running';
       host.appendChild(el('div', {
         class: 'ideation-session' + (active ? ' active' : ''),
         onclick: () => openSession(s.id, true),
       }, [
         el('div', { class: 'ideation-session-head' }, [
-          el('span', { class: 'run-status ' + (s.status === 'done' ? 'done' : s.status === 'running' ? 'running' : 'cancelled') }, [
-            s.status === 'running' ? el('span', { class: 'dot-pulse' }) : null,
+          el('span', { class: 'run-status ' + (s.status === 'done' ? 'done' : running ? 'running' : 'cancelled') }, [
+            running ? el('span', { class: 'dot-pulse' }) : null,
             s.status,
           ]),
-          el('span', { class: 'muted small', text: s.trigger || '' }),
+          running
+            ? el('button', {
+                class: 'mini-btn danger', text: 'Terminate', title: 'Stop this session',
+                onclick: (e) => { e.stopPropagation(); stopSession(s.id); },
+              })
+            : el('span', { class: 'muted small', text: s.trigger || '' }),
         ]),
         el('div', { class: 'ideation-session-topic', text: s.topic_name || s.topic_id }),
         el('div', { class: 'muted small', text: (s.started_at || '').replace('T', ' ').slice(0, 19) }),
@@ -300,10 +306,31 @@
     }
   }
 
+  /** Ask a running session to stop. The team finishes the turn it is on, then stops. */
+  async function stopSession(id) {
+    try {
+      await post(`/api/sessions/${id}/stop`);
+      const meta = await getJSON(`/api/sessions/${id}`);
+      const idx = state.sessions.findIndex((s) => s.id === id);
+      if (idx >= 0) state.sessions[idx] = meta;
+      const selected = state.session && state.session.meta && state.session.meta.id === id;
+      if (selected) {
+        state.session.meta = meta;
+        // Keep polling so the "cancelled"/"done" events land in the log once the current turn ends.
+        startPolling(id);
+      }
+      renderSessions();
+      if (selected && state.tab === 'session') renderDetail();
+      if (Hack.actions && Hack.actions.showToast) Hack.actions.showToast('Session terminated.', 'ok');
+    } catch (e) {
+      if (Hack.actions && Hack.actions.showToast) Hack.actions.showToast('Could not terminate the session: ' + e.message, 'error');
+    }
+  }
+
   /** Ask the topic finder to read the internet and propose new topics. */
   async function discoverTopics() {
     const btn = document.getElementById('ideation-discover');
-    if (btn) { btn.disabled = true; btn.textContent = 'Finding…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
     try {
       const r = await post('/api/topics/discover');
       const n = (r.added || []).length;
@@ -314,7 +341,24 @@
     } catch (e) {
       if (Hack.actions && Hack.actions.showToast) Hack.actions.showToast('Could not find topics: ' + e.message, 'error');
     }
-    if (btn) { btn.disabled = false; btn.textContent = 'Find topics'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate topics'; }
+  }
+
+  /** Ask Gemini for ideas vaguely related to the watchlist topics. */
+  async function relatedIdeas() {
+    const btn = document.getElementById('ideation-related');
+    if (btn) { btn.disabled = true; btn.textContent = 'Thinking…'; }
+    try {
+      const r = await post('/api/ideas/related');
+      const n = (r.added || []).length;
+      if (Hack.actions && Hack.actions.showToast) {
+        Hack.actions.showToast(n ? `Added ${n} related idea${n === 1 ? '' : 's'}.` : 'No related ideas came back.', n ? 'ok' : 'warn');
+      }
+      await load();
+    } catch (e) {
+      if (Hack.actions && Hack.actions.showToast) Hack.actions.showToast('Could not generate related ideas: ' + e.message, 'error');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Related ideas'; }
   }
 
   function renderSession(host) {
@@ -331,6 +375,12 @@
     host.appendChild(el('div', { class: 'cluster-status-bar' }, [
       el('span', { class: 'muted small', text: 'Click an agent to read its reasoning' }),
       el('span', { class: 'muted small', text: `${turns.length} messages · ${s.agents.length} agents · ${running ? 'running' : s.meta.status}` }),
+      running
+        ? el('button', {
+            class: 'mini-btn danger', text: 'Terminate session', title: 'Stop this session',
+            onclick: () => stopSession(s.meta.id),
+          })
+        : null,
     ]));
 
     host.appendChild(renderGraph(s.agents, turns, running));
@@ -625,9 +675,15 @@
         return el('div', { class: 'event-row kind-muted' }, [
           el('span', { class: 'event-text', text: `${ev.agent_id} failed${ev.reason ? ' — ' + ev.reason : ''}` }),
         ]);
+      case 'cancelled':
+        return el('div', { class: 'event-row kind-muted' }, [
+          el('span', { class: 'event-text', text: 'Session terminated by the user.' }),
+        ]);
       case 'done':
         return el('div', { class: 'event-row kind-done' }, [
-          el('span', { class: 'event-text', text: `Session complete · $${(ev.cost || 0).toFixed(4)}` }),
+          el('span', { class: 'event-text', text: ev.cancelled
+            ? 'Session terminated'
+            : `Session complete · $${(ev.cost || 0).toFixed(4)}` }),
         ]);
       default:
         return null;
@@ -898,6 +954,11 @@
             modelRow('Topic finder model', s.finder_model || s.model, s.finder_thinking,
               (v) => { s.finder_model = v; }, (v) => { s.finder_thinking = v; }),
           ]),
+          settingsSection('Related ideas', [
+            modelRow('Related-idea model (ideas vaguely related to the topics)',
+              s.related_model || s.model, s.related_thinking,
+              (v) => { s.related_model = v; }, (v) => { s.related_thinking = v; }),
+          ]),
           settingsSection('Daemon', [
             numberField('Poll interval (seconds)', s.poll_interval_seconds,
               (v) => { s.poll_interval_seconds = v; }, { min: 30 }),
@@ -941,6 +1002,8 @@
   });
   const discover = document.getElementById('ideation-discover');
   if (discover) discover.addEventListener('click', discoverTopics);
+  const related = document.getElementById('ideation-related');
+  if (related) related.addEventListener('click', relatedIdeas);
   const settingsBtn = document.getElementById('ideation-settings');
   if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
   document.addEventListener('keydown', (e) => {

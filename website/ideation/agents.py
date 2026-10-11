@@ -131,7 +131,7 @@ VALIDATORS = {
 
 # ------------------------------------------------------------------ helpers
 def _key() -> str:
-    return delib_settings.resolve_key("", {})
+    return delib_settings.resolve_key()
 
 
 def _effort(thinking: bool) -> str:
@@ -331,6 +331,33 @@ def generate_ideas(source_ideas: List[Dict[str, Any]], iteration_type: str, vari
         reasoning_effort=_effort(thinking), budget=budget))
     if not isinstance(obj, dict):
         raise openrouter.OpenRouterError("generator returned no JSON object")
+    return {
+        "subject": obj.get("subject", ""),
+        "ideas": obj.get("ideas", []),
+        "model": model,
+        "cost": res.cost,
+    }
+
+
+# ---------------------------------------------------- related-idea generation
+def generate_related_ideas(topics: List[Dict[str, Any]], *, model: str, thinking: bool = True,
+                           budget: openrouter.RunBudget) -> Dict[str, Any]:
+    """Ask a model (by default Gemini 3.8 Flash) for ideas vaguely related to the watchlist topics.
+
+    Unlike `generate_ideas` (which sharpens a seed or a set of source ideas), this reads
+    the topics themselves and sketches nearby directions — including simple, business-focused
+    ones a normal person could use."""
+    system = prompt_lib.read("ideation/prompts/related_ideas.md")
+    listing = "\n".join(
+        f"- {t.get('name', '')}: {t.get('description', '')}" for t in topics
+    ) or "(no topics yet)"
+    user = f"TOPICS:\n{listing}\n\nProduce the ideas now."
+    obj, res = _run(openrouter.chat_json(
+        model, [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        _key(), validate=validate_generation, max_tokens=2000,
+        reasoning_effort=_effort(thinking), budget=budget))
+    if not isinstance(obj, dict):
+        raise openrouter.OpenRouterError("related-idea generator returned no JSON object")
     return {
         "subject": obj.get("subject", ""),
         "ideas": obj.get("ideas", []),

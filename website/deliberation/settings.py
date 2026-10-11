@@ -40,6 +40,14 @@ def load() -> dict:
     for g in s.get("groups", []):
         for a in g.get("agents", []):
             a.setdefault("mcp_servers", defaults.get((g["id"], a["id"]), []))
+    # Model keys are no longer stored per stage/agent: every call uses the single OPENROUTER_API_KEY.
+    for cfg in s.get("stages", {}).values():
+        cfg.pop("api_key", None)
+    for st in (s.get("complex") or {}).get("stewards", []):
+        st.pop("api_key", None)
+    for g in s.get("groups", []):
+        for a in g.get("agents", []):
+            a.pop("api_key", None)
     return s
 
 
@@ -121,12 +129,6 @@ def validate(s: dict) -> list[str]:
     return errs
 
 
-def _keep_masked(new: dict, old: dict) -> None:
-    """A masked key coming back from the settings page means 'unchanged'."""
-    if new.get("api_key") == MASK:
-        new["api_key"] = old.get("api_key", "")
-
-
 def save(new: dict) -> list[str]:
     """Validate and store. Returns a list of errors (nothing is written if non-empty)."""
     old = load()
@@ -136,16 +138,14 @@ def save(new: dict) -> list[str]:
     (new.get("mcp") or {}).pop("api_key_env", None)  # display-only: whether .env supplies the key
     if (new.get("mcp") or {}).get("api_key") == MASK:
         new.setdefault("mcp", {})["api_key"] = old.get("mcp", {}).get("api_key", "")
-    for stage, cfg in new.get("stages", {}).items():
-        _keep_masked(cfg, old.get("stages", {}).get(stage, {}))
+    for cfg in new.get("stages", {}).values():
+        cfg.pop("api_key", None)  # every model call uses the single OPENROUTER_API_KEY
     for st in (new.get("complex") or {}).get("stewards", []):
-        old_st = next((x for x in (old.get("complex") or {}).get("stewards", []) if x.get("id") == st.get("id")), {})
-        _keep_masked(st, old_st)
+        st.pop("api_key", None)
         st["name"] = st.get("name") or st["id"]
-    old_agents = {(g["id"], a["id"]): a for g in old["groups"] for a in g["agents"]}
     for g in new.get("groups", []):
         for a in g.get("agents", []):
-            _keep_masked(a, old_agents.get((g["id"], a["id"]), {}))
+            a.pop("api_key", None)
             a["name"] = a.get("name") or a["id"]
     errs = validate(new)
     if errs:
@@ -167,13 +167,6 @@ def public_view(s: dict) -> dict:
     v = copy.deepcopy(s)
     v.setdefault("mcp", {})["api_key"] = _mask(mcp_key(s))
     v["mcp"]["api_key_env"] = bool(os.getenv(MCP_KEY_ENV, "").strip())  # the key comes from .env
-    for cfg in v["stages"].values():
-        cfg["api_key"] = _mask(cfg.get("api_key", ""))
-    for st in (v.get("complex") or {}).get("stewards", []):
-        st["api_key"] = _mask(st.get("api_key", ""))
-    for g in v["groups"]:
-        for a in g["agents"]:
-            a["api_key"] = _mask(a.get("api_key", ""))
     from deliberation.report import _prompt_info  # role question for display (e.g. the AutoInvestigate frontend)
     for g in v["groups"]:
         for a in g["agents"]:
@@ -185,9 +178,9 @@ def public_view(s: dict) -> dict:
     return v
 
 
-def resolve_key(own: str, s: dict) -> str:
-    """Per-agent key, else the environment (.env)."""
-    return own or os.getenv("OPENROUTER_API_KEY", "")
+def resolve_key() -> str:
+    """The single OpenRouter token every model call uses (from the root .env)."""
+    return os.getenv("OPENROUTER_API_KEY", "")
 
 
 def mcp_key(s: dict) -> str:

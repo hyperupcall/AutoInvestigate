@@ -20,6 +20,7 @@
   const fallback = {
     createIdea: mock.createIdea, implementPlan: mock.implementPlan, getJob: mock.getJob,
     getPlan: mock.getPlan, listPlans: mock.listPlans, artifactUrl: mock.artifactUrl,
+    startServer: mock.startServer, stopServer: mock.stopServer,
   };
   const info = (Hack.artifactFactoryInfo = { live: false, base: '' });
 
@@ -66,6 +67,23 @@
     return info.live ? `${info.base}/artifacts/${artifactId}/download` : fallback.artifactUrl(artifactId);
   }
 
+  /** Run a built artifact as a local server; returns the server (with its URL). */
+  function startServer(artifactId) {
+    if (!info.live) return fallback.startServer(artifactId);
+    return post(`/artifacts/${artifactId}/run`).then((r) => r.server);
+  }
+
+  function stopServer(serverId) {
+    if (!info.live) return fallback.stopServer(serverId);
+    return post(`/servers/${serverId}/stop`).then((r) => r.server);
+  }
+
+  /** The URL to open a running server at: through the factory's own port when live. */
+  function serverUrl(server) {
+    if (!server) return null;
+    return info.live ? info.base + server.path : server.url;
+  }
+
   async function detect() {
     const candidates = window.AF_API !== undefined ? [window.AF_API] : ['', 'http://localhost:8080'];
     for (const base of candidates) {
@@ -92,6 +110,9 @@
   mock.listPlans = listPlans;
   mock.artifactUrl = artifactUrl;
   mock.viewUrl = viewUrl;
+  mock.startServer = startServer;
+  mock.stopServer = stopServer;
+  mock.serverUrl = serverUrl;
   Hack.apiExecution = { detect, info };
   window.addEventListener('load', detect);
 })();

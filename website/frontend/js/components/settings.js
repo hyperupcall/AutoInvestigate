@@ -142,7 +142,7 @@
   function keyInput(value, oninput) {
     return el('input', {
       type: 'password', class: 'text-input', value: value || '', autocomplete: 'off',
-      placeholder: value ? 'saved (type to replace)' : 'default key', oninput,
+      placeholder: value ? 'saved (type to replace)' : 'not set', oninput,
     });
   }
 
@@ -185,7 +185,6 @@
     return section(title, [
       el('div', { class: 'field-row' }, [
         field('Model', modelSelect(cfg.model, (e) => { cfg.model = e.target.value; })),
-        field('API key', keyInput(cfg.api_key, (e) => { cfg.api_key = e.target.value; })),
       ]),
     ]);
   }
@@ -213,7 +212,6 @@
         el('div', { class: 'field-row' }, [
           field('Model', modelSelect(st.model, (e) => { st.model = e.target.value; })),
           field('Reasoning effort', effortSelect(st.reasoning_effort, (v) => { st.reasoning_effort = v || 'low'; })),
-          field('API key', keyInput(st.api_key, (e) => { st.api_key = e.target.value; })),
         ]),
         el('p', { class: 'muted small', text: 'Prompt: ' + (st.prompt || '') }),
       ]))),
@@ -280,7 +278,6 @@
       el('div', { class: 'agent-card-head' }, [
         textInput(a.name, (e) => { a.name = e.target.value; }),
         modelSelect(a.model, (e) => { a.model = e.target.value; }, 'select small'),
-        keyInput(a.api_key, (e) => { a.api_key = e.target.value; }),
         effortSelect(a.reasoning_effort, (v) => { a.reasoning_effort = v; }),
         el('a', {
           class: 'link-btn', target: '_blank', rel: 'noopener', text: (a.prompt || '').split('/').pop(),
@@ -337,7 +334,7 @@
           onclick: () => {
             const l = lib.find((x) => x.id === libSel.value);
             if (!l) return;
-            g.agents.push({ id: l.id, name: l.name, prompt: l.prompt, model: l.model, api_key: '', reasoning_effort: null, mcp_servers: [] });
+            g.agents.push({ id: l.id, name: l.name, prompt: l.prompt, model: l.model, reasoning_effort: null, mcp_servers: [] });
             store.notify();
           },
         }),

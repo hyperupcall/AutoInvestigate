@@ -26,7 +26,7 @@ def service(tmp_path):
 
 
 def test_seed_topics(service):
-    assert len(service.store.list_topics()) == 8  # seeded by the fixture
+    assert len(service.store.list_topics()) == 13  # seeded by the fixture
     assert seed_if_empty(service.store) == 0     # idempotent
 
 
@@ -116,6 +116,18 @@ def test_settings_thinking_and_topic_model(service):
     assert builder["thinking"] is False
 
 
+def test_stop_session_marks_cancelled(service):
+    topic = service.store.list_topics()[0]
+    service.store.create_session({"id": "session-1", "topic_id": topic["id"],
+                                  "topic_name": topic["name"], "status": "running"})
+    assert service.stop_session("bogus") is None
+    stopped = service.stop_session("session-1")
+    assert stopped["status"] == "cancelled" and stopped["finished_at"]
+    events = service.store.list_events("session-1")
+    assert [e["kind"] for e in events] == ["cancelled", "done"]
+    assert events[-1]["cancelled"] is True
+
+
 def test_http_routes(service):
     seed_if_empty(service.store)
     scheduler = Scheduler(service, 900)
@@ -141,7 +153,7 @@ def test_http_routes(service):
         assert status == 200 and health["status"] == "ok"
 
         status, topics = get("/api/topics")
-        assert status == 200 and len(topics["topics"]) == 8
+        assert status == 200 and len(topics["topics"]) == 13
 
         status, tree = get("/api/tree")
         assert status == 200 and [lvl["level"] for lvl in tree["levels"]] == [1, 2]
@@ -160,6 +172,17 @@ def test_http_routes(service):
 
         status, settings = get("/api/settings")
         assert status == 200 and len(settings["agents"]) == 3
+
+        # terminating a session that is not actually running marks it cancelled
+        service.store.create_session({"id": "session-stop", "topic_id": topics["topics"][0]["id"],
+                                      "topic_name": "x", "status": "running"})
+        status, stopped = send("POST", "/api/sessions/session-stop/stop")
+        assert status == 200 and stopped["status"] == "cancelled"
+        try:
+            send("POST", "/api/sessions/missing/stop")
+            assert False, "expected a 404"
+        except urllib.error.HTTPError as exc:
+            assert exc.code == 404
 
         status, saved = send("PUT", "/api/settings", {"agent_models": {"analyzer": "openai/gpt-oss-120b"}})
         assert status == 200 and saved["agent_models"] == {"analyzer": "openai/gpt-oss-120b"}

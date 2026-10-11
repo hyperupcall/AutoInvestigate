@@ -29,6 +29,14 @@
       input: 0.037,
       output: 0.17,
     },
+    {
+      id: 'google/gemini-3.8-flash',
+      name: 'Google: Gemini 3.8 Flash',
+      provider: 'Google',
+      url: 'https://openrouter.ai/google/gemini-3.8-flash',
+      input: 0.75,
+      output: 3.75,
+    },
   ];
 
   /** Strip the ":online" web-search suffix so a configured id maps to its base model. */
