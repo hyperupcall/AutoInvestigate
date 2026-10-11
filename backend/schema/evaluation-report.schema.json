@@ -222,9 +222,9 @@
         "object",
         "null"
       ],
+      "description": "The final report written for the person who submitted the idea: a verdict, an executive summary, the case for and against, an ordered action plan with kill criteria, risks and open questions.",
       "required": [
-        "headline",
-        "conclusion"
+        "headline"
       ],
       "properties": {
         "headline": {
@@ -233,11 +233,135 @@
             "null"
           ]
         },
-        "conclusion": {
+        "recommendation": {
+          "enum": [
+            "Go",
+            "Go with changes",
+            "Hold",
+            "No-go",
+            null
+          ]
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The executive summary: the body of the report"
+        },
+        "the_idea": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The idea restated as it was actually evaluated"
+        },
+        "case_for": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "case_against": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "plan": {
+          "type": "array",
+          "description": "What to do next, in order",
+          "items": {
+            "type": "object",
+            "properties": {
+              "step": {
+                "type": [
+                  "string",
+                  "integer",
+                  "null"
+                ]
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "detail": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "timeframe": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cost": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "owner": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "kill_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "risk": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "severity": {
+                "enum": [
+                  "high",
+                  "medium",
+                  "low",
+                  null
+                ]
+              },
+              "mitigation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "open_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "what_would_change_the_verdict": {
           "type": [
             "string",
             "null"
           ]
+        },
+        "scores": {
+          "$ref": "#/$defs/templateScores"
         }
       }
     },
@@ -577,6 +701,12 @@
                 "null"
               ]
             },
+            "findings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "pros": {
               "type": "array",
               "items": {
@@ -588,6 +718,9 @@
               "items": {
                 "type": "string"
               }
+            },
+            "scores": {
+              "$ref": "#/$defs/templateScores"
             }
           }
         }

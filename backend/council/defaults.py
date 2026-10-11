@@ -230,11 +230,12 @@ DEFAULT_SETTINGS = {
     "web_search_results": 3,             # per search for ":online" models
     # MCP: agents connect to the servers in their `mcp_servers` and may call their tools.
     "mcp": {"enabled": True, "api_key": "", "timeout_seconds": 20, "max_tool_calls": 2},
-    "max_tokens": {"deliberate": 500, "evaluate": 4500, "summarize": 5000, "judge": 4000, "reality_check": 1200},
-    "reasoning_effort": {"deliberate": "none", "evaluate": "low", "summarize": "none", "judge": "low", "reality_check": "low"},
+    "max_tokens": {"deliberate": 500, "evaluate": 4500, "summarize": 5000, "judge": 4000, "final": 9000, "reality_check": 1200},
+    "reasoning_effort": {"deliberate": "none", "evaluate": "low", "summarize": "none", "judge": "low", "final": "low", "reality_check": "low"},
     "stages": {
         "summarizer": {"model": "openai/gpt-oss-120b", "api_key": ""},
         "judge": {"model": "openai/gpt-oss-120b", "api_key": ""},
+        "final": {"model": "openai/gpt-oss-120b", "api_key": ""},  # the final report writer (see prompts/system/final.md)
         "reality_check": {"model": "openai/gpt-oss-120b", "api_key": ""},
     },
     "groups": _groups(),

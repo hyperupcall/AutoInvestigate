@@ -33,6 +33,7 @@ class Run:
         self.sources_text = ""
         self._sources_task = None
         self.transcripts: dict[str, list] = {}  # each group's latest discussion (shown to it in the next round)
+        self.latest_evals: dict[str, dict[str, str]] = {}  # each group's latest evaluations (read by the final writer)
         if bus is None:
             from orchestrator.bus import Bus  # imported lazily so the pipeline logic is testable without SLIM
             bus = Bus()

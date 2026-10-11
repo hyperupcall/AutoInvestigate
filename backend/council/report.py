@@ -130,6 +130,16 @@ def _round(stage: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
+FINAL_OVERALL_FIELDS = ("headline", "recommendation", "summary", "the_idea", "case_for", "case_against",
+                        "plan", "kill_criteria", "risks", "open_questions", "what_would_change_the_verdict", "scores")
+
+
+def _final_overall(fin: dict) -> dict:
+    """The final report's overall block, keeping only the fields the writer actually returned."""
+    o = fin.get("overall") or {}
+    return {k: o[k] for k in FINAL_OVERALL_FIELDS if o.get(k) is not None}
+
+
 def build(events: list[dict]) -> dict:
     start = next(e for e in events if e["kind"] == "run_start")
     end = next((e for e in reversed(events) if e["kind"] == "run_end"), None)
@@ -187,7 +197,8 @@ def build(events: list[dict]) -> dict:
             "disagreements": ((analysis or {}).get("within_group") or {}).get(gid, []),
             "stop_go": (sg or {}).get("groups", {}).get(gid),
             "verdict": {"headline": fg.get("headline"), "conclusion": fg.get("conclusion"),
-                        "pros": fg.get("pros", []), "cons": fg.get("cons", [])} if fg else None})
+                        "findings": fg.get("findings", []), "pros": fg.get("pros", []),
+                        "cons": fg.get("cons", []), "scores": fg.get("scores", {})} if fg else None})
     src_ev = next((e for e in events if e["kind"] == "sources"), None)
     sources = None
     if src_ev:
@@ -226,7 +237,7 @@ def build(events: list[dict]) -> dict:
         "stop_go": {"decision": sg["decision"], "consensus_feasible": sg["consensus_feasible"],
                     "rationale": sg["overall"].get("rationale"), "pros": sg["overall"].get("pros", []),
                     "cons": sg["overall"].get("cons", []), "resolve_next": sg.get("if_go_resolve") or None} if sg else None,
-        "verdict": {"headline": fin["overall"].get("headline"), "conclusion": fin["overall"].get("conclusion")} if fin else None,
+        "verdict": _final_overall(fin) if fin else None,
         "reality_check": {"verdict": rc["verdict"], "confidence": rc.get("confidence"), "category": rc.get("category", "none"),
                           "summary": rc["summary"], "blockers": rc.get("blockers", []),
                           "assumptions": rc.get("assumptions", []), "model": rc.get("model")} if rc else None,

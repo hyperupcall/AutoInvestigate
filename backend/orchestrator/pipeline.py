@@ -19,6 +19,47 @@ def summaries_block(groups: list[dict], summaries: dict[str, str]) -> str:
     return "\n\n".join(f"=== {g['name']} ===\n{summaries.get(g['id'], '(no summary)')}" for g in groups)
 
 
+def _clip(text: str, n: int) -> str:
+    """One-line, length-capped text for the final writer's dossier."""
+    text = " ".join(str(text or "").split())
+    return text if len(text) <= n else text[:n].rstrip() + " ..."
+
+
+def evaluations_block(groups: list[dict], evals: dict[str, dict[str, str]]) -> str:
+    """Each group's latest evaluations in full (capped per agent). This is the richest material: the concrete
+    numbers, named competitors, cost figures and experiments the summaries squeeze out."""
+    names = {a["id"]: a["name"] for g in groups for a in g["agents"]}
+    out = []
+    for g in groups:
+        ev = evals.get(g["id"]) or {}
+        if not ev:
+            continue
+        out.append(f"=== {g['name']} ===")
+        out += [f"--- {names.get(aid, aid)} ---\n{_clip(text, 1800)}" for aid, text in ev.items()]
+    return "\n\n".join(out) or "(no evaluations)"
+
+
+def discussion_block(run: "Run", groups: list[dict]) -> str:
+    """Each group's latest discussion, capped per turn."""
+    out = []
+    for g in groups:
+        turns = run.transcripts.get(g["id"]) or []
+        if not turns:
+            continue
+        names = {a["id"]: a["name"] for a in g["agents"]}
+        out.append(f"=== {g['name']} ===")
+        out.append("\n".join(f"{names.get(t['agent'], t['agent'])}: {_clip(t['text'], 700)}" for t in turns))
+    return "\n\n".join(out) or "(no discussion)"
+
+
+def sources_block(run: "Run") -> str:
+    """The arXiv papers the groups were given, title plus a capped abstract."""
+    papers = (run.sources or {}).get("papers") or []
+    if not papers:
+        return "No sources were fetched."
+    return "\n\n".join(f"[{p['id']}] {p['title']} ({p.get('year', '')})\n{_clip(p.get('abstract', ''), 500)}" for p in papers)
+
+
 def reality_block(rc: dict | None) -> str:
     """The reality check as text for the stop-or-go and final prompts."""
     if not rc:
@@ -36,7 +77,7 @@ async def stage_call(run: Run, stage_cfg: str, budget_key: str, prompt: str, val
     """Summarizer or judge call made directly by the orchestrator (these are not deliberating agents)."""
     s = run.s
     cfg = s["stages"][stage_cfg]
-    quick_tokens = {"summarize": 900, "judge": 2400, "reality_check": 900}
+    quick_tokens = {"summarize": 900, "judge": 2400, "final": 3200, "reality_check": 900}
     kw = dict(max_tokens=quick_tokens[budget_key] if run.quick else s["max_tokens"][budget_key],
               reasoning_effort="none" if run.quick else s["reasoning_effort"][budget_key],
               budget=run.budget, web_results=s["web_search_results"])
@@ -123,7 +164,11 @@ async def conclude(run: Run, groups: list[dict], summaries: dict[str, str], sg: 
         run.log("stage_start", stage="final")
     sg_text = (f"Decision: {sg['decision']}. Consensus feasible: {sg.get('consensus_feasible')}. "
                f"{sg['overall'].get('rationale', '')}") if sg else "The groups' latest positions above are final."
+    # The final writer gets the raw material, not just the twice-squeezed summaries: the latest evaluations
+    # (numbers, named competitors, costs, experiments), the discussion, and the papers the groups were given.
     prompt = prompts.system("final", IDEA=run.idea, SUMMARIES=summaries_block(groups, summaries),
+                            EVALUATIONS=evaluations_block(groups, getattr(run, "latest_evals", {})),
+                            DISCUSSION=discussion_block(run, groups), SOURCES=sources_block(run),
                             STOP_GO=sg_text, REALITY_CHECK=reality_block(getattr(run, "reality_check", None)),
                             GROUP_IDS='", "'.join(ids))
 
@@ -131,7 +176,7 @@ async def conclude(run: Run, groups: list[dict], summaries: dict[str, str], sg: 
         if not isinstance(o.get("overall"), dict) or "headline" not in o["overall"]:
             return "overall.headline is required"
         return _check_groups(o, ids, ("headline", "conclusion"))
-    obj, res = await stage_call(run, "judge", "judge", prompt, validate)
+    obj, res = await stage_call(run, "final", "final", prompt, validate)
     if log:
         run.log("final", overall=obj["overall"], groups=obj["groups"], model=res.model, cost=res.cost)
     return {**obj, "_model": res.model, "_cost": res.cost}
@@ -159,6 +204,7 @@ async def round_(run: Run, groups: list[dict], n: int, prior: str, summaries_tex
             prior_context=f"Your group's latest discussion:\n{transcript_text(t, {a['id']: a['name'] for a in g['agents']})}")
             for g, t in zip(groups, ts)])
     ss = await asyncio.gather(*[summarize(run, g, f"summary_{n}", t, e) for g, t, e in zip(groups, ts, es)])
+    run.latest_evals = {g["id"]: e for g, e in zip(groups, es)}  # the final writer reads these (see conclude)
     return {g["id"]: s for g, s in zip(groups, ss)}
 
 
