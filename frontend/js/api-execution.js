@@ -33,7 +33,7 @@
 
   function createIdea(args) {
     if (!info.live) return fallback.createIdea(args);
-    return post('/ideas', { text: args.text, title: args.title || '', options: args.options })
+    return post('/ideas', { text: args.text, title: args.title || '', options: args.options, metadata: args.metadata })
       .then((r) => ({ idea: r.idea, plan: r.plan }));
   }
 

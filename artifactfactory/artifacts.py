@@ -4,6 +4,7 @@ import re
 import tarfile
 from typing import Any, Dict, List
 
+from . import evaluation
 from .models import Artifact, new_id
 
 
@@ -68,6 +69,15 @@ class SourceRepositoryBuilder(ArtifactBuilder):
         base = ctx.key(self.type, name)
         title = ctx.plan.get("title") or name
         summary = ctx.idea.get("text") or title
+
+        # Real content when the idea came from an evaluation run (see evaluation.py); placeholders otherwise.
+        rep = evaluation.report_for(ctx) if language == "python" else None
+        real = evaluation.source_repo(rep, title, summary) if rep else None
+        if real:
+            files = [self._w(ctx, f"{base}/README.md", real["readme"])]
+            files += [self._w(ctx, f"{base}/{path}", content) for path, content in real["files"].items()]
+            return self.record(ctx, spec, base, files)
+
         files = [self._w(ctx, f"{base}/README.md", self._readme(title, summary, language))]
 
         if language == "python":
@@ -287,7 +297,9 @@ class LiteratureReviewBuilder(ArtifactBuilder):
         base = ctx.key(self.type, name)
         title = ctx.plan.get("title") or name
         summary = ctx.idea.get("text") or title
-        files = [self._w(ctx, f"{base}/literature_review.md", self._review(title, summary))]
+        rep = evaluation.report_for(ctx)  # real, cited review when the idea came from an evaluation run
+        body = evaluation.literature_review_md(rep, title, summary) if rep else self._review(title, summary)
+        files = [self._w(ctx, f"{base}/literature_review.md", body)]
         return self.record(ctx, spec, base, files)
 
     def _review(self, title, summary):

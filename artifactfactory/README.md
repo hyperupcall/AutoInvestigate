@@ -4,10 +4,21 @@ A small, self-contained Python daemon that turns a **validated research idea**
 into a set of tangible implementation artifacts. It is the backend for the
 frontend's third column ("Idea Execution").
 
-> **All artifact content is DUMMY for now.** Builders emit deterministic
-> placeholder files derived from the idea text. The API, storage, and planner
-> layers are real and are designed so the dummy builders can be swapped for AI
-> later without changing anything else.
+> **Two artifact types are real when the idea comes from an evaluation run.** If the idea's
+> `metadata.evaluation_run_id` is set (the frontend's **Execute →** sends it), `evaluation.py` fetches that
+> run's report from the evaluation backend (`AF_EVAL_API`, default `http://localhost:8090`; `http://web:8090`
+> in docker compose) and builds:
+>
+> - `literature_review` — the arXiv papers the agents were given (and who cited each), every group's verdict,
+>   scores, pros and cons, verified disagreement quotes, open questions, and a short related-work synthesis
+>   whose citations are checked against the paper list.
+> - `source_repository` (Python) — a README with the experiment the panel asked for (goal, hypothesis,
+>   method, success and stop criteria) and a starter `experiment.py` (synthetic data, TODOs where real systems
+>   plug in), syntax-checked before it is saved.
+>
+> Model calls use `OPENROUTER_API_KEY` (model: `AF_MODEL`, default `anthropic/claude-haiku-5.5`). Without a run
+> id, the backend, or a key, every builder falls back to the deterministic placeholders below. The other types
+> (npm package, Docker image, tarball) are still placeholders.
 
 - **Python 3.9+, standard library only.** No third-party dependencies.
 - HTTP server built on `http.server.ThreadingHTTPServer`.

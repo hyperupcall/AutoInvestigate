@@ -121,7 +121,7 @@
             : null,
           el('button', {
             class: 'mini-btn', text: 'Execute →', title: 'Send this idea to Idea Execution',
-            onclick: (e) => { e.stopPropagation(); actions.sendToExecution({ ideaId: run.ideaId, ideaText: run.ideaText }); },
+            onclick: (e) => { e.stopPropagation(); actions.sendToExecution({ ideaId: run.ideaId, ideaText: run.ideaText, evaluationRunId: run.backendRunId || null }); },
           }),
           el('span', { class: 'link-btn', text: 'Open →' }),
         ]),
