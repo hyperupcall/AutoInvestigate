@@ -351,6 +351,14 @@ a { color: blue; }
 .run-decision { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 4px; }
 .run-decision.go { color: green; border-color: green; }
 .run-decision.stop { color: red; border-color: red; }
+/* deliberation outcome (not a verdict on the idea): neutral colours */
+.decision-banner.stopped { border-color: gray; }
+.decision-banner.extra { border-color: blue; }
+.decision-banner.kept { border-color: darkorange; }
+.decision-banner.extra .decision-value { color: blue; }
+.decision-banner.kept .decision-value { color: darkorange; }
+.run-decision.extra { color: blue; border-color: blue; }
+.run-decision.kept { color: darkorange; border-color: darkorange; }
 
 /* --------------------------- spinner + toast --------------------------- */
 .spinner {

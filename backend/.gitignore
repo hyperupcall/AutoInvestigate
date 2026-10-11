@@ -1,0 +1,13 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+data/settings.json
+data/settings.json.tmp
+
+# runtime output (never committed)
+logs/
+results/
+data/settings.json
+data/settings.json.tmp

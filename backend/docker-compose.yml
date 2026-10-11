@@ -1,0 +1,36 @@
+# SLIM bus + one agent host (every agent is its own SLIM endpoint) + on-demand orchestrator
+x-app: &app
+  build: .
+  env_file: .env
+  volumes: ["./data:/app/data", "./logs:/app/logs", "./prompts:/app/prompts:ro", "./results:/app/results"]
+
+services:
+  slim:
+    image: ghcr.io/agntcy/slim:1.4.0@sha256:7a7531cb81f1e24682f08364713da06a158411df3e90b687acf8d5836da5a78e
+    container_name: council-slim
+    ports: ["46357:46357"]
+    environment:
+      - PASSWORD=${SLIM_SHARED_SECRET}
+      - CONFIG_PATH=/config.yaml
+    volumes: ["./slim/server-config.yaml:/config.yaml"]
+    command: ["/slim", "--config", "/config.yaml"]
+  agent_host:
+    <<: *app
+    command: python -m agent_host.main
+    restart: unless-stopped
+    depends_on: [slim]
+  web:
+    <<: *app
+    user: "${HOST_UID:-0}:${HOST_GID:-0}"  # files written to logs/ and results/ stay owned by you
+    command: python -m orchestrator.web
+    ports: ["127.0.0.1:8090:8090"]
+    environment: [FRONTEND_DIR=/app/frontend]
+    volumes: ["./data:/app/data", "./logs:/app/logs", "./prompts:/app/prompts:ro", "./results:/app/results",
+              "${FRONTEND_DIR:-../frontend}:/app/frontend:ro"]
+    restart: unless-stopped
+    depends_on: [slim, agent_host]
+  orchestrator:
+    <<: *app
+    command: python -m orchestrator.cli
+    profiles: ["run"]
+    depends_on: [slim, agent_host]
