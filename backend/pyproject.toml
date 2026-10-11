@@ -1,0 +1,16 @@
+[project]
+name = "research-council"
+version = "0.1.0"
+description = "Research Council: 4 competing agents negotiate over AGNTCY/SLIM"
+requires-python = ">=3.13,<3.14"
+# Pins copied from coffeeAGNTCY lungo/pyproject.toml
+dependencies = [
+    "a2a-sdk==0.3.20",
+    "agntcy-app-sdk==0.5.5",
+    "slim-bindings==1.4.0",
+    "slima2a==0.3.0",
+    "agntcy-identity-service-sdk==0.0.7",
+    "pydantic==2.13.4",
+    "python-dotenv==1.2.2",
+    "httpx==0.28.1",
+]

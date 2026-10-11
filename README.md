@@ -1,3 +1,17 @@
+# AutoInvestigate
+
+| Folder | What | Run |
+|---|---|---|
+| `frontend/` | the three-column app (no build step) | served by the backend at http://localhost:8090/, or `frontend/run.sh` |
+| `backend/` | Part 2, idea evaluation: 13 agents on AGNTCY/SLIM, models via OpenRouter | `cd backend && ./setup.sh` (see `backend/README.md`) |
+| `artifactfactory/` | artifact factory service | `./run.sh` |
+| `evalreport/` | report viewer | see the folder |
+
+Quick start for the evaluation backend: install Docker, get an OpenRouter key, then `cd backend && ./setup.sh` and
+open http://localhost:8090/.
+
+---
+
 # Outshift Research Intelligence
 
 A runnable Streamlit MVP for specialist emerging-technology analysis with Business, Venture Capital, and Technical perspectives, an independent critic, and a general-purpose baseline comparison.

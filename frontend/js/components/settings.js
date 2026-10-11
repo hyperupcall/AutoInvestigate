@@ -19,6 +19,16 @@
     'openrouter/auto',
   ];
 
+  /** Real model list when the backend is connected: the configured models, the Jev router, then the cheapest. */
+  function modelOptions() {
+    const info = Hack.backendInfo;
+    if (!info || !info.live || !info.settings) return MODELS.slice();
+    const s = info.settings;
+    const configured = s.groups.flatMap((g) => g.agents.map((a) => a.model)).concat([s.stages.summarizer.model, s.stages.judge.model]);
+    const cheap = (info.models || []).filter((m) => !m.variable_price && !m.expires).slice(0, 40).map((m) => m.id);
+    return [...new Set([...configured, 'typesafe/jev-router', ...cheap])];
+  }
+
   function section(title, children) {
     return el('div', { class: 'settings-section' }, [
       el('h3', { class: 'settings-title', text: title }),
@@ -27,7 +37,7 @@
   }
 
   function modelField(label, key, value) {
-    const options = MODELS.slice();
+    const options = modelOptions();
     if (value && !options.includes(value)) options.unshift(value);
     return el('div', { class: 'field' }, [
       el('label', { text: label }),
@@ -64,7 +74,7 @@
       el('input', { class: 'text-input', value: agent.name, placeholder: 'Name', oninput: (e) => { agent.name = e.target.value; } }),
       el('input', { class: 'text-input', value: agent.role, placeholder: 'Role', oninput: (e) => { agent.role = e.target.value; } }),
       el('select', { class: 'select small', onchange: (e) => { agent.model = e.target.value; } },
-        MODELS.map((m) => el('option', { value: m, text: m, selected: m === agent.model }))),
+        modelOptions().map((m) => el('option', { value: m, text: m, selected: m === agent.model }))),
       el('button', { class: 'icon-btn danger', title: 'Remove agent', text: '✕', onclick: () => actions.removeAgent(group.id, agent.id) }),
     ]);
   }
@@ -73,6 +83,14 @@
   function renderContent() {
     const s = store.state.settings;
     const wrap = el('div', { class: 'settings-content' });
+    const info = Hack.backendInfo;
+    if (info && info.live) {
+      wrap.appendChild(el('p', { class: 'muted small' }, [
+        'Connected to the backend. Groups, per-agent models and API keys are saved there: ',
+        el('a', { href: info.base + '/settings', target: '_blank', text: 'open backend settings' }),
+        '. Here you can change the deliberation time and the summarizer for your next run.',
+      ]));
+    }
 
     wrap.appendChild(section('Models', [
       modelField('Generation model', 'generationModel', s.generationModel),

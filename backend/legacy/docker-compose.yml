@@ -1,0 +1,52 @@
+# SLIM bus + one service per agent + moderator (run on demand: `make hello`)
+x-agent: &agent
+  build: .
+  env_file: .env
+  depends_on: [slim]
+  volumes: ["./data:/app/data:ro", "./logs:/app/logs"]
+
+services:
+  slim:
+    image: ghcr.io/agntcy/slim:1.4.0@sha256:7a7531cb81f1e24682f08364713da06a158411df3e90b687acf8d5836da5a78e
+    container_name: council-slim
+    ports: ["46357:46357"]
+    environment:
+      - PASSWORD=${SLIM_SHARED_SECRET}
+      - CONFIG_PATH=/config.yaml
+    volumes: ["./slim/server-config.yaml:/config.yaml"]
+    command: ["/slim", "--config", "/config.yaml"]
+  tech_risk: { <<: *agent, command: python -m agents.tech_risk.main }
+  market:    { <<: *agent, command: python -m agents.market.main }
+  cisco_fit: { <<: *agent, command: python -m agents.cisco_fit.main }
+  horizon:   { <<: *agent, command: python -m agents.horizon.main }
+  security_expert: { <<: *agent, command: python -m agents.security_expert.main }
+  customer_voice:  { <<: *agent, command: python -m agents.customer_voice.main }
+  specialist_on_demand: { <<: *agent, command: python -m agents.specialist_on_demand.main }
+  moderator:
+    <<: *agent
+    command: python -m moderator.main
+    profiles: ["run"]
+    depends_on: [slim, tech_risk, market, cisco_fit, horizon, security_expert, customer_voice, specialist_on_demand]
+  runner:
+    <<: *agent
+    command: python -m moderator.main serve
+    restart: unless-stopped
+    depends_on: [slim, tech_risk, market, cisco_fit, horizon, security_expert, customer_voice, specialist_on_demand]
+  eval:
+    <<: *agent
+    command: python -m eval.run_eval
+    profiles: ["run"]
+    environment: [EVENTS_LOG=logs/eval_events.jsonl, MODERATOR_NAME=eval_moderator]
+    volumes: ["./data:/app/data:ro", "./logs:/app/logs", "./eval:/app/eval"]
+    depends_on: [slim, tech_risk, market, cisco_fit, horizon, security_expert, customer_voice, specialist_on_demand]
+  frontend:
+    image: python:3.13-slim
+    working_dir: /srv/app/frontend
+    command: python server.py
+    environment:
+      - PORT=8090
+      - EVENTS_LOG=/srv/app/logs/events.jsonl
+      - IDEAS_JSON=/srv/app/data/ideas.json
+      - EVAL_JSON=/srv/app/eval/results.json
+    volumes: ["./frontend:/srv/app/frontend:ro", "./logs:/srv/app/logs", "./data:/srv/app/data:ro", "./eval:/srv/app/eval:ro"]
+    ports: ["8090:8090"]

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Research Council</title>
+<style>
+:root{--bg:#f5f4ef;--card:#fff;--bd:#e0ded5;--tx:#1d1c19;--tx2:#5f5e58;--tx3:#8a8983;--ok:#23753a;--okbg:#e2f2e5;--bad:#b0322a;--badbg:#fbe6e4;--wn:#8a5a00;--wnbg:#fbefd3;
+--g-research:#2563c9;--g-research-bg:#e5eefc;--g-private_equity:#b26a00;--g-private_equity-bg:#fbefdb;--g-market:#7a3fc4;--g-market-bg:#efe6fb;--slim:#1d4f91;--slimbg:#e6eefb}
+@media(prefers-color-scheme:dark){:root{--bg:#161614;--card:#21211f;--bd:#36352f;--tx:#eceae2;--tx2:#a9a79e;--tx3:#7d7c75;--ok:#8fd694;--okbg:#1d3a22;--bad:#f2a29c;--badbg:#45211e;--wn:#f0c673;--wnbg:#46371a;
+--g-research:#7fb0f5;--g-research-bg:#1d2e48;--g-private_equity:#f0b24a;--g-private_equity-bg:#3d2f14;--g-market:#c39bf2;--g-market-bg:#33244a;--slim:#9cc2f7;--slimbg:#1d304c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1500px;margin:0 auto;padding:14px 18px 40px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:21px;margin:0}.sub{color:var(--tx2);font-size:13px}.sp{flex:1}
+a{color:var(--g-research)}
+select,button,textarea{font:inherit;color:var(--tx)}
+select{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:4px 6px;max-width:360px}
+button{border:1px solid var(--bd);background:var(--card);border-radius:9px;padding:7px 14px;cursor:pointer}
+button.primary{background:var(--g-research);color:#fff;border-color:transparent;font-weight:700;padding:9px 20px}
+button:disabled{opacity:.5;cursor:default}
+.ideabar{display:flex;gap:10px;align-items:stretch;margin-bottom:12px}
+.ideabar textarea{flex:1;min-height:52px;resize:vertical;border:1px solid var(--bd);border-radius:10px;padding:9px 12px;background:var(--card)}
+.ideabar .side{display:flex;flex-direction:column;gap:6px;justify-content:center}
+.cost{font-size:12px;color:var(--tx2);text-align:center}
+.cost b{color:var(--tx)}
+/* now banner */
+#now{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px 16px;margin-bottom:12px}
+#now .dot{width:12px;height:12px;border-radius:50%;background:var(--wn);flex:none;animation:pulse 1.2s infinite}
+#now.idle .dot{animation:none;background:var(--tx3)}#now.done .dot{animation:none;background:var(--ok)}#now.err .dot{animation:none;background:var(--bad)}
+#nowt{font-size:19px;font-weight:700}#nows{color:var(--tx2);font-size:14px}
+@keyframes pulse{50%{opacity:.25}}
+.idea-shown{font-size:14px;color:var(--tx2);margin:-4px 0 10px 4px}
+.idea-shown b{color:var(--tx)}
+/* stepper */
+.steps{display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap}
+.step{flex:1;min-width:96px;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;background:var(--card);font-size:12px;color:var(--tx3)}
+.step b{display:block;font-size:13px;color:var(--tx2)}
+.step.done{background:var(--okbg);border-color:transparent}.step.done b{color:var(--ok)}
+.step.on{border-color:var(--wn);box-shadow:0 0 0 2px var(--wnbg)}.step.on b{color:var(--tx)}
+.step.skip{opacity:.45;text-decoration:line-through}
+/* columns */
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:1000px){.cols{grid-template-columns:1fr}}
+.col{background:var(--card);border:1px solid var(--bd);border-top:5px solid var(--gc);border-radius:14px;display:flex;flex-direction:column;min-height:420px}
+.colh{padding:10px 12px 8px;border-bottom:1px solid var(--bd)}
+.colh h2{font-size:16px;margin:0;color:var(--gc)}
+.colh .mode{font-size:12px;color:var(--tx2)}
+.roster{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.av{width:34px;height:34px;border-radius:50%;background:var(--ac);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;position:relative;flex:none}
+.av.speaking{box-shadow:0 0 0 3px var(--card),0 0 0 6px var(--ac);animation:ring 1s infinite}
+@keyframes ring{50%{box-shadow:0 0 0 3px var(--card),0 0 0 9px transparent}}
+.av.writing::after{content:'✎';position:absolute;right:-5px;bottom:-5px;font-size:12px;background:var(--card);color:var(--tx);border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+.feed{flex:1;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:9px;max-height:62vh}
+.divider{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--gc);border-top:1px dashed var(--bd);padding-top:9px;margin-top:2px}
+.divider span{display:block;text-transform:none;letter-spacing:0;font-weight:400;color:var(--tx3)}
+.msg{display:flex;gap:8px;animation:fadein .35s}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}}
+.msg .av{width:28px;height:28px;font-size:11px}
+.bub{flex:1;background:var(--bg);border-radius:4px 12px 12px 12px;padding:7px 10px;min-width:0}
+.who{font-size:12px;color:var(--tx2)}.who b{color:var(--ac);font-size:13px}.who i{font-style:normal;color:var(--tx3);font-size:11px;margin-left:4px}
+.txt{white-space:pre-wrap;word-wrap:break-word;font-size:14px}
+.thinking{font-size:13px;color:var(--tx2);padding-left:36px}
+.dots::after{content:'';animation:dots 1.2s steps(4) infinite}@keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+details.eval{border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:8px;padding:6px 10px;background:var(--card);animation:fadein .35s}
+details.eval summary{cursor:pointer;font-size:13px}
+details.eval summary b{color:var(--ac)}
+details.eval .key{display:block;color:var(--tx2);font-size:12px;margin-top:2px}
+details.eval .txt{margin-top:8px;font-size:13px}
+.fail{font-size:12px;color:var(--bad)}
+.summary{border:2px solid var(--gc);background:var(--gbg);border-radius:10px;padding:9px 11px;animation:fadein .35s}
+.summary h3{margin:0 0 4px;font-size:13px;color:var(--gc)}
+.summary .sec{margin-top:6px}.summary .sec b{font-size:11px;letter-spacing:.05em;color:var(--tx2)}
+.summary .sec .txt{font-size:13px}
+.summary details summary{cursor:pointer;font-size:12px;color:var(--tx2);margin-top:6px}
+/* decision + final */
+.decide{margin-top:14px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px 16px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:0 0 8px}
+.badge{display:inline-block;font-weight:800;border-radius:8px;padding:3px 12px;font-size:15px;margin-right:8px}
+.badge.stop{background:var(--okbg);color:var(--ok)}.badge.go{background:var(--wnbg);color:var(--wn)}
+.pc{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+@media(max-width:700px){.pc{grid-template-columns:1fr}}
+.pc ul{margin:4px 0 0;padding-left:18px}.pc li{margin-bottom:3px}
+.pc .p b{color:var(--ok)}.pc .c b{color:var(--bad)}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+@media(max-width:1000px){.g3{grid-template-columns:1fr}}
+.gcard{border:1px solid var(--bd);border-top:4px solid var(--gc);border-radius:10px;padding:10px 12px}
+.gcard h3{margin:0 0 4px;font-size:14px;color:var(--gc)}
+.gcard .hl{font-weight:700;margin-bottom:4px}
+.gcard .txt{font-size:13px}
+.headline{font-size:22px;font-weight:800;line-height:1.3}
+.final.done{border:2px solid var(--ok)}
+.score{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) 26px;gap:6px;align-items:center;font-size:12px;margin-top:4px}
+.bar{height:9px;border-radius:5px;background:var(--bd);overflow:hidden}.bar i{display:block;height:100%;background:var(--gc)}
+/* agntcy */
+.slim{margin-top:14px;background:var(--slimbg);border:1px solid var(--slim);border-radius:14px;padding:10px 14px;font-size:13px}
+.slim b{color:var(--slim)}
+.eps{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.ep{font-size:11px;border:1px solid var(--bd);background:var(--card);border-radius:7px;padding:2px 7px;color:var(--tx2);font-family:ui-monospace,Menlo,monospace}
+.ep.on{border-color:var(--slim);color:var(--slim);font-weight:700}
+.note{font-size:13px;color:var(--bad);margin-top:8px}
+.empty{color:var(--tx3);font-size:13px;text-align:center;padding:30px 10px}
+</style>
+</head>
+<body><div class="wrap">
+<header>
+  <h1>Research Council</h1>
+  <span class="sub">Three groups of AI agents evaluate an idea over AGNTCY</span>
+  <div class="sp"></div>
+  <select id="runs" title="Open a past evaluation"></select>
+  <select id="speed" title="Replay speed"><option value="1">1x</option><option value="2" selected>2x</option><option value="4">4x</option><option value="8">8x</option><option value="0">instant</option></select>
+  <button id="replay" title="Play the selected evaluation from the start">Replay</button>
+  <a href="/">App</a> <a href="/settings">Settings</a>
+</header>
+
+<div class="ideabar">
+  <textarea id="idea" placeholder="Describe the idea to evaluate, e.g. An agent router that sends each request to the best agent by declared capability and past performance."></textarea>
+  <div class="side">
+    <button class="primary" id="go">Evaluate idea</button>
+    <button id="stop" style="display:none">Stop</button>
+    <div class="cost" id="cost"></div>
+  </div>
+</div>
+
+<div id="now" class="idle"><div class="dot"></div><div><div id="nowt">Type an idea and press Evaluate idea</div><div id="nows">Three groups of agents will discuss it, evaluate it, compare notes, and reach a verdict.</div></div></div>
+<div class="idea-shown" id="ideaShown"></div>
+<div class="steps" id="steps"></div>
+<div class="cols" id="cols"></div>
+<div class="decide" id="decide"></div>
+<div class="slim" id="slim"></div>
+</div>
+
+<script>
+const STEPS = [['deliberation_1','Discuss','each group talks it through'],['evaluation_1','Evaluate','every member writes up'],['summary_1','Summarize','pros and cons per group'],
+  ['deliberation_2','Discuss again','after reading all summaries'],['evaluation_2','Re-evaluate','scores and verdicts'],['summary_2','Summarize','updated pros and cons'],
+  ['stop_go','Stop or go?','is another round worth it'],['round_3','Extra round','only if needed'],['final','Verdict','conclusions per group']];
+const STAGE_LABEL = {deliberation_1:['Round 1: discussion','members speak one at a time and hear everything said'],evaluation_1:['Round 1: evaluations','each member writes up their view in their own format'],
+  summary_1:['Round 1: group summary',''],deliberation_2:['Round 2: discussion','after reading every group\'s summary'],evaluation_2:['Round 2: re-evaluations','with pros, cons and scores'],
+  summary_2:['Round 2: group summary',''],deliberation_3:['Extra round: discussion','to settle the open questions'],evaluation_3:['Extra round: evaluations',''],summary_3:['Extra round: group summary','']};
+const MODE = {converge:'aims for a shared view', diverge:'different customers, not expected to agree'};
+const PALETTE = ['#2563c9','#c2410c','#0f8b6f','#a21caf','#b45309','#4d7c0f','#be123c','#0e7490','#6d28d9','#9a3412','#047857','#1d4ed8'];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const md = s => esc(s).replace(/^\s*(\*{3,}|-{3,}|_{3,})\s*$/gm, '').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*\*/g, '').replace(/^#{1,6}\s*/gm, '').replace(/^\s*[*-]\s+/gm, '• ');
+const initials = n => n.replace(/[^A-Za-z ]/g,'').split(' ').filter(Boolean).filter(w => !['and','of','the'].includes(w.toLowerCase())).slice(0,2).map(w => w[0].toUpperCase()).join('');
+let EV = [], RUN_ID = null, LIVE = false, NEXT = 0, playTimer = null, shownCount = null;
+
+function build(evs) {
+  const S = {groups: [], items: {}, speaking: {}, writing: {}, summarizing: {}, stage: null, stopgo: null, final: null, end: null,
+             spent: 0, max: 1, slimCount: 0, slimLast: null, notes: [], idea: '', agentColor: {}, agentName: {}, agentModel: {}};
+  const ensureGroup = (gid, name) => {
+    if (!S.items[gid]) { S.items[gid] = []; if (!S.groups.find(g => g.id === gid)) S.groups.push({id: gid, name: name || gid, consensus: 'converge', agents: []}); }
+  };
+  for (const e of evs) {
+    if (e.spent !== undefined) S.spent = e.spent;
+    if (e.kind === 'run_start') {
+      S.idea = e.idea; S.max = e.max_cost || 1;
+      (e.groups || []).forEach(g => { S.groups.push(g); S.items[g.id] = [];
+        g.agents.forEach((a, i) => { S.agentColor[a.id] = PALETTE[(S.groups.length * 3 + i) % PALETTE.length]; S.agentName[a.id] = a.name; S.agentModel[a.id] = a.model; }); });
+    }
+    if (e.kind === 'slim_group') { S.slimCount++; S.slimLast = e; }
+    if (e.kind === 'stage_start') {
+      S.stage = e.stage;
+      if (e.group) {
+        ensureGroup(e.group);
+        if (STAGE_LABEL[e.stage]) S.items[e.group].push({type: 'divider', stage: e.stage});
+        if (e.stage.startsWith('evaluation')) S.writing[e.group] = new Set(e.order || []);
+        if (e.stage.startsWith('summary')) S.summarizing[e.group] = true;
+        if (e.stage.startsWith('deliberation')) S.speaking[e.group] = null;
+      }
+    }
+    if (e.kind === 'turn_start') S.speaking[e.group] = e.agent;
+    if (e.kind === 'turn' || e.kind === 'turn_failed') {
+      ensureGroup(e.group); S.speaking[e.group] = null;
+      if (e.name) S.agentName[e.agent] = e.name;
+      S.items[e.group].push(e.kind === 'turn' ? {type: 'turn', agent: e.agent, text: e.text, model: e.model} : {type: 'fail', agent: e.agent, text: e.error});
+    }
+    if (e.kind === 'eval' || e.kind === 'eval_failed') {
+      ensureGroup(e.group); S.writing[e.group]?.delete(e.agent);
+      S.items[e.group].push(e.kind === 'eval' ? {type: 'eval', agent: e.agent, text: e.text, model: e.model, stage: e.stage} : {type: 'fail', agent: e.agent, text: 'evaluation failed: ' + e.error});
+    }
+    if (e.kind === 'stage_end' && e.group) { S.speaking[e.group] = null; if (String(e.stage).startsWith('evaluation')) S.writing[e.group] = new Set(); }
+    if (e.kind === 'summary') { ensureGroup(e.group); S.summarizing[e.group] = false; S.items[e.group].push({type: 'summary', text: e.text, stage: e.stage}); }
+    if (e.kind === 'stop_go') S.stopgo = e;
+    if (e.kind === 'final') S.final = e;
+    if (e.kind === 'note') S.notes.push(e.text);
+    if (e.kind === 'run_end') S.end = e;
+  }
+  S.groups.forEach((g, gi) => (g.agents || []).forEach((a, i) => { S.agentColor[a.id] ||= PALETTE[(gi * 4 + i) % PALETTE.length]; S.agentName[a.id] ||= a.name; }));
+  return S;
+}
+
+function stepIndex(stage) {
+  if (!stage) return -1;
+  if (/_3$/.test(stage)) return 7;
+  return STEPS.findIndex(s => s[0] === stage);
+}
+
+function keyLines(text) {
+  const out = [];
+  for (const line of String(text).split('\n')) {
+    if (/(verdict|recommendation|decision|reaction|overall technical risk|recommended approach)\s*[:\-]/i.test(line) || /score\s*[:\-]?\s*\d/i.test(line)) out.push(line.replace(/[*#]/g, '').trim());
+    if (out.length >= 2) break;
+  }
+  return out;
+}
+
+function summaryHtml(text) {
+  const names = ['PROS', 'CONS', 'WHERE THEY DISAGREED', 'SCORES AND VERDICTS', 'OPEN QUESTIONS'];
+  const sec = {}; let cur = null;
+  for (const raw of String(text).split('\n')) {
+    const t = raw.replace(/[*#:]/g, '').trim().toUpperCase();
+    if (names.includes(t)) { cur = t; sec[cur] = []; continue; }
+    if (cur) sec[cur].push(raw);
+  }
+  if (!Object.keys(sec).length) return `<div class="txt">${esc(text)}</div>`;
+  const block = k => sec[k] ? `<div class="sec"><b>${k}</b><div class="txt">${md(sec[k].join('\n').trim())}</div></div>` : '';
+  const more = ['WHERE THEY DISAGREED', 'SCORES AND VERDICTS', 'OPEN QUESTIONS'].map(block).join('');
+  return block('PROS') + block('CONS') + (more ? `<details><summary>Disagreements, scores and open questions</summary>${more}</details>` : '');
+}
+
+function render(S) {
+  // banner
+  const now = $('now');
+  const pendingWriters = Object.values(S.writing).reduce((n, s) => n + (s ? s.size : 0), 0);
+  const totalAgents = S.groups.reduce((n, g) => n + (g.agents || []).length, 0) || 13;
+  if (!S.idea) { now.className = 'idle'; $('nowt').textContent = 'Type an idea and press Evaluate idea'; $('nows').textContent = 'Three groups of agents will discuss it, evaluate it, compare notes, and reach a verdict.'; }
+  else if (S.end && S.end.status === 'done' && S.final) { now.className = 'done'; $('nowt').textContent = S.final.overall.headline; $('nows').textContent = 'Evaluation finished. The verdict for each group is below.'; }
+  else if (S.end) { now.className = 'err'; $('nowt').textContent = {cancelled: 'Evaluation stopped', budget_stopped: 'Stopped at the cost limit', error: 'The evaluation hit an error'}[S.end.status] || 'Evaluation ended';
+    $('nows').textContent = S.notes.slice(-1)[0] || ''; }
+  else {
+    now.className = ''; const st = S.stage || '';
+    const n = (st.match(/_(\d)$/) || [])[1]; const roundName = n === '3' ? 'Extra round' : `Round ${n}`;
+    if (st.startsWith('deliberation')) {
+      $('nowt').textContent = `${roundName}: the groups are discussing the idea`;
+      const who = S.groups.map(g => S.speaking[g.id] ? `${g.name}: ${S.agentName[S.speaking[g.id]]} is speaking` : null).filter(Boolean);
+      $('nows').textContent = who.join('  ·  ') || (n === '1' ? 'Each member speaks in turn and hears everything said so far.' : 'They have now read every group\'s summary.');
+    } else if (st.startsWith('evaluation')) { $('nowt').textContent = `${roundName}: every member is writing an evaluation`; $('nows').textContent = `${totalAgents - pendingWriters} of ${totalAgents} written`; }
+    else if (st.startsWith('summary')) { $('nowt').textContent = 'Summarizing each group\'s pros and cons'; $('nows').textContent = 'The summarizer keeps the details: numbers, names and disagreements.'; }
+    else if (st === 'stop_go') { $('nowt').textContent = 'Deciding whether another round would change anything'; $('nows').textContent = 'Stop or go: is there an open question the groups could still settle?'; }
+    else if (st === 'final') { $('nowt').textContent = 'Writing the final verdict'; $('nows').textContent = ''; }
+    else { $('nowt').textContent = 'Starting the evaluation'; $('nows').textContent = 'Sending the idea to every group.'; }
+  }
+  $('ideaShown').innerHTML = S.idea ? `Idea under evaluation: <b>${esc(S.idea)}</b>` : '';
+  $('cost').innerHTML = S.idea ? `spent <b>$${S.spent.toFixed(3)}</b> of $${Number(S.max).toFixed(2)}` : '';
+  // stepper
+  const cur = stepIndex(S.stage); const fin = !!S.end;
+  $('steps').innerHTML = STEPS.map(([k, label, hint], i) => {
+    let cls = i < cur || (fin && i <= cur) ? 'done' : i === cur ? 'on' : '';
+    if (k === 'round_3' && S.stopgo && S.stopgo.decision === 'stop') cls = 'skip';
+    if (k === 'final' && S.final) cls = 'done';
+    return `<div class="step ${cls}"><b>${i + 1}. ${label}</b>${hint}</div>`;
+  }).join('');
+  // columns (keep scroll position when the user scrolled up)
+  const scroll = {};
+  document.querySelectorAll('.feed').forEach(f => scroll[f.dataset.g] = {top: f.scrollTop, atBottom: f.scrollHeight - f.scrollTop - f.clientHeight < 60});
+  $('cols').innerHTML = S.groups.length ? S.groups.map(g => {
+    const gc = `--gc:var(--g-${g.id}, #555);--gbg:var(--g-${g.id}-bg, #eee)`;
+    const roster = (g.agents || []).map(a => {
+      const cls = S.speaking[g.id] === a.id ? 'speaking' : (S.writing[g.id] && S.writing[g.id].has(a.id) ? 'writing' : '');
+      return `<div class="av ${cls}" style="--ac:${S.agentColor[a.id]}" title="${esc(a.name)} (${esc(a.model)})">${initials(a.name)}</div>`; }).join('');
+    const items = (S.items[g.id] || []).map(it => {
+      const ac = `style="--ac:${S.agentColor[it.agent] || '#777'}"`;
+      const name = esc(S.agentName[it.agent] || it.agent);
+      if (it.type === 'divider') { const [t, h] = STAGE_LABEL[it.stage]; return `<div class="divider">${t}${h ? `<span>${h}</span>` : ''}</div>`; }
+      if (it.type === 'turn') return `<div class="msg" ${ac}><div class="av">${initials(S.agentName[it.agent] || it.agent)}</div><div class="bub"><div class="who"><b>${name}</b><i>${esc(it.model || '')}</i></div><div class="txt">${md(it.text)}</div></div></div>`;
+      if (it.type === 'eval') { const k = keyLines(it.text);
+        return `<details class="eval" ${ac}><summary><b>${name}</b> evaluation${k.map(l => `<span class="key">${esc(l)}</span>`).join('')}</summary><div class="txt">${md(it.text)}</div></details>`; }
+      if (it.type === 'summary') return `<div class="summary"><h3>${g.name} summary</h3>${summaryHtml(it.text)}</div>`;
+      if (it.type === 'fail') return `<div class="fail">${name}: ${esc(it.text)}</div>`;
+      return '';
+    }).join('');
+    const sp = S.speaking[g.id];
+    const thinking = sp ? `<div class="thinking"><b style="color:${S.agentColor[sp]}">${esc(S.agentName[sp])}</b> is speaking<span class="dots"></span></div>`
+      : (S.writing[g.id] && S.writing[g.id].size ? `<div class="thinking">${S.writing[g.id].size} still writing<span class="dots"></span></div>`
+      : (S.summarizing[g.id] ? `<div class="thinking">Summarizing<span class="dots"></span></div>` : ''));
+    return `<div class="col" style="${gc}"><div class="colh"><h2>${esc(g.name)}</h2><div class="mode">${(g.agents || []).length} members · ${MODE[g.consensus] || ''}</div><div class="roster">${roster}</div></div>
+      <div class="feed" data-g="${g.id}">${items || '<div class="empty">Waiting for the discussion to start</div>'}${thinking}</div></div>`;
+  }).join('') : '';
+  document.querySelectorAll('.feed').forEach(f => { const s = scroll[f.dataset.g]; f.scrollTop = !s || s.atBottom ? f.scrollHeight : s.top; });
+  // decision and verdict
+  let d = '';
+  if (S.stopgo) {
+    const sg = S.stopgo; const gname = id => (S.groups.find(g => g.id === id) || {name: id}).name;
+    d += `<div class="card"><h2>Stop or go?</h2><div><span class="badge ${sg.decision}">${sg.decision === 'stop' ? 'STOP' : 'GO ONE MORE ROUND'}</span>
+      <span class="sub">${sg.consensus_feasible ? 'A consensus across the groups looks reachable.' : 'A consensus across the groups does not look reachable.'}</span></div>
+      <p>${esc(sg.overall.rationale)}</p>
+      <div class="pc"><div class="p"><b>For</b><ul>${(sg.overall.pros || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div><div class="c"><b>Against</b><ul>${(sg.overall.cons || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></div>
+      ${sg.decision === 'go' && sg.if_go_resolve ? `<p><b>The extra round should settle:</b> ${esc(sg.if_go_resolve)}</p>` : ''}
+      <div class="g3">${Object.entries(sg.groups).map(([id, v]) => `<div class="gcard" style="--gc:var(--g-${id}, #555)"><h3>${esc(gname(id))}</h3><div class="txt">${esc(v.rationale)}</div></div>`).join('')}</div></div>`;
+  }
+  if (S.final) {
+    const f = S.final; const gname = id => (S.groups.find(g => g.id === id) || {name: id}).name;
+    d += `<div class="card final ${S.end ? 'done' : ''}"><h2>Verdict</h2><div class="headline">${esc(f.overall.headline)}</div><p>${esc(f.overall.conclusion || '')}</p>
+      <div class="g3">${Object.entries(f.groups).map(([id, v]) => `<div class="gcard" style="--gc:var(--g-${id}, #555)"><h3>${esc(gname(id))}</h3><div class="hl">${esc(v.headline)}</div><div class="txt">${esc(v.conclusion)}</div>
+        ${v.pros && v.pros.length ? `<div class="pc" style="grid-template-columns:1fr"><div class="p"><b>Pros</b><ul>${v.pros.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div><div class="c"><b>Cons</b><ul>${(v.cons || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></div>` : ''}
+        ${Object.entries(v.scores || {}).filter(([, s]) => typeof s === 'number').map(([k, s]) => `<div class="score"><span>${esc(k)}</span><div class="bar"><i style="width:${Math.max(0, Math.min(10, s)) * 10}%"></i></div><b>${s}</b></div>`).join('')}
+      </div>`).join('')}</div></div>`;
+  }
+  if (S.notes.length && S.end && S.end.status !== 'done') d += `<div class="card"><div class="note">${esc(S.notes.slice(-1)[0])}</div></div>`;
+  $('decide').innerHTML = d;
+  // AGNTCY / SLIM
+  const ids = S.groups.flatMap(g => (g.agents || []).map(a => a.id));
+  const on = new Set(S.slimLast ? S.slimLast.members : []);
+  $('slim').innerHTML = `<b>Running on AGNTCY.</b> Each agent is its own SLIM endpoint (<code>council/agents/&lt;id&gt;</code>) and every message is an A2A message on a SLIM group.
+    ${S.slimCount ? ` This evaluation has opened <b>${S.slimCount}</b> SLIM groups${S.slimLast ? `; the latest is channel <code>${esc(S.slimLast.channel.slice(0, 8))}</code> with ${S.slimLast.members.length} members (${esc(S.slimLast.purpose)})` : ''}.` : ''}
+    <div class="eps">${ids.map(i => `<span class="ep ${on.has(i) ? 'on' : ''}">${esc(i)}</span>`).join('')}</div>`;
+  $('go').disabled = LIVE; $('stop').style.display = LIVE ? '' : 'none';
+}
+
+function show(n) { render(build(n === null ? EV : EV.slice(0, n))); }
+
+async function poll() {
+  if (!RUN_ID || !LIVE) return;
+  try {
+    const r = await (await fetch(`/api/runs/${RUN_ID}/events?since=${NEXT}`)).json();
+    if (r.events.length) { EV = EV.concat(r.events); NEXT = r.next; if (shownCount === null) show(null);
+      if (![...$('runs').options].some(o => o.value === RUN_ID)) loadRuns(); }
+    if (!r.running) { LIVE = false; loadRuns(); show(shownCount); }
+  } catch (e) {}
+}
+setInterval(poll, 1000);
+
+async function openRun(id, live) {
+  stopReplay(); RUN_ID = id; LIVE = live; NEXT = 0; EV = []; shownCount = null;
+  const r = await (await fetch(`/api/runs/${id}/events?since=0`)).json();
+  EV = r.events; NEXT = r.next; LIVE = r.running; show(null);
+}
+
+async function loadRuns() {
+  const runs = await (await fetch('/api/runs')).json();
+  $('runs').innerHTML = runs.map(r => `<option value="${r.id}" ${r.id === RUN_ID ? 'selected' : ''}>${r.started.slice(5, 16).replace('T', ' ')} · ${esc(r.idea.slice(0, 60))} (${r.status})</option>`).join('') || '<option value="">no evaluations yet</option>';
+  return runs;
+}
+
+function stopReplay() { if (playTimer) clearTimeout(playTimer); playTimer = null; shownCount = null; $('replay').textContent = 'Replay'; }
+
+function replay() {
+  if (playTimer) { stopReplay(); show(null); return; }
+  const speed = Number($('speed').value);
+  if (!EV.length) return;
+  if (!speed) { show(null); return; }
+  shownCount = 0; $('replay').textContent = 'Stop replay';
+  const step = () => {
+    shownCount++; show(shownCount);
+    if (shownCount >= EV.length) { stopReplay(); return; }
+    const dt = (new Date(EV[shownCount].t) - new Date(EV[shownCount - 1].t)) || 200;
+    playTimer = setTimeout(step, Math.min(Math.max(dt, 150), 4000) / speed);
+  };
+  step();
+}
+
+$('replay').onclick = replay;
+$('runs').onchange = e => e.target.value && openRun(e.target.value, false);
+$('go').onclick = async () => {
+  const idea = $('idea').value.trim();
+  if (!idea) { $('idea').focus(); $('nowt').textContent = 'Type the idea first'; return; }
+  const r = await fetch('/api/evaluate', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({idea})});
+  const out = await r.json();
+  if (!r.ok && r.status !== 409) { $('nowt').textContent = out.error || 'Could not start'; return; }
+  await openRun(out.run_id, true); loadRuns();
+};
+$('stop').onclick = () => fetch('/api/stop', {method: 'POST'});
+
+(async () => {
+  const st = await (await fetch('/api/status')).json();
+  const runs = await loadRuns();
+  const want = new URLSearchParams(location.search).get('run');
+  if (want) { await openRun(want, false); $('runs').value = want; }
+  else if (st.running) await openRun(st.run_id, true);
+  else { const done = runs.find(r => r.status === 'done') || runs[0]; if (done) { await openRun(done.id, false); $('runs').value = done.id; } else show(null); }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,326 @@
+{
+ "traps": [
+  "idea_04",
+  "idea_08"
+ ],
+ "gems": [
+  "idea_06"
+ ],
+ "priorities": {
+  "tech_risk": [
+   "idea_01",
+   "idea_03",
+   "idea_07"
+  ],
+  "market": [
+   "idea_03",
+   "idea_07",
+   "idea_10"
+  ],
+  "cisco_fit": [
+   "idea_01",
+   "idea_04",
+   "idea_06"
+  ],
+  "horizon": [
+   "idea_02",
+   "idea_07",
+   "idea_08"
+  ]
+ },
+ "council": {
+  "runs": 10,
+  "consensus_rate": 1.0,
+  "trap_rate": 0.0,
+  "gem_rate": 0.0,
+  "avg_agent_satisfaction": 0.53,
+  "worst_off_satisfaction": 0.13,
+  "everyone_got_a_priority": 0.4,
+  "distinct_outcomes": 2,
+  "most_common_outcome": [
+   "idea_02",
+   "idea_03",
+   "idea_07",
+   "6/10"
+  ],
+  "escalation_rate": 0.0,
+  "avg_rounds_to_decide": 3.4,
+  "veto_used_rate": 1.0,
+  "consulted_expert_rate": 0.1,
+  "avg_objections_per_run": 2.2,
+  "avg_vetoes_per_run": 3.0,
+  "specialist_used_rate": 0.0,
+  "avg_distinct_opening_sets": 4.0,
+  "news_reaction_rate": 0.6
+ },
+ "baseline": {
+  "runs": 20,
+  "consensus_rate": 1.0,
+  "trap_rate": 0.0,
+  "gem_rate": 1.0,
+  "avg_agent_satisfaction": 0.49,
+  "worst_off_satisfaction": 0.33,
+  "everyone_got_a_priority": 1.0,
+  "distinct_outcomes": 2,
+  "most_common_outcome": [
+   "idea_03",
+   "idea_06",
+   "idea_07",
+   "18/20"
+  ]
+ },
+ "council_runs": [
+  {
+   "ideas": [
+    "idea_01",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 4,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 3,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_02",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 3,
+   "vetoed": true,
+   "consulted": true,
+   "objections": 3,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_02",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 3,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 3,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_01",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 4,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 2,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_02",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 3,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 2,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_02",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 3,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 2,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_01",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 3,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 2,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_02",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 3,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 2,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_02",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 4,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 2,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  },
+  {
+   "ideas": [
+    "idea_01",
+    "idea_03",
+    "idea_07"
+   ],
+   "status": "consensus",
+   "rounds": 4,
+   "vetoed": true,
+   "consulted": false,
+   "objections": 1,
+   "vetoes": 3,
+   "specialist": false,
+   "opening_distinct_sets": 4
+  }
+ ],
+ "baseline_runs": [
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_02",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_02",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ],
+  [
+   "idea_03",
+   "idea_06",
+   "idea_07"
+  ]
+ ]
+}

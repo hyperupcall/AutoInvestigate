@@ -1,0 +1,72 @@
+[
+ {
+  "id": "idea_01",
+  "title": "Agent identity wallets",
+  "summary": "Portable verifiable credentials so AI agents can prove who they are across vendors.",
+  "est_hours": 14,
+  "planted": false
+ },
+ {
+  "id": "idea_02",
+  "title": "Quantum-safe network overlay",
+  "summary": "Post-quantum key exchange layer for enterprise WAN links.",
+  "est_hours": 13,
+  "planted": false
+ },
+ {
+  "id": "idea_03",
+  "title": "LLM traffic observability",
+  "summary": "Trace, cost and latency visibility for LLM and agent calls across a network.",
+  "est_hours": 12,
+  "planted": false
+ },
+ {
+  "id": "idea_04",
+  "title": "Semantic routing for agents",
+  "summary": "Route agent requests by capability and intent instead of static addresses.",
+  "est_hours": 13,
+  "planted": true
+ },
+ {
+  "id": "idea_05",
+  "title": "Neuromorphic edge anomaly detection",
+  "summary": "Spiking-network chips flag network anomalies at the edge at very low power.",
+  "est_hours": 18,
+  "planted": false
+ },
+ {
+  "id": "idea_06",
+  "title": "Zero-trust agent mesh",
+  "summary": "Per-message authz and policy enforcement between autonomous agents.",
+  "est_hours": 12,
+  "planted": true
+ },
+ {
+  "id": "idea_07",
+  "title": "AI-native network copilot",
+  "summary": "Natural-language operations assistant that explains and fixes network incidents.",
+  "est_hours": 13,
+  "planted": false
+ },
+ {
+  "id": "idea_08",
+  "title": "Photonic interconnect telemetry",
+  "summary": "Real-time optical-layer health telemetry for AI datacenter fabrics.",
+  "est_hours": 13,
+  "planted": true
+ },
+ {
+  "id": "idea_09",
+  "title": "Federated threat-intel learning",
+  "summary": "Train shared threat models across customers without sharing raw data.",
+  "est_hours": 17,
+  "planted": false
+ },
+ {
+  "id": "idea_10",
+  "title": "Digital-twin network simulator",
+  "summary": "Simulate config changes on a live-synced twin before rollout.",
+  "est_hours": 14,
+  "planted": false
+ }
+]

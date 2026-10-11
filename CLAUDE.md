@@ -284,10 +284,15 @@ Stop-or-Go Decision → Final Conclusions**, paced to `deliberationSeconds`.
 lineage labels, evaluation runs with the two-tab popup, settings popup + page,
 light/minimal styling.
 
+**Done (real): Part 2 backend** in `backend/` (see `backend/README.md`, routes documented there).
+`frontend/js/api-backend.js` swaps the mock evaluation for the real one whenever the backend answers (same origin
+on :8090, or `localhost:8090` from `run.sh` on :8000); otherwise the mock still runs. Past runs load into
+"Research runs". Stop-or-go is shown as the deliberation outcome (Stopped / Extra round / Disagreement kept),
+not as a verdict on the idea; the idea's verdict is the "Final verdict" block.
+
 **Not done:**
 
-- **Real backend wiring** — replace `mock-backend.js` with `fetch()` calls; write
-  the per-route markdown docs the spec asks for.
+- **Part 1 backend (idea generation)** — `generateIdeas` is still the mock.
 - **Column 3 · Idea Execution** — currently blank (the "code and implement" stage).
 - **Settings persistence** — currently in-memory only.
 - **Prompt files** — the spec wants prompts loaded from the filesystem and

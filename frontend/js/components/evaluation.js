@@ -92,7 +92,7 @@
         : null,
       el('div', { class: 'run-foot' }, [
         el('span', { class: 'muted small', text: run.status === 'running' ? (run.currentPhase || '') : `${run.cluster ? run.cluster.length : 0} groups · ${agentCount} agents` }),
-        decision ? el('span', { class: 'run-decision ' + decision, text: decision.toUpperCase() }) : null,
+        decision && Hack.deliberationOutcome ? el('span', { class: 'run-decision ' + Hack.deliberationOutcome(report.stop_go).cls, text: Hack.deliberationOutcome(report.stop_go).value }) : null,
         el('span', { class: 'link-btn', text: 'Open →' }),
       ]),
     ]);

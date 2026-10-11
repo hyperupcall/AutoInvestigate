@@ -69,6 +69,11 @@ perspectives (defaults: Professional Research ×4, Private Equity ×4, Market
 Reaction ×5). API keys are intentionally **not** here — they live on the backend.
 The same content is also available as a standalone page at `settings.html`.
 
+## Real backend
+
+`js/api-backend.js` connects Part 2 to the real backend in `../backend` when it is running
+(`cd ../backend && ./setup.sh`, then open http://localhost:8090/). Without it, everything below stays mocked.
+
 ## Mock backend contract
 
 `js/mock-backend.js` exposes two functions. Replace their bodies with `fetch()`

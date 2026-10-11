@@ -290,13 +290,23 @@
     ));
   }
 
+  /* Stop-or-go is about the deliberation (keep talking or not), not about the idea: the idea's verdict is
+   * the "Final verdict" block. Neutral colours so STOP doesn't read as "rejected". */
+  function deliberationOutcome(sg) {
+    if (!sg) return null;
+    if (!sg.consensus_feasible) return { cls: 'kept', value: 'Disagreement kept', note: 'The groups cannot converge, so a person should decide.' };
+    if (sg.decision === 'go') return { cls: 'extra', value: 'Extra round', note: 'Ran one more round to settle an open question, then finished.' };
+    return { cls: 'stopped', value: 'Stopped', note: 'The evidence was enough to conclude.' };
+  }
+  Hack.deliberationOutcome = deliberationOutcome;
+
   function renderStopGoBanner(sg) {
-    const cls = sg.decision === 'go' ? 'go' : sg.decision === 'stop' ? 'stop' : 'hold';
-    return el('div', { class: 'decision-banner ' + cls }, [
+    const o = deliberationOutcome(sg);
+    return el('div', { class: 'decision-banner ' + o.cls }, [
       el('div', { class: 'decision-head' }, [
-        el('span', { class: 'decision-label', text: 'Stop-or-Go' }),
-        el('span', { class: 'decision-value', text: (sg.decision || '').toUpperCase() }),
-        el('span', { class: 'decision-confidence', text: sg.consensus_feasible ? 'consensus feasible' : 'consensus not feasible' }),
+        el('span', { class: 'decision-label', text: 'Deliberation' }),
+        el('span', { class: 'decision-value', text: o.value }),
+        el('span', { class: 'decision-confidence', text: o.note }),
       ]),
       sg.rationale ? el('p', { class: 'decision-rationale', text: sg.rationale }) : null,
       el('div', { class: 'decision-cols' }, [
@@ -484,7 +494,7 @@
   function renderStopGo(sg) {
     if (!sg) return null;
     return el('div', { class: 'summary-block' }, [
-      el('p', { class: 'event-text', text: `Decision: ${sg.decision} · consensus feasible: ${sg.consensus_feasible}` }),
+      el('p', { class: 'event-text', text: `${deliberationOutcome(sg).value}: ${deliberationOutcome(sg).note}` }),
       sg.rationale ? el('p', { class: 'event-text', text: sg.rationale }) : null,
       el('div', { class: 'pros-cons' }, [
         el('div', { class: 'pc-col' }, [el('h5', { text: 'Pros' }), el('ul', {}, (sg.pros || []).map((p) => el('li', { text: p })))]),

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Research Council</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--bd:#e2e0d8;--tx:#1f1e1b;--tx2:#6b6a64;--ok:#2e7d32;--okbg:#e3f3e4;--bad:#b3261e;--badbg:#fbe7e5;--wn:#8a5a00;--wnbg:#fbefd3;
+--a-tech_risk:#0f8b7a;--a-market:#c27a00;--a-cisco_fit:#2f6fd0;--a-horizon:#8b4fd0;--a-security_expert:#c0408a;--a-customer_voice:#5f8a1e;--a-specialist_on_demand:#8a6d1e;--slim:#1d4f91;--slimbg:#e6eefb}
+@media(prefers-color-scheme:dark){:root{--bg:#171715;--card:#222220;--bd:#383730;--tx:#eceae2;--tx2:#a09f96;--ok:#8fd694;--okbg:#1f3a22;--bad:#f2a29c;--badbg:#4a2421;--wn:#f0c673;--wnbg:#4a3a17;
+--a-tech_risk:#4cc9b4;--a-market:#f0b24a;--a-cisco_fit:#7fb0f5;--a-horizon:#c39bf2;--a-security_expert:#f08bc4;--a-customer_voice:#a6d86a;--a-specialist_on_demand:#e0c070;--slim:#9cc2f7;--slimbg:#1f3350}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 system-ui,-apple-system,sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:14px 18px 40px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{font-size:19px;margin:0;font-weight:700}.sub{color:var(--tx2);font-size:13px}.sp{flex:1}
+.pill{padding:3px 11px;border-radius:999px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--bd);color:var(--tx2)}
+.pill.live{color:var(--ok)}
+/* what's happening */
+#now{border-radius:12px;padding:12px 16px;margin-bottom:12px;background:var(--card);border:1px solid var(--bd);display:flex;gap:12px;align-items:center}
+#now .dot{width:10px;height:10px;border-radius:50%;background:var(--wn);flex:none;animation:pulse 1.2s infinite}
+#now.done .dot{animation:none;background:var(--ok)}#now.esc .dot{animation:none;background:var(--bad)}
+#now b{font-size:15px}#now span{color:var(--tx2)}
+@keyframes pulse{50%{opacity:.25}}
+/* stepper */
+.steps{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.step{flex:1;min-width:92px;border:1px solid var(--bd);border-radius:10px;padding:7px 10px;background:var(--card);font-size:12px;color:var(--tx2)}
+.step b{display:block;color:var(--tx);font-size:13px}.step.on{border-color:var(--wn);box-shadow:0 0 0 2px var(--wnbg)}.step.past{background:var(--okbg);border-color:transparent}.step.past b{color:var(--ok)}
+.step.info{border-style:dashed}
+/* layout */
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:0 0 10px;font-weight:700}
+h2 em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:400;margin-left:6px}
+/* agents */
+.agents{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.ag{border:1px solid var(--bd);border-top:4px solid var(--c);border-radius:10px;padding:9px 10px;background:var(--card)}
+.ag.think{background:var(--wnbg)}.ag b{color:var(--c);font-size:13px}.ag small{display:block;color:var(--tx2);font-size:11px;line-height:1.3;min-height:28px}
+.ag .set{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;min-height:22px}
+.chip{font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--c);color:#fff}
+.chip.vt{background:var(--bad)}.ag .st{font-size:11px;color:var(--tx2);margin-top:4px}
+.dots::after{content:'';animation:dots 1.2s steps(4) infinite}@keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+/* ideas */
+.ideas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media(max-width:620px){.ideas{grid-template-columns:1fr}}
+.idea{border:1px solid var(--bd);border-radius:10px;padding:9px 11px;background:var(--card);position:relative}
+.idea.win{border:2px solid var(--ok);background:var(--okbg)}
+.idea .t{font-weight:600;font-size:13px}.idea .t i{font-style:normal;color:var(--tx2);margin-right:5px}
+.idea .m{font-size:11px;color:var(--tx2)}.idea .bk{display:flex;gap:4px;margin:6px 0 4px;align-items:center;min-height:20px;flex-wrap:wrap}
+.idea .bk .none{color:var(--tx2);font-size:11px}
+.dotc{width:20px;height:20px;border-radius:50%;background:var(--c);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.idea .cm{font-size:12px;color:var(--tx);border-left:3px solid var(--c);padding-left:7px;margin-top:4px}
+.tagw{position:absolute;top:8px;right:9px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:6px;background:var(--ok);color:#fff}
+.tagw.v{background:var(--bad)}
+/* feed */
+.feed{height:62vh;min-height:360px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px}
+.msg{display:flex;gap:9px}.av{width:30px;height:30px;border-radius:50%;background:var(--c);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px}
+.bub{border:1px solid var(--bd);border-radius:4px 12px 12px 12px;padding:7px 11px;background:var(--card);flex:1}
+.bub .who{font-size:12px;color:var(--tx2)}.bub .who b{color:var(--c)}
+.bub .act{font-weight:700}.bub .rs{margin-top:2px;font-size:13px}
+.act.object{color:var(--bad)}.act.support,.act.accept{color:var(--ok)}.act.offer_trade{color:var(--wn)}
+.ag.ex{border-style:dashed;border-top-style:solid}.ag.ex .adv{font-size:12px;color:var(--tx);margin-top:6px;border-left:3px solid var(--c);padding-left:7px}
+.exg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.msg.exm .bub{border-style:dashed;border-color:var(--c)}
+.eb{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);gap:6px 12px;align-items:center;font-size:13px}.eb .h{font-size:11px;color:var(--tx2);font-weight:700;text-transform:uppercase}
+.bar{height:16px;border-radius:8px;background:var(--bd);position:relative;overflow:hidden}.bar i{display:block;height:100%;background:var(--c)}.bar span{position:absolute;right:7px;top:-1px;font-size:11px;font-weight:700;color:var(--tx)}
+.hm{display:grid;grid-template-columns:auto repeat(4,minmax(0,1fr));gap:3px;font-size:11px;align-items:center;margin-bottom:10px}
+.hm .c{text-align:center;border-radius:5px;padding:4px 0;font-weight:700}.hm .c.lo{background:var(--badbg);color:var(--bad)}.hm .c.mid{background:var(--wnbg);color:var(--wn)}.hm .c.hi{background:var(--okbg);color:var(--ok)}.hm .c.self{background:none}
+.hm .l{color:var(--tx2);text-align:center;font-weight:700}.hm .r{font-weight:700;padding-right:6px}
+.cf{border:1px solid var(--bd);border-left:4px solid var(--bad);border-radius:8px;padding:6px 9px;margin-bottom:6px;font-size:12px}.cf b{font-size:12px}.cf .why{color:var(--tx2);margin-top:2px}
+.sys{font-size:12px;color:var(--tx2);text-align:center;padding:4px 8px;background:var(--bg);border-radius:8px}
+.sys.round{font-weight:700;color:var(--tx);background:none;border-top:1px dashed var(--bd);padding-top:10px;text-align:left}
+.news{background:var(--wnbg);border:1px solid var(--wn);border-radius:10px;padding:9px 12px;color:var(--tx)}
+.news b{color:var(--wn)}
+.tallyrow{font-size:12px;color:var(--tx2);background:var(--bg);border-radius:8px;padding:5px 9px}
+.tallyrow b{color:var(--tx)}
+.fin{border-radius:10px;padding:12px 14px;font-weight:600}.fin.ok{background:var(--okbg);color:var(--ok);border:2px solid var(--ok)}.fin.esc{background:var(--badbg);color:var(--bad);border:2px solid var(--bad)}
+.fin p{margin:4px 0 0;font-weight:400;color:var(--tx)}
+.think-msg{color:var(--tx2);font-size:12px;padding-left:40px}
+/* consensus */
+.meter{display:flex;gap:6px;align-items:center;margin:4px 0 10px}.meter i{width:46px;height:12px;border-radius:6px;background:var(--bd)}.meter i.on{background:var(--ok)}
+.cons .big{font-size:15px;font-weight:700}.cons.ok{border:2px solid var(--ok);background:var(--okbg)}.cons.esc{border:2px solid var(--bad);background:var(--badbg)}
+.cons ul{margin:6px 0 0;padding-left:18px}
+/* slim */
+.net{display:flex;flex-direction:column;align-items:center;gap:6px}
+.hub{width:100%;text-align:center;padding:9px;border-radius:10px;background:var(--slimbg);color:var(--slim);font-weight:700;border:1px solid var(--slim)}
+.hub small{display:block;font-weight:400;font-size:11px}.hub.active{box-shadow:0 0 0 3px var(--wnbg);border-color:var(--wn)}
+.legs{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;width:100%}.leg.exp b::after{content:" guest";display:block;font-weight:400;color:var(--tx2)}.leg.exp:not(.on){opacity:.55}
+.leg{text-align:center;font-size:10px;color:var(--tx2);word-break:break-all}.leg::before{content:'';display:block;margin:0 auto 3px;height:14px;width:2px;background:var(--bd)}
+.leg.on::before{background:var(--wn);width:3px}.leg b{display:block;color:var(--c,var(--tx));font-size:11px}
+.groups{font-size:11px;color:var(--tx2);margin-top:8px;max-height:110px;overflow:auto}
+.groups div{display:flex;gap:6px;padding:2px 0;border-bottom:1px solid var(--bd)}.groups code{color:var(--slim)}
+.ctl{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--tx2)}.ctl input{flex:1}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;padding:3px 12px;cursor:pointer}
+.opt{font-size:12px;color:var(--tx2);display:flex;gap:5px;align-items:center}select{font:inherit;font-size:12px;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:6px;padding:2px 4px}
+button.primary{background:var(--a-cisco_fit);color:#fff;border-color:transparent;font-weight:700;padding:6px 16px}button:disabled{opacity:.55;cursor:default}
+#now.stop .dot{animation:none;background:var(--tx2)}
+code{font-family:ui-monospace,Menlo,monospace;font-size:11px}
+</style></head><body><div class="wrap">
+<header><h1>Research Council</h1><span class="sub">Four AI agents with competing goals decide which 3 of 10 ideas to build (40 engineer-hours). No agent is in charge.</span><div class="sp"></div>
+<label class="opt">speed <select id="spd"><option value="8">slow</option><option value="4" selected>normal</option><option value="0">fast</option></select></label>
+<label class="opt"><input type="checkbox" id="news" checked> news before round 2</label>
+<button id="run" class="primary">Reset and run</button><button id="stop" style="display:none">Stop</button>
+<span class="pill live" id="live">live</span></header>
+<div id="now"><div class="dot"></div><div><b id="nowt">Waiting for a negotiation to start</b><br><span id="nows">Press <b>Reset and run</b> at the top right.</span></div></div>
+<div class="steps" id="steps"></div>
+<div class="grid"><div>
+<div class="card"><h2>The four agents <em>(each one wants its own priorities picked)</em></h2><div class="agents" id="agents"></div></div>
+<div class="card"><h2>Outside experts <em>(guests: invited into the group when an agent asks; they advise but never vote)</em></h2><div class="exg" id="experts"></div></div>
+<div class="card"><h2>The 10 ideas <em>(dots = which agents currently back it)</em></h2><div class="ideas" id="ideas"></div></div>
+</div><div>
+<div class="card" id="dis"></div>
+<div class="card cons" id="cons"></div>
+<div class="card"><h2>Live discussion</h2><div class="feed" id="feed"></div>
+<div class="ctl" style="margin-top:10px"><button id="pl">pause</button><span>replay</span><input type="range" id="sc" min="0" max="0" value="0"><span id="pos"></span></div></div>
+<div class="card"><h2>Running on AGNTCY <em>(A2A messages over SLIM groups)</em></h2><div class="net" id="net"></div><div class="groups" id="groups"></div></div>
+</div></div></div>
+<div class="wrap" style="padding-top:0"><div class="card"><h2>Council vs a single agent <em id="evn">(run the eval to fill this in)</em></h2><div class="eb" id="eval"></div></div></div>
+<script>
+const AG={tech_risk:'Avoids ideas likely to fail technically',market:'Picks ideas with clear buyers',cisco_fit:'Picks ideas that build on Cisco/Outshift',horizon:'Balances near-term payoff vs long-term bets'};
+const NAMES=Object.keys(AG);let EV=[],IDEAS=[],follow=true,idx=0;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const sid=i=>i.replace('idea_','');
+const title=id=>{const x=IDEAS.find(i=>i.id===id);return x?x.title:id};
+const col=a=>`style="--c:var(--a-${a})"`;
+const EXP=['security_expert','customer_voice','specialist_on_demand'];const VERB={consult:'consults',advise:'advises',propose:'proposes',accept:'backs the set',support:'supports',object:'objects to',offer_trade:'offers a trade'};
+const EXPECT={round0:['propose'],turn:['propose','accept','support','object','offer_trade','consult'],consult:['advise'],tally:['commit']};
+const CMD={round0:r=>`Round 0: each agent privately ranks the ideas and proposes its top 3`,turn:r=>`Round ${r}: each agent takes one action (propose, accept, support, object, trade or consult)`,consult:r=>`An outside expert is invited into the SLIM group to answer a question`,tally:r=>`Tally after round ${r}: every agent counts the backers by itself`};
+function derive(n){
+  const S={conflicts:[],experts:{},back:{},round:-1,cmd:null,replied:new Set(),commits:{},fin:null,news:[],comments:{},groups:[],open:null,roundsSeen:new Set()};
+  EV.slice(0,n).forEach(e=>{
+    if(e.round!==undefined&&e.kind!=='final')S.round=Math.max(S.round,e.round);
+    if(e.kind==='moderator'&&e.action==='start_round'){S.cmd={kind:e.reason,round:e.round,expert:e.expert};S.replied=new Set();if(e.reason!=='tally')S.roundsSeen.add(e.round)}
+    if(e.kind==='slim_group'){S.groups.push(e);S.open=e.status==='open'?e:null}
+    if(e.kind==='new_info')S.news.push(e);
+    if(e.kind==='invite')S.experts[e.expert]={...(S.experts[e.expert]||{}),round:e.round,asker:e.requested_by,role:e.role,q:e.reason.replace(/^[^:]*: /,'')};
+    if(e.kind==='agent_message'&&e.action==='object'&&e.target)S.conflicts.push({from:e.agent,to:e.target,ideas:e.idea_ids,why:e.reason,round:e.round});
+    if(e.kind==='agent_message'&&e.action==='advise')S.experts[e.agent]={...(S.experts[e.agent]||{}),advice:e.reason};
+    if(e.kind==='agent_message'){
+      if(S.cmd&&EXPECT[S.cmd.kind]&&EXPECT[S.cmd.kind].includes(e.action))S.replied.add(e.agent);
+      if(['propose','accept'].includes(e.action)&&e.idea_ids.length===3)S.back[e.agent]=e.idea_ids;
+      if(e.action==='commit')S.commits[e.agent]=e;
+      if(['support','object','propose','accept','advise'].includes(e.action))e.idea_ids.forEach(i=>{(S.comments[i]=S.comments[i]||[]).push(e)});
+    }
+    if(e.kind==='final')S.fin=e;
+  });
+  return S;
+}
+function pendingAgents(S){
+  if(S.fin||!S.cmd||!EXPECT[S.cmd.kind])return[];
+  if(S.cmd.kind==='consult')return S.replied.has(S.cmd.expert)?[]:[S.cmd.expert];
+  return NAMES.filter(a=>!S.replied.has(a));
+}
+function render(){
+  const n=follow?EV.length:idx;const S=derive(n);const pend=pendingAgents(S);
+  // now banner
+  const now=$('now');now.className=S.fin?(S.fin.status==='consensus'?'done':S.fin.status==='escalate'?'esc':'stop'):'';
+  if(!EV.length){$('nowt').textContent='Waiting for a negotiation to start';$('nows').innerHTML='Press <b>Reset and run</b> at the top right.'}
+  else if(S.fin){$('nowt').textContent=S.fin.status==='consensus'?'Consensus reached: '+S.fin.idea_ids.map(i=>sid(i)+' '+title(i)).join(' · '):S.fin.status==='escalate'?'No consensus: escalated to a human':S.fin.status==='cancelled'?'Stopped':'Run failed';$('nows').textContent=S.fin.reason}
+  else if(S.cmd){$('nowt').textContent=CMD[S.cmd.kind]?CMD[S.cmd.kind](S.cmd.round):'Working';
+    $('nows').textContent=pend.length?`Waiting for ${pend.join(', ')} (calling Claude)`:'All agents answered. Moving to the next step.'}
+  // stepper
+  const last=Math.max(4,...EV.filter(e=>e.round!==undefined&&e.kind!=='final').map(e=>e.round));
+  let st='';for(let r=0;r<=4;r++){const cls=S.fin||(S.round>r)?'past':(S.round===r&&!S.fin?'on':'');
+    const info=S.news.some(x=>x.round===r)?' info':'';
+    st+=`<div class="step ${cls}${info}"><b>${r===0?'Round 0':'Round '+r}</b>${r===0?'opening proposals':(S.news.some(x=>x.round===r)?'news breaks first':'negotiation')}</div>`}
+  st+=`<div class="step ${S.fin?(S.fin.status==='consensus'?'past':'on'):''}"><b>Outcome</b>${S.fin?(S.fin.status==='consensus'?'consensus':S.fin.status==='escalate'?'escalated':'stopped'):'3 of 4 must agree'}</div>`;
+  $('steps').innerHTML=st;
+  // agents
+  $('agents').innerHTML=NAMES.map(a=>{const set=S.back[a]||[];const th=pend.includes(a);
+    return`<div class="ag ${th?'think':''}" ${col(a)}><b>${a}</b><small>${AG[a]}</small><div class="set">${set.map(i=>`<span class="chip">${sid(i)}</span>`).join('')||'<span class="st">no proposal yet</span>'}</div><div class="st">${th?'<span class="dots">thinking</span>':set.length?'backs '+set.map(sid).join(' + '):''}</div></div>`}).join('');
+  // disagreement
+  const jac=(a,b)=>{const x=S.back[a],y=S.back[b];return x&&y?x.filter(i=>y.includes(i)).length/3:null};
+  let hm='<div></div>'+NAMES.map(a=>`<div class="l" ${col(a)} style="color:var(--c)">${a.slice(0,6)}</div>`).join('');
+  NAMES.forEach(a=>{hm+=`<div class="r" ${col(a)} style="color:var(--c)">${a}</div>`;NAMES.forEach(b=>{if(a===b){hm+='<div class="c self">-</div>';return}const v=jac(a,b);hm+=v==null?'<div class="c self">?</div>':`<div class="c ${v<=0.34?'lo':v<0.99?'mid':'hi'}" title="${a} and ${b} share ${Math.round(v*3)} of 3 ideas">${Math.round(v*3)}/3</div>`})});
+  const open=S.conflicts.filter(c=>(S.back[c.to]||[]).some(i=>c.ideas.includes(i)));
+  const seenp=new Set();const list=open.slice().reverse().filter(c=>{const k=c.from+c.to+c.ideas.join();if(seenp.has(k))return false;seenp.add(k);return true}).slice(0,4);
+  $('dis').innerHTML=`<h2>Where they disagree <em>(shared ideas between each pair of agents' current picks)</em></h2><div class="hm">${hm}</div>`+
+   (list.length?list.map(c=>`<div class="cf"><b style="color:var(--a-${c.from})">${c.from}</b> challenges <b style="color:var(--a-${c.to})">${c.to}</b> over ${c.ideas.map(i=>sid(i)+' '+esc(title(i))).join(', ')}<div class="why">${esc(c.why.slice(0,170))}${c.why.length>170?'…':''}</div></div>`).join(''):`<div class="sub">${S.fin?'No open objections left.':'No open objections yet.'}</div>`);
+  // experts
+  $('experts').innerHTML=EXP.map(x=>{const v=S.experts[x]||{};const th=pend.includes(x);
+    return`<div class="ag ex ${th?'think':''}" ${col(x)}><b>${x}</b><small>${x==='security_expert'?'Security, crypto and identity standards':x==='customer_voice'?'What enterprise buyers want and pay for':(v.role?'Generated on demand: '+esc(v.role):'Any expertise an agent asks for (generated, unverified)')}</small>
+    <div class="st">${th?'<span class="dots">thinking</span>':v.round!==undefined?'invited in round '+v.round+' by '+v.asker:'on call, not invited yet'}</div>
+    ${v.q?`<div class="st">asked: ${esc(v.q.slice(0,110))}${v.q.length>110?'…':''}</div>`:''}${v.advice?`<div class="adv">${esc(v.advice)}</div>`:''}</div>`}).join('');
+  // ideas
+  const win=S.fin&&S.fin.status==='consensus'?S.fin.idea_ids:[];
+  $('ideas').innerHTML=IDEAS.map(i=>{
+    const backers=NAMES.filter(a=>(S.back[a]||[]).includes(i.id));const cm=(S.comments[i.id]||[]).filter(c=>c.reason&&c.action!=='propose'||c.action==='propose'&&false).slice(-1)[0];
+    const isW=win.includes(i.id);
+    return`<div class="idea ${isW?'win':''}"><div class="t"><i>${sid(i.id)}</i>${esc(i.title)}</div><div class="m">${i.est_hours}h · ${esc(i.summary)}</div>
+    ${isW?'<span class="tagw">WINNER</span>':''}
+    <div class="bk">${backers.map(a=>`<span class="dotc" ${col(a)} title="${a}">${a[0].toUpperCase()}</span>`).join('')||'<span class="none">no backers</span>'}${backers.length?`<span class="none">${backers.length} of 4</span>`:''}</div>
+    ${cm?`<div class="cm" ${col(cm.agent)}><b style="color:var(--c)">${cm.agent}</b> ${cm.action==='object'?'objects':cm.action==='support'?'supports'::cm.action==='advise'?'(expert) advises':cm.action}: ${esc(cm.reason.slice(0,120))}${cm.reason.length>120?'…':''}</div>`:''}</div>`}).join('');
+  // consensus panel
+  const c=$('cons');const cnt={};NAMES.forEach(a=>{if(S.back[a]){const k=[...S.back[a]].sort().join(',');(cnt[k]=cnt[k]||[]).push(a)}});
+  const best=Object.entries(cnt).sort((x,y)=>y[1].length-x[1].length)[0];const bn=best?best[1].length:0;
+  if(S.fin&&S.fin.status==='consensus'){c.className='card cons ok';const w=S.fin.idea_ids;const by=NAMES.filter(a=>(S.back[a]||[]).slice().sort().join(',')===[...w].sort().join(','));
+    c.innerHTML=`<h2>Consensus</h2><div class="big">Build: ${w.map(i=>sid(i)+' '+esc(title(i))).join(' + ')}</div><div class="meter">${[1,2,3,4].map(k=>`<i class="${k<=by.length?'on':''}"></i>`).join('')}<span>${by.length} of 4 back it</span></div>
+    <ul><li>Backed by: ${by.join(', ')||'-'}</li><li>Not backing: ${NAMES.filter(a=>!by.includes(a)).join(', ')||'none'}</li><li>All 4 agents tallied independently and got the same answer. The moderator decided nothing.</li></ul>`}
+  else if(S.fin&&S.fin.status!=='escalate'){c.className='card cons';c.innerHTML=`<h2>Consensus</h2><div class="big">${S.fin.status==='cancelled'?'Run stopped':'Run failed'}</div><p style="margin:6px 0 0">${esc(S.fin.reason)}</p>`}
+  else if(S.fin){c.className='card cons esc';c.innerHTML=`<h2>Escalated to a human</h2><div class="big">The council could not agree</div><p style="margin:6px 0 0">${esc(S.fin.reason)}</p>`}
+  else{c.className='card cons';c.innerHTML=`<h2>Consensus <em>(needs 3 of 4 agents backing the same 3 ideas)</em></h2><div class="meter">${[1,2,3,4].map(k=>`<i class="${k<=bn?'on':''}"></i>`).join('')}<span>${best?`best set so far: ${bn} of 4 (${best[0].split(',').map(sid).join(' + ')})`:'no proposals yet'}</span></div><div class="sub">If nobody gets to 3 of 4 by round 4, the council escalates to a human.</div>`}
+  // feed
+  const cmdOf={};let f='';let lastRound=-1;let tallyBuf=[];
+  const flush=()=>{if(tallyBuf.length){const w=new Set(tallyBuf.map(m=>JSON.stringify(m.idea_ids)));
+    f+=`<div class="tallyrow"><b>${tallyBuf.length} of 4 agents tallied independently:</b> ${w.size===1?(tallyBuf[0].idea_ids.length?'winner '+tallyBuf[0].idea_ids.map(sid).join(' + '):esc(tallyBuf[0].reason.replace(/; basis=\d+/,''))):'results differ'}</div>`;tallyBuf=[]}};
+  EV.slice(0,n).forEach(e=>{
+    if(e.kind==='agent_message'&&e.action==='commit'){tallyBuf.push(e);return}
+    flush();
+    if(e.kind==='round_summary'||e.kind==='slim_group')return;
+    if(e.kind==='moderator'){ if(e.reason==='tally')return;
+      f+=`<div class="sys ${e.reason==='turn'||e.reason==='round0'?'round':''}">${CMD[e.reason]?CMD[e.reason](e.round):esc(e.reason)}</div>`;return}
+    if(e.kind==='invite'){f+=`<div class="sys">Moderator invites <b>${e.expert}</b> into the SLIM group (asked by ${e.requested_by}). The expert advises and does not vote.</div>`;return}
+    if(e.kind==='new_info'){f+=`<div class="news"><b>NEW INFORMATION (before round ${e.round}):</b> ${esc(e.reason)}</div>`;return}
+    if(e.kind==='final'){f+=`<div class="fin ${e.status==='consensus'?'ok':e.status==='escalate'?'esc':''}">${e.status==='consensus'?'Consensus reached':e.status==='escalate'?'Escalated to a human':e.status==='cancelled'?'Stopped':'Run failed'}${e.idea_ids.length?': '+e.idea_ids.map(sid).join(' + '):''}<p>${esc(e.reason)}</p></div>`;return}
+    if(e.kind==='agent_message'){
+      const ids=(e.idea_ids||[]).map(i=>`${sid(i)} ${esc(title(i))}`).join(' · ');
+      const what=e.action==='consult'?`asks ${e.expert}${e.role?' as '+esc(e.role):''} about ${ids}`:e.action==='object'&&e.target?`challenges ${e.target} over ${ids}`:e.action==='advise'?`advises on ${ids}`:e.action==='offer_trade'&&e.trade?`${VERB.offer_trade}: drop ${sid(e.trade.give)} if ${sid(e.trade.want)} is included`:`${VERB[e.action]||e.action} ${ids}`;
+      f+=`<div class="msg ${EXP.includes(e.agent)?'exm':''}" ${col(e.agent)}><div class="av">${e.agent[0].toUpperCase()}</div><div class="bub"><div class="who"><b>${e.agent}</b> <span class="act ${e.action}">${what}</span></div><div class="rs">${esc(e.reason)}</div></div></div>`}
+  });
+  flush();
+  pend.forEach(a=>{f+=`<div class="think-msg" ${col(a)}><b style="color:var(--c)">${a}</b> is thinking<span class="dots"></span></div>`});
+  const fe=$('feed');const atBottom=fe.scrollHeight-fe.scrollTop-fe.clientHeight<80;
+  fe.innerHTML=f||'<div class="sys">No events yet.</div>';if(follow&&atBottom||follow&&fe.dataset.n!==String(n))fe.scrollTop=fe.scrollHeight;fe.dataset.n=n;
+  // AGNTCY panel
+  const mem=['moderator',...NAMES,...EXP];const on=S.open?new Set(S.open.members.map(m=>m.split('/').pop()).concat(['moderator'])):new Set();
+  $('net').innerHTML=`<div class="hub ${S.open?'active':''}">SLIM message bus<small>slim://slim:46357 · AGNTCY secure group messaging · endpoints are council/agents/&lt;name&gt;</small></div>
+  <div class="legs">${mem.map(a=>`<div title="council/agents/${a}" class="leg ${EXP.includes(a)?'exp':''} ${on.has(a)?'on':''}" ${a==='moderator'?'':col(a)}><b>${a.replace('_','_&#8203;')}</b></div>`).join('')}</div>
+  <div class="sub" style="text-align:center">${S.open?`<b>group open</b> · channel <code>${S.open.channel.slice(0,8)}</code> · ${S.open.command} (round ${S.open.round}) · ${S.open.members.length+1} members`:'no group open right now'}</div>`;
+  const gs=S.groups.filter(g=>g.status==='open');
+  $('groups').innerHTML=`<div><b>${gs.length}</b> SLIM groups created this run. Each step opens a fresh group, posts the command, collects replies, closes it. Terminal: <code>docker compose logs -f slim</code></div>`+gs.slice(-5).reverse().map(g=>`<div><code>${g.channel.slice(0,8)}</code><span>${g.command} · round ${g.round}</span></div>`).join('');
+  $('sc').max=EV.length;$('sc').value=follow?EV.length:idx;$('pos').textContent=n+' / '+EV.length;
+  $('live').textContent=follow?'live':'replay';$('pl').textContent=follow?'pause':'resume live';
+}
+let RUN='idle',starting=false;
+function ctl(){const r=$('run');r.disabled=RUN!=='idle'||starting;
+  r.textContent=RUN==='unavailable'?'Runner offline':(RUN==='running'||starting)?'Running…':(EV.length?'Reset and run again':'Reset and run');
+  $('stop').style.display=RUN==='running'?'':'none'}
+async function pollStatus(){try{const s=await (await fetch('/api/status')).json();if(s.state==='running')starting=false;if(s.state!==RUN){RUN=s.state}ctl()}catch(x){}}
+async function poll(){await pollStatus();if(starting)return;try{const e=await (await fetch('/api/events')).json();if(e.length!==EV.length){EV=e;render();ctl()}}catch(x){}}
+$('run').onclick=async()=>{starting=true;follow=true;EV=[];render();ctl();
+  try{await fetch('/api/start',{method:'POST',body:JSON.stringify({pace:+$('spd').value,news:$('news').checked})})}catch(x){}
+  setTimeout(()=>{starting=false;ctl()},10000)};
+$('stop').onclick=()=>fetch('/api/stop',{method:'POST'});
+$('sc').oninput=ev=>{follow=false;idx=+ev.target.value;render()};
+$('pl').onclick=()=>{follow=!follow;if(!follow)idx=EV.length;render()};
+const MET=[['consensus_rate','Reached a decision',0],['trap_rate','Picked a planted trap (lower is better)',0],['gem_rate','Picked the hidden gem (06)',0],['avg_agent_satisfaction','Avg share of each agent\'s priorities in the result',0],['worst_off_satisfaction','Worst-off agent\'s share of priorities',0],['everyone_got_a_priority','Every agent got at least one priority',0]];
+const EXTRA=[['escalation_rate','Council escalated to a human'],['consulted_expert_rate','An outside expert was consulted'],['news_reaction_rate','Dropped idea 01 after the news']];
+async function loadEval(){try{const r=await (await fetch('/api/eval')).json();if(!r)return;
+  const bar=(v,c)=>v==null?'<span class="sub">n/a</span>':`<div class="bar" style="--c:${c}"><i style="width:${Math.round(v*100)}%"></i><span>${Math.round(v*100)}%</span></div>`;
+  $('evn').textContent=`(council: ${r.council.runs} full negotiations; single agent: ${r.baseline.runs} decisions, sees all private notes)`;
+  let h='<div class="h"></div><div class="h">Council of 4</div><div class="h">Single agent</div>';
+  MET.forEach(([k,l])=>{h+=`<div>${l}</div>${bar(r.council[k],'var(--a-cisco_fit)')}${bar(r.baseline[k],'var(--a-market)')}`});
+  EXTRA.forEach(([k,l])=>{if(r.council[k]!=null)h+=`<div>${l}</div>${bar(r.council[k],'var(--a-horizon)')}<div class="sub">-</div>`});
+  h+=`<div>Objections per negotiation</div><div><b>${r.council.avg_objections_per_run??'-'}</b> on average</div><div class="sub">-</div>`;
+  h+=`<div>Different ideas each agent opened with (of 4)</div><div><b>${r.council.avg_distinct_opening_sets}</b> on average</div><div class="sub">-</div><div>Rounds to decide</div><div><b>${r.council.avg_rounds_to_decide}</b> on average</div><div class="sub">1 call</div>`;
+  $('eval').innerHTML=h}catch(x){}}
+(async()=>{loadEval();setInterval(loadEval,20000);IDEAS=await (await fetch('/api/ideas')).json();await poll();render();setInterval(poll,700)})();
+</script></body></html>
