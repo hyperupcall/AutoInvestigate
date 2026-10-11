@@ -15,7 +15,7 @@
         el('span', { class: 'column-index', text: '2' }),
         el('h2', { text: 'Idea Evaluation' }),
       ]),
-      el('p', { class: 'column-sub', text: 'Selected ideas appear here. Start deeper research to run the multi-agent deliberation.' }),
+      el('p', { class: 'column-sub', text: 'Ideas you copy over with Evaluate appear here. Start deeper research to run the multi-agent deliberation.' }),
     ]);
 
     const targets = el('div', { class: 'eval-targets' });
@@ -23,7 +23,7 @@
 
     container.appendChild(header);
     container.appendChild(el('div', { class: 'column-body', 'data-scroll-key': 'eval-body' }, [
-      el('div', { class: 'eval-section-label', text: 'Selected for evaluation' }),
+      el('div', { class: 'eval-section-label', text: 'Queued for evaluation' }),
       targets,
       el('div', { class: 'eval-section-label', text: 'Research runs' }),
       runs,
@@ -35,22 +35,29 @@
 
   function render() {
     const s = store.state;
-    const selected = store.selectedIdeas();
+    const queue = s.evaluation.queue;
 
     preserveView(refs.targets, () => {
       clear(refs.targets);
-      if (!selected.length) {
+      if (!queue.length) {
         refs.targets.appendChild(el('div', { class: 'empty-state small' }, [
-          el('p', { class: 'muted', text: 'Select an idea in the left column to evaluate it.' }),
+          el('p', { class: 'muted', text: 'Click Evaluate on an idea in the left column to copy it here.' }),
         ]));
         return;
       }
-      selected.forEach((idea) => {
+      refs.targets.appendChild(el('div', { class: 'queue-head' }, [
+        el('span', { class: 'muted small', text: queue.length + (queue.length === 1 ? ' idea queued' : ' ideas queued') }),
+        el('button', { class: 'link-btn', text: 'Clear all', onclick: () => actions.clearEvaluationQueue() }),
+      ]));
+      queue.forEach((item) => {
         refs.targets.appendChild(el('div', { class: 'eval-target' }, [
-          el('p', { class: 'eval-target-text', text: truncate(idea.text, 180) }),
+          el('p', { class: 'eval-target-text', text: truncate(item.text, 180) }),
           el('div', { class: 'eval-target-foot' }, [
-            el('span', { class: 'muted small', text: 'Level ' + idea.level }),
-            el('button', { class: 'btn small primary', text: 'Start Deeper Research', onclick: () => actions.startEvaluation(idea.id) }),
+            el('span', { class: 'muted small', text: 'Level ' + item.level }),
+            el('div', { class: 'eval-target-actions' }, [
+              el('button', { class: 'mini-btn', title: 'Remove from queue', text: '✕', onclick: () => actions.removeQueuedIdea(item.id) }),
+              el('button', { class: 'btn small primary', text: 'Start Deeper Research', onclick: () => actions.startQueuedEvaluation(item.id) }),
+            ]),
           ]),
         ]));
       });

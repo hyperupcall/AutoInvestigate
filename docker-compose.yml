@@ -1,0 +1,52 @@
+# Starts every service in this repo with its relevant configuration.
+#
+#   docker compose up --build
+#
+# Host ports:
+#   8080  artifactfactory  REST API (idea generation / evaluation backend)
+#   8000  frontend         static site (no build step)
+#   8501  evalreport       Streamlit "Outshift Research Intelligence" app
+#
+# evalreport reads OPENAI_API_KEY and OPENAI_MODEL. Copy `.env.example` to
+# `.env` and fill it in (compose loads `.env` automatically), or export them.
+#
+# Generated artifacts and state are persisted to the host via the volumes below.
+
+name: outshift-research-intelligence
+
+services:
+  artifactfactory:
+    build:
+      context: ./artifactfactory
+    image: outshift/artifactfactory:latest
+    ports:
+      - "8080:8080"
+    environment:
+      AF_HOST: 0.0.0.0
+      AF_PORT: "8080"
+      AF_STORAGE: local
+    volumes:
+      - ./_artifacts:/app/_artifacts
+      - ./_artifactfactory-data:/app/_artifactfactory-data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    image: outshift/frontend:latest
+    ports:
+      - "8000:80"
+    depends_on:
+      - artifactfactory
+    restart: unless-stopped
+
+  evalreport:
+    build:
+      context: ./evalreport
+    image: outshift/evalreport:latest
+    ports:
+      - "8501:8501"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+    restart: unless-stopped

@@ -6,6 +6,28 @@ A runnable Streamlit MVP for specialist emerging-technology analysis with Busine
 - Python 3.10+
 - An OpenAI API key with access to the model you select
 
+## Run everything with Docker Compose
+
+A single `docker-compose.yml` at the repo root builds and starts every service:
+
+| Service | Host URL | What it is |
+| --- | --- | --- |
+| `artifactfactory` | http://localhost:8080 | Artifact Factory REST API (idea → plan → artifacts) |
+| `frontend` | http://localhost:8000 | Static three-column workspace (no build step) |
+| `evalreport` | http://localhost:8501 | Streamlit "Outshift Research Intelligence" app |
+
+```bash
+cp .env.example .env      # then set OPENAI_API_KEY (used by evalreport)
+docker compose up --build
+```
+
+Then open http://localhost:8000 (frontend) and http://localhost:8501 (evalreport).
+Generated artifacts and daemon state persist to `./_artifacts` and
+`./_artifactfactory-data` on the host. Stop with `docker compose down`.
+
+Each service also has its own Dockerfile (`artifactfactory/`, `frontend/`,
+`evalreport/`) if you want to build or run one on its own.
+
 ## Run on macOS/Linux
 ```bash
 cd outshift_research_intelligence

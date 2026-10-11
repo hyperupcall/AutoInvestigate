@@ -209,7 +209,8 @@
           }),
           el('button', {
             class: 'mini-btn', text: 'Evaluate →',
-            onclick: (e) => { e.stopPropagation(); actions.selectOnly(idea.id); actions.startEvaluation(idea.id); },
+            title: 'Copy this idea to the Idea Evaluation column',
+            onclick: (e) => { e.stopPropagation(); actions.queueIdeaForEvaluation(idea.id); },
           }),
         ]),
       ]),

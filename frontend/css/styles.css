@@ -161,6 +161,8 @@ a { color: blue; }
 .eval-target { border: 1px solid silver; padding: 8px; }
 .eval-target-text { font-size: 13px; }
 .eval-target-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.eval-target-actions { display: flex; align-items: center; gap: 6px; }
+.queue-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 .run-card { border: 1px solid silver; padding: 8px; cursor: pointer; }
 .run-card:hover { background: whitesmoke; }

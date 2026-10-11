@@ -157,6 +157,8 @@ sidebar). The same content is also available as a standalone `frontend/settings.
 - **Each idea can be iterated on its own** via its **Iterate →** button (uses the
   level's iteration type on that single idea). To combine several ideas, select
   them and press **Generate Level N+1** (consolidation requires ≥ 2 selected ideas).
+- **Evaluate →** copies the idea into the **Idea Evaluation** column (it does *not*
+  start the run). Selection is only used for combining ideas.
 - Each idea shows a **lineage label**, e.g. `Idea after 1 refinement`,
   `Idea after 3 variations`, `Idea after combining 2 ideas`,
   `Idea after 2 variations and 1 combination`.
@@ -164,7 +166,11 @@ sidebar). The same content is also available as a standalone `frontend/settings.
 
 ### Column 2 — Idea Evaluation
 
-- Selected ideas appear as evaluation targets with a **Start Deeper Research** button.
+- **Evaluate →** in column 1 copies an idea into the **Queued for evaluation** list
+  here (duplicates are blocked; each queued item can be removed with ✕ or cleared
+  with **Clear all**).
+- Each queued idea has its own **Start Deeper Research** button, which starts the run
+  and moves the idea into the **Research runs** list.
 - Each run appears in the **Research runs** list. Clicking a run opens a large popup with
   **two tabs**:
   - **Cluster Status** — what is in the agent cluster (groups, agents, models,
@@ -226,7 +232,8 @@ state = {
   seed: { text, iterationType, variationCount, freeformPrompt, submitting }, // level 0
   levels: [ { level, ideas, iteration, pending, error } ],                    // level 1+
   selectedIdeaIds: [],
-  evaluation: { runs: [ { id, ideaId, ideaText, status, events, report, cluster, … } ], activeRunId },
+  evaluation: { queue: [ { id, text, level, sourceIdeaId, addedAt } ],
+                runs: [ { id, ideaId, ideaText, status, events, report, cluster, … } ], activeRunId },
   settings: { generationModel, evaluationModel, summarizerModel,
               deliberationSeconds, promptSet, groupPerspectives },
   ui: { modal: { open, runId, tab }, settingsOpen, toast },

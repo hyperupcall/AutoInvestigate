@@ -18,6 +18,9 @@
 
     /* Middle column */
     evaluation: {
+      // queue: ideas copied over from column 1, waiting to be evaluated
+      //   { id, text, level, sourceIdeaId, addedAt }
+      queue: [],
       // run: { id, ideaId, ideaText, model, status, events, report, cluster,
       //        startedAt, finishedAt, currentPhase, currentAgent }
       runs: [],

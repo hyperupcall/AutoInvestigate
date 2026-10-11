@@ -26,7 +26,7 @@ Pages:
 | Column | Purpose |
 | --- | --- |
 | **1 · Idea Generation** | The `(A)` seed box + iteration type, and the growing list of idea sections below it. |
-| **2 · Idea Evaluation** | Selected ideas appear here; start deeper research and open runs. |
+| **2 · Idea Evaluation** | Ideas copied over with **Evaluate →**; start deeper research and open runs. |
 | **3 · Idea Execution** | Blank for now — reserved for turning a chosen idea into an artifact. |
 
 **Settings** is a popup, opened from the **Settings** button in the header (not a sidebar).
@@ -45,6 +45,8 @@ Pages:
   level's iteration type on that single idea). To combine several ideas, select
   them and press **Generate Level N+1** in the level's iteration bar
   (consolidation requires ≥ 2 selected ideas).
+- **Evaluate →** copies the idea into the **Idea Evaluation** column (it does *not*
+  start the run). Selection is only used for combining ideas.
 - Each idea shows the label derived from its lineage, e.g. `Idea after 1 refinement`,
   `Idea after 3 variations`, `Idea after combining 2 ideas`,
   `Idea after 2 variations and 1 combination`.
@@ -52,14 +54,20 @@ Pages:
 
 ### Column 2 — Idea Evaluation
 
-- Every selected idea shows up as an evaluation target with a
-  **Start Deeper Research** button.
-- Each run appears in the **Research runs** list. Click a run to open a popup with
-  two tabs:
-  - **Agent Thinking** — the live stream of what each agent is doing on the
-    backend (phases, agents, summaries, the stop-or-go decision).
-  - **Results** — the final structured output: per-group summaries, pros/cons,
-    feasibility scores, agent verdicts, the stop-or-go decision and the conclusion.
+- **Evaluate →** in column 1 copies an idea into the **Queued for evaluation** list
+  here (duplicates are blocked; remove one with ✕ or clear all).
+- Each queued idea has its own **Start Deeper Research** button, which starts the run
+  and moves the idea into the **Research runs** list.
+- Click a run to open a large popup with two tabs:
+  - **Cluster Status** — what is in the agent cluster (groups, agents, models,
+    questions, who they are) plus the live stream of what each agent is saying:
+    discussion turns, evaluations, summaries, cross-group analysis, the stop-or-go
+    decision and the verdict.
+  - **Evaluation** — the finished report, shaped like
+    `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, final
+    verdict, cross-group disagreements/agreements, per-group scores/verdicts/
+    disagreements, AGNTCY transport and the disagreement analysis, plus a
+    collapsible **Raw JSON** view.
 
 ### Settings (popup)
 
@@ -86,15 +94,23 @@ await Hack.mockBackend.generateIdeas({
 });
 // -> { label, lineage, operation, model, ideas: [{ text }] }
 
-// Part 2 — Idea evaluation (streams events, then results)
+// Part 2 — Idea evaluation (streams cluster events, then delivers the report)
+const report = Hack.mockBackend.buildReport(ideaText); // full report, available up front
 const handle = Hack.mockBackend.startEvaluation({
   ideaText,           // the single idea string to evaluate
   settings,           // { deliberationSeconds, groupPerspectives, ... }
-  onEvent(ev),        // { phase, kind, group, agent, role, text, ts }
-  onDone(results),    // { groups, stopOrGo, conclusion, generatedAt }
+  onEvent(ev),        // { phase, kind, ts, ... } — see event kinds below
+  onDone(report),     // the report, shaped like evaluation-report.schema.json
 });
 handle.cancel();
 ```
+
+Event kinds streamed to `onEvent`: `phase`, `cluster`, `group-start`,
+`round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
+`cross-group`, `stop-go`, `verdict`. The **Cluster Status** tab renders these live;
+the **Evaluation** tab renders the final `report`. The report fixture
+(`js/mock-report.js`) is generated from `20261011-014311-b2e9.json` and conforms to
+`evaluation-report.schema.json`.
 
 ## Files
 
@@ -106,6 +122,7 @@ frontend/
   js/
     util.js               DOM + misc helpers
     mock-data.js          fixtures: groups, archetypes, prompts, templates
+    mock-report.js        sample evaluation report (schema-conforming)
     mock-backend.js       ← the mocked backend (swap this for real calls)
     state.js              single source of truth + pub/sub
     actions.js            mutations + orchestration
@@ -115,7 +132,7 @@ frontend/
       execution.js        column 3 (blank)
       settings.js         settings content (shared)
       settingsModal.js    settings popup
-      modal.js            the two-tab popup
+      modal.js            the two-tab popup (cluster status / evaluation)
       toast.js            notifications
     app.js                bootstrap
 ```

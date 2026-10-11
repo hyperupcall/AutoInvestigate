@@ -185,18 +185,56 @@
   }
 
   /* --------------------------- evaluation --------------------------- */
-  function startEvaluation(ideaId) {
+
+  /** Copy an idea from column 1 into the evaluation queue (column 2). */
+  function queueIdeaForEvaluation(ideaId) {
     const idea = store.ideaById(ideaId);
     if (!idea) return;
+    if (state.evaluation.queue.some((q) => q.text === idea.text)) {
+      showToast('Already in the evaluation queue.', 'warn');
+      return;
+    }
+    state.evaluation.queue.push({
+      id: uid('queue'),
+      text: idea.text,
+      level: idea.level,
+      sourceIdeaId: idea.id,
+      addedAt: Date.now(),
+    });
+    store.notify();
+    showToast('Copied to Idea Evaluation.', 'ok');
+  }
+
+  function removeQueuedIdea(queueId) {
+    state.evaluation.queue = state.evaluation.queue.filter((q) => q.id !== queueId);
+    store.notify();
+  }
+
+  function clearEvaluationQueue() {
+    state.evaluation.queue = [];
+    store.notify();
+  }
+
+  /** Start the deeper research for a queued idea; it moves to the runs list. */
+  function startQueuedEvaluation(queueId) {
+    const item = state.evaluation.queue.find((q) => q.id === queueId);
+    if (!item) return;
+    state.evaluation.queue = state.evaluation.queue.filter((q) => q.id !== queueId);
+    startEvaluation({ ideaId: item.sourceIdeaId, ideaText: item.text });
+  }
+
+  function startEvaluation({ ideaId, ideaText }) {
+    const text = ideaText != null ? ideaText : (store.ideaById(ideaId) || {}).text;
+    if (!text) return;
 
     // Build the report up front so the agent cluster is visible immediately;
     // the events then stream in and the report is delivered again on done.
-    const report = backend.buildReport(idea.text);
+    const report = backend.buildReport(text);
 
     const run = {
       id: uid('run'),
-      ideaId,
-      ideaText: idea.text,
+      ideaId: ideaId || null,
+      ideaText: text,
       model: state.settings.evaluationModel,
       status: 'running',
       events: [],
@@ -216,7 +254,7 @@
     store.notify();
 
     run._handle = backend.startEvaluation({
-      ideaText: idea.text,
+      ideaText: text,
       settings: state.settings,
       onEvent(ev) {
         run.events.push(ev);
@@ -336,6 +374,10 @@
     submitSeed,
     generateFromLevel,
     iterateIdea,
+    queueIdeaForEvaluation,
+    removeQueuedIdea,
+    clearEvaluationQueue,
+    startQueuedEvaluation,
     startEvaluation,
     cancelEvaluation,
     openModal,
