@@ -52,3 +52,11 @@ class Store:
             obj.update(fields)
             self._persist()
             return obj
+
+    def delete(self, collection: str, id: str) -> bool:
+        with self._lock:
+            if id not in self._data[collection]:
+                return False
+            del self._data[collection][id]
+            self._persist()
+            return True

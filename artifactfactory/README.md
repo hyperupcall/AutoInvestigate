@@ -4,16 +4,16 @@ A small, self-contained Python daemon that turns a **validated research idea**
 into a set of tangible implementation artifacts. It is the backend for the
 frontend's third column ("Idea Execution").
 
-> **Execute → builds an interactive prototype (`mvp_prototype`) and packages it as a tarball.** One self-contained
-> HTML page (`mvp.py`): a clickable product screen for the idea's narrow first version, with demo data, a
-> step-through workflow, live SVG/canvas visualizations and the evaluation panel's concerns built in (approval
-> steps, cost, privacy...). It is generated from the idea and, when `metadata.evaluation_run_id` is set, from that
-> run's report. External resources and network APIs are stripped, a strict Content-Security-Policy is injected, and
-> `GET /artifacts/{id}/view` serves it with the same policy plus `sandbox allow-scripts`; the frontend shows it in a
-> sandboxed iframe. The frontend asks for `options.artifacts = ["mvp_prototype", "tarball"]`, so the same build also
-> produces a `.tar.gz` of the generated files (the `tarball` builder packages every artifact built so far). Model:
-> `AF_MVP_MODEL` (default `anthropic/claude-haiku-5.5`, about 40 s and under a cent). If generation fails, a plain
-> page with the idea and verdict is built instead. The API's default plan is unchanged.
+> **Execute → builds an interactive prototype (`mvp_prototype`): one self-contained HTML file.** The frontend asks
+> for `options.artifacts = ["mvp_prototype"]`, so the artifact is exactly one `index.html` and the download is that
+> file (not a zip or tarball). One self-contained HTML page (`mvp.py`): a clickable product screen for the idea's
+> narrow first version, with demo data, a step-through workflow, live SVG/canvas visualizations and the evaluation
+> panel's concerns built in (approval steps, cost, privacy...). It is generated from the idea and, when
+> `metadata.evaluation_run_id` is set, from that run's report. External resources and network APIs are stripped, a
+> strict Content-Security-Policy is injected, and `GET /artifacts/{id}/view` serves it with the same policy plus
+> `sandbox allow-scripts`; the frontend shows it in a sandboxed iframe. Model: `AF_MVP_MODEL` (default
+> `anthropic/claude-haiku-5.5`, about 40 s and under a cent). If generation fails, a plain page with the idea and
+> verdict is built instead, so the build still yields a single HTML file. The API's default plan is unchanged.
 >
 > **Two artifact types are real when the idea comes from an evaluation run.** If the idea's
 > `metadata.evaluation_run_id` is set (the frontend's **Execute →** sends it), `evaluation.py` fetches that

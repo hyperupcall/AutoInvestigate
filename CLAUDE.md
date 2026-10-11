@@ -372,6 +372,7 @@ website/frontend/
     mock-data.js          fixtures: groups, archetypes, prompts, text templates
     mock-report.js        sample evaluation report (evaluation-report.schema.json)
     mock-backend.js       ← the MOCKED backend (swap for real calls)
+    idea-handoff.js       cross-page "Add to idea list" channel (Ideation View → workspace)
     state.js              single source of truth + pub/sub + selectors
     actions.js            mutations + orchestration
     shell.js              shared chrome (navbar + popups) for non-workspace pages
@@ -517,8 +518,9 @@ which creates a plan and implements it. The column holds **one entry per prototy
 time**; each entry shows its status ("Building prototype…" → "Done generating"). The prototype is **not shown
 inline**: clicking a finished entry opens a popup (`website/frontend/js/components/artifactModal.js`) that explains
 what the artifact is and how to download or interact with it (a sandboxed preview, "Open full screen", "Download").
-The build asks for `options.artifacts = ["mvp_prototype", "tarball"]`, so each prototype also comes with a `.tar.gz`
-of the generated files (the `tarball` builder packages everything built so far). The popup also **runs the artifact as
+The build asks for `options.artifacts = ["mvp_prototype"]`, so each prototype is **exactly one self-contained HTML
+file** (`index.html`) and the download is that file itself (not a zip or tarball; `mvp.py`'s instructions require a
+single HTML document, and a failed generation still yields one plain page). The popup also **runs the artifact as
 a server**: `POST /artifacts/{id}/run` starts a real HTTP server (`artifactfactory/runtime.py`) on an ephemeral port
 and returns its URL; the factory proxies it through its own port at `/run/{server-id}/` so the URL works in Docker
 too, and `POST /servers/{id}/stop` shuts it down (the URL then returns `409`). The card shows a "● server running"
@@ -538,11 +540,14 @@ right — and draws a session as an agent graph, the same visual language as the
 agent's messages beside it. Clicking an agent also shows its **starting prompt** and the **skills and MCP servers
 it can access** (the same is shown under each agent in Settings): skills are `website/skills/` directories whose
 `SKILL.md` is folded into the agent's system prompt, and MCP servers are ids from the shared catalog
-(`deliberation/defaults.py` `MCP_CATALOG`) that the agent may call tools on when MCP is enabled. A running session can be **terminated** from its card in the Sessions list or from the session view (`POST /api/sessions/{id}/stop`): the team finishes the turn it is on, then stops before the next one and the session is marked `cancelled`. A long **+ Add Topic** button ends the topics list: describe a topic and the AI fills
+(`deliberation/defaults.py` `MCP_CATALOG`) that the agent may call tools on when MCP is enabled. A running session can be **terminated** from its card in the Sessions list or from the session view (`POST /api/sessions/{id}/stop`): the team finishes the turn it is on, then stops before the next one and the session is marked `cancelled`. A session only runs inside the daemon's threads, so any session still `running` in the store at startup was orphaned by a restart (or a crash): `Service.reconcile_sessions()` (called from `daemon.main`) marks those `failed` and emits an `interrupted` event, and a crashed thread is closed out the same way, so the Sessions list never shows a dead session as running. The **agents running** badge counts the store's `running` sessions (the same source the list reads), so the two can never disagree. A long **+ Add Topic** button ends the topics list: describe a topic and the AI fills
 in the name, description, tags and keywords (`POST /api/topics/draft`). A **topic finder** agent also runs on its
-own (every `discovery_interval_seconds`, default 1h, and on demand via the **Find topics** button /
+own (every `discovery_interval_seconds`, default 1h, and on demand via the **Generate topics** button /
 `POST /api/topics/discover`): it reads the newest signals plus a broad trending fetch (Hacker News front page,
-recent arXiv) and adds topics, each carrying `origin: "finder"` and a `rationale`. The prompt
+recent arXiv) and proposes topics, each carrying `origin: "finder"` and a `rationale`. The button asks for a
+**preview** (`{"preview": true}`), so the proposals come back without being stored and the Ideation View shows
+them in a popup where you tick the ones to keep and add them to the watchlist; the scheduled run still adds
+them directly. The prompt
 (`prompts/topic_finder.md`) insists that **topics do not need to be small** and **should combine only one or two
 things** (e.g. "using a Rust library to implement and validate a quick idea"). Settings cover a model and a **Thinking**
 toggle for each agent and for the topic drafter, the topic finder (on/off, interval, model), the **related-idea**
@@ -551,7 +556,7 @@ model (`related_model`, default **`google/gemini-3.8-flash`**) and its Thinking 
 that model for ideas **vaguely related to the watchlist topics** and stores them (tag `related`, no topic) so they
 appear in the idea list / tree. The default watchlist also carries five **business-focused, everyday topics**
 (small-business automation, everyday AI productivity, personal finance, local services, no-code tools) that skip
-arXiv, so the team also produces ideas a normal person or small business could use. `website/frontend/js/api-generation.js` connects column 1: the seed box's `generateIdeas` calls
+arXiv, so the team also produces ideas a normal person or small business could use. Each idea card in the **Ideas** tab has an **Add to idea list** button: it hands the idea to the workspace's **Idea Evaluation** column (column 2) through `website/frontend/js/idea-handoff.js` (a `localStorage` channel, since both pages are served from the same origin). The workspace drains it into the queue on load and on the `storage` event, so an idea added while the workspace is closed is picked up the next time it opens. `website/frontend/js/api-generation.js` connects column 1: the seed box's `generateIdeas` calls
 `POST /api/generate`, and the daemon's ideas load from `GET /api/tree` into the same level tree (abstract at
 level 1, concrete at level 2).
 

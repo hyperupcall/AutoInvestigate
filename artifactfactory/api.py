@@ -60,7 +60,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self._cors()
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -109,6 +109,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._handle("POST")
 
+    def do_DELETE(self):
+        self._handle("DELETE")
+
     def _handle(self, method: str) -> None:
         try:
             # Always drain the request body. With HTTP/1.1 keep-alive, any unread
@@ -147,6 +150,10 @@ class Handler(BaseHTTPRequestHandler):
             if idea is None:
                 raise ApiError(404, "idea not found")
             return self._send_json(200, idea)
+        if method == "DELETE" and m:  # remove an evaluation: idea, plan and every artifact
+            if not self.service.delete_idea(m.group(1)):
+                raise ApiError(404, "idea not found")
+            return self._send_json(200, {"ok": True})
 
         if method == "GET" and path == "/plans":
             return self._send_json(200, {"plans": self.service.list_plans()})
@@ -214,6 +221,10 @@ class Handler(BaseHTTPRequestHandler):
             if artifact is None:
                 raise ApiError(404, "artifact not found")
             return self._send_json(200, artifact)
+        if method == "DELETE" and m:  # remove one artifact (its files too)
+            if not self.service.delete_artifact(m.group(1)):
+                raise ApiError(404, "artifact not found")
+            return self._send_json(200, {"ok": True})
 
         if method == "GET" and path == "/servers":
             return self._send_json(200, {"servers": self.service.list_servers()})
@@ -304,9 +315,10 @@ class Handler(BaseHTTPRequestHandler):
             "routes": [
                 "GET / (HTML dashboard, from the frontend)", "GET /info", "GET /health",
                 "POST /ideas", "GET /ideas",
-                "GET /ideas/{id}", "GET /plans", "GET /plans/{id}",
+                "GET /ideas/{id}", "DELETE /ideas/{id}", "GET /plans", "GET /plans/{id}",
                 "POST /plans/{id}/implement", "GET /jobs", "GET /jobs/{id}",
-                "GET /artifacts/{id}", "GET /artifacts/{id}/download", "GET /artifacts/{id}/view",
+                "GET /artifacts/{id}", "DELETE /artifacts/{id}",
+                "GET /artifacts/{id}/download", "GET /artifacts/{id}/view",
                 "POST /artifacts/{id}/run", "GET /servers", "GET /servers/{id}",
                 "POST /servers/{id}/stop", "GET /run/{id}/ (the running artifact)",
             ],

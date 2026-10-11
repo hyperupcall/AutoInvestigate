@@ -50,6 +50,20 @@
     return body;
   }
 
+  async function send(method, path) {
+    const r = await fetch(info.base + path, { method });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(body.error || `HTTP ${r.status}`), { status: r.status });
+    return body;
+  }
+
+  const post = (path) => send('POST', path);
+  const del = (path) => send('DELETE', path);
+
+  function apiUrl(path) {
+    return info.base + path;
+  }
+
   function deriveTitle(idea, plan) {
     if (plan && plan.title) return plan.title;
     const title = (idea.title || '').trim();
@@ -64,18 +78,53 @@
     return ['implemented', 'failed', 'implementing'].indexOf(status) >= 0 ? status : '';
   }
 
+  function artifactItem(a) {
+    const view = a.type === 'mvp_prototype' ? apiUrl(`/artifacts/${a.id}/view`) : null;
+    return el('li', { class: 'factory-artifact' }, [
+      el('span', { class: 'exec-artifact-type', text: a.type }),
+      el('span', { class: 'exec-artifact-name', text: a.name || a.type }),
+      el('span', { class: 'factory-artifact-actions' }, [
+        view ? el('a', { class: 'mini-btn', href: view, target: '_blank', rel: 'noopener', text: 'View' }) : null,
+        el('a', { class: 'mini-btn', href: apiUrl(`/artifacts/${a.id}/download`), text: 'Download' }),
+        el('button', {
+          class: 'mini-btn', text: '✕', title: 'Remove this artifact',
+          onclick: () => removeArtifact(a.id),
+        }),
+      ]),
+    ]);
+  }
+
   function row(index, idea, plan) {
     const title = deriveTitle(idea, plan);
     const text = (idea.text || '').trim();
     const received = idea.created_at || '';
     const planId = (plan && plan.id) || idea.plan_id;
     const status = plan ? (plan.status || 'planned') : 'no plan';
-    const artifacts = ((plan && plan.artifact_ids) || []).length;
+    const artifacts = (plan && plan.artifacts) || [];
 
     const planCell = el('td', {}, [
       el('span', { class: 'status ' + statusClass(status), text: status }),
-      planId ? el('div', {}, [el('a', { href: `/plans/${encodeURIComponent(planId)}`, text: planId })]) : null,
+      planId ? el('div', {}, [el('a', {
+        href: apiUrl(`/plans/${encodeURIComponent(planId)}`), target: '_blank', rel: 'noopener', text: planId,
+      })]) : null,
+      plan && plan.error ? el('div', { class: 'factory-error', text: plan.error }) : null,
     ]);
+
+    const artifactsCell = el('td', {}, artifacts.length
+      ? [el('ul', { class: 'factory-artifacts' }, artifacts.map(artifactItem))]
+      : [el('span', { class: 'muted small', text: 'none' })]);
+
+    const actions = [];
+    if (planId && status === 'failed') {
+      actions.push(el('button', {
+        class: 'mini-btn', text: 'Retry', title: 'Build this plan again',
+        onclick: () => retryPlan(planId),
+      }));
+    }
+    actions.push(el('button', {
+      class: 'mini-btn', text: 'Remove', title: 'Remove this evaluation and its artifacts',
+      onclick: () => removeIdea(idea.id),
+    }));
 
     return el('tr', {}, [
       el('td', { class: 'num', text: String(index) }),
@@ -85,8 +134,38 @@
       ]),
       el('td', { class: 'muted small', text: received }),
       planCell,
-      el('td', { class: 'num', text: String(artifacts) }),
+      artifactsCell,
+      el('td', { class: 'factory-actions' }, actions),
     ]);
+  }
+
+  async function removeIdea(ideaId) {
+    if (!window.confirm('Remove this evaluation, its plan and all its artifacts?')) return;
+    try {
+      await del(`/ideas/${encodeURIComponent(ideaId)}`);
+      load();
+    } catch (e) {
+      window.alert(`Could not remove the evaluation: ${e.message}`);
+    }
+  }
+
+  async function removeArtifact(artifactId) {
+    if (!window.confirm('Remove this artifact? Its files are deleted too.')) return;
+    try {
+      await del(`/artifacts/${encodeURIComponent(artifactId)}`);
+      load();
+    } catch (e) {
+      window.alert(`Could not remove the artifact: ${e.message}`);
+    }
+  }
+
+  async function retryPlan(planId) {
+    try {
+      await post(`/plans/${encodeURIComponent(planId)}/implement`);
+      load();
+    } catch (e) {
+      window.alert(`Could not start the build: ${e.message}`);
+    }
   }
 
   function render(ideas, plans, version) {
@@ -106,7 +185,8 @@
           el('th', { text: 'Evaluation' }),
           el('th', { text: 'Received' }),
           el('th', { text: 'Plan' }),
-          el('th', { class: 'num', text: 'Artifacts' }),
+          el('th', { text: 'Artifacts' }),
+          el('th', { text: '' }),
         ])]),
         el('tbody', {}, ordered.map((idea, i) => row(i + 1, idea, plansByIdea[idea.id]))),
       ]));

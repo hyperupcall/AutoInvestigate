@@ -213,6 +213,7 @@ a.link-btn { text-decoration: none; }
 
 /* --------------------------- evaluation --------------------------- */
 .eval-list { display: flex; flex-direction: column; gap: 8px; }
+.eval-queue, .eval-runs { display: flex; flex-direction: column; gap: 8px; }
 .eval-target { border: 1px solid silver; padding: 8px; }
 .eval-target-text { font-size: 13px; }
 .eval-target-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
@@ -226,6 +227,7 @@ a.link-btn { text-decoration: none; }
 .run-status { font-size: 12px; color: gray; }
 .run-status.running { color: darkorange; }
 .run-status.done { color: green; }
+.run-status.failed { color: red; }
 .run-idea { margin-top: 6px; font-size: 13px; }
 .run-progress { height: 4px; border: 1px solid silver; margin-top: 6px; }
 .run-progress-bar { height: 100%; background: gray; }
@@ -743,6 +745,15 @@ a.link-btn { text-decoration: none; }
 .ideation-topic-desc { margin: 3px 0; }
 .ideation-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .ideation-tag { font-size: 10px; color: gray; border: 1px solid silver; padding: 0 4px; background: whitesmoke; }
+
+/* topic finder popup */
+.discover-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.discover-select-all { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.discover-list { display: flex; flex-direction: column; gap: 6px; }
+.discover-topic { display: flex; align-items: flex-start; gap: 8px; border: 1px solid silver; padding: 8px; cursor: pointer; }
+.discover-topic:hover { background: whitesmoke; }
+.discover-topic-body { flex: 1; min-width: 0; }
+.discover-topic-head { display: flex; align-items: baseline; gap: 6px; }
 
 /* sessions */
 .ideation-session { padding: 8px; border-bottom: 1px dotted gainsboro; cursor: pointer; }

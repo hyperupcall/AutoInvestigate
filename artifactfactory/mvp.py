@@ -84,6 +84,13 @@ self-contained HTML file that a person can open and immediately understand and t
 
 {brief}
 
+Output contract (follow exactly):
+- Your entire reply is ONE HTML document and nothing else. It starts with <!DOCTYPE html> and ends with </html>.
+- No prose before or after it, no markdown code fences, no explanations, no file names, no multiple files, no
+  separate CSS or JS files. Everything (markup, <style>, <script>) lives in this single document.
+- If you cannot build the full prototype, still return one complete HTML document (a simpler page is fine).
+  Never return a fragment, a diff, a description, or more than one document.
+
 What to build:
 - The narrow first version the panel says is worth testing (if there is a verdict), shown as the product its target
   user would actually use: a realistic app screen, not a landing page or a slide.
@@ -118,7 +125,7 @@ Rules:
   to other sites. No fetch, XMLHttpRequest, WebSocket or other network calls. It runs in a sandboxed iframe.
 - No forms that collect personal data, passwords or payment details. No alert(), confirm() or prompt().
 - Readable on a laptop screen and a phone. Accessible labels on controls.
-- Under 600 lines. Reply with only the HTML document, starting with <!DOCTYPE html>.
+- Under 600 lines. Reply with only the HTML document, starting with <!DOCTYPE html> and ending with </html>.
 """
 
 

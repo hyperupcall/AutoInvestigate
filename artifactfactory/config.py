@@ -14,6 +14,27 @@ DEFAULT_ARTIFACTS_DIR = os.path.join(PROJECT_ROOT, "_artifacts")
 DEFAULT_FRONTEND_DIR = os.path.join(PROJECT_ROOT, "website", "frontend")
 
 
+def load_env_file(path: str = None) -> None:
+    """Load the single root .env (docker compose injects it too). Existing vars win.
+
+    The daemon reads OPENROUTER_API_KEY / AF_* at call time, so loading this before the
+    first build means `python3 -m artifactfactory.daemon` generates real artifacts, not
+    just `run.sh` (which sources .env) or docker compose (which uses env_file).
+    """
+    path = path or os.path.join(PROJECT_ROOT, ".env")
+    if not os.path.isfile(path):
+        return
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            if key:
+                os.environ.setdefault(key, value.strip().strip('"').strip("'"))
+
+
 @dataclass
 class Config:
     host: str = "127.0.0.1"

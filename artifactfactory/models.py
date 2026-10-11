@@ -52,6 +52,7 @@ class Plan:
     artifact_specs: List[Dict[str, Any]] = field(default_factory=list)
     artifact_ids: List[str] = field(default_factory=list)
     steps: List[str] = field(default_factory=list)
+    error: Optional[str] = None  # why the last implementation failed, shown in the dashboard
     created_at: str = field(default_factory=now_iso)
     updated_at: str = field(default_factory=now_iso)
 

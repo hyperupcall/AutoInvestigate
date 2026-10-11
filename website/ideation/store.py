@@ -258,7 +258,7 @@ class Store:
         return idea
 
     def list_ideas(self, topic_id: Optional[str] = None, kind: Optional[str] = None,
-                   limit: int = 200) -> List[Dict[str, Any]]:
+                   session_id: Optional[str] = None, limit: int = 200) -> List[Dict[str, Any]]:
         clauses, params = [], []
         if topic_id:
             clauses.append("topic_id = ?")
@@ -266,6 +266,9 @@ class Store:
         if kind:
             clauses.append("kind = ?")
             params.append(kind)
+        if session_id:
+            clauses.append("session_id = ?")
+            params.append(session_id)
         where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
         params.append(limit)
         return self._rows("ideas", f"SELECT * FROM ideas{where} ORDER BY created_at DESC LIMIT ?", tuple(params))
@@ -297,6 +300,9 @@ class Store:
 
     def list_sessions(self, limit: int = 50) -> List[Dict[str, Any]]:
         return self._rows("sessions", "SELECT * FROM sessions ORDER BY started_at DESC LIMIT ?", (limit,))
+
+    def list_sessions_by_status(self, status: str) -> List[Dict[str, Any]]:
+        return self._rows("sessions", "SELECT * FROM sessions WHERE status = ? ORDER BY started_at DESC", (status,))
 
     # --------------------------------------------------------------- events
     def add_event(self, session_id: str, kind: str, data: Dict[str, Any]) -> Dict[str, Any]:

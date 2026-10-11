@@ -7,7 +7,10 @@
  * shell.js. The backend badge and the Idea Evaluation View href follow the detected backend
  * (Hack.backendInfo, set by api-backend.js), so the header stays correct on every
  * page without each page wiring it up itself. The "agents running" badge polls the
- * reachable backends' /api/status and shows the total number of active agents. */
+ * reachable backends' /api/status and shows the total number of active agents. It also
+ * refreshes on demand — call Hack.refreshAgents() whenever agents are spawned or
+ * destroyed (a run or session starts, stops or finishes) so the badge does not wait
+ * for the next poll. */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
   Hack.components = Hack.components || {};
@@ -54,28 +57,42 @@
   ];
   const agents = { total: 0, parts: [] };
   let agentsTimer = null;
+  let loading = false;
+  let pending = false;  // a refresh was asked for while one was in flight
 
   async function probe(base, expect) {
+    // Bound each probe: a backend that accepts the connection but never answers must not
+    // stall the whole refresh (which would freeze the badge on a stale count).
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 4000);
     try {
-      const r = await fetch(base + '/api/status', { cache: 'no-store' });
+      const r = await fetch(base + '/api/status', { cache: 'no-store', signal: ctrl.signal });
       if (!r.ok) return null;
       const body = await r.json();
       if (body.service !== expect) return null;  // the other service (or something else) answered
       return body;
     } catch (e) { return null; }
+    finally { clearTimeout(t); }
   }
 
   async function loadAgents() {
-    const parts = await Promise.all(SERVICES.map(async (svc) => {
-      for (const base of svc.candidates) {
-        const body = await probe(base, svc.expect);
-        if (body) return { name: svc.name, count: svc.pick(body) };
-      }
-      return { name: svc.name, count: 0, offline: true };
-    }));
-    agents.parts = parts;
-    agents.total = parts.reduce((n, p) => n + p.count, 0);
-    renderAgents();
+    if (loading) { pending = true; return; }  // coalesce: run once more when this one finishes
+    loading = true;
+    try {
+      const parts = await Promise.all(SERVICES.map(async (svc) => {
+        for (const base of svc.candidates) {
+          const body = await probe(base, svc.expect);
+          if (body) return { name: svc.name, count: svc.pick(body) };
+        }
+        return { name: svc.name, count: 0, offline: true };
+      }));
+      agents.parts = parts;
+      agents.total = parts.reduce((n, p) => n + p.count, 0);
+      renderAgents();
+    } finally {
+      loading = false;
+      if (pending) { pending = false; loadAgents(); }
+    }
   }
 
   function renderAgents() {
@@ -139,5 +156,10 @@
     agentsTimer = setInterval(loadAgents, 5000);
   }
 
-  Hack.components.navbar = { mount, render };
+  /* Refresh the badge now, instead of waiting for the next poll. Safe to call from any
+   * page (it is a no-op when the navbar is not mounted). Call it whenever agents are
+   * spawned or destroyed: a run or session starts, stops or finishes. */
+  Hack.refreshAgents = function () { if (root) loadAgents(); };
+
+  Hack.components.navbar = { mount, render, refresh: loadAgents };
 })();

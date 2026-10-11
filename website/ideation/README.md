@@ -95,8 +95,14 @@ over-specific artifacts.
 
 Every topic the finder adds carries `origin: "finder"` and a `rationale` (the signal
 that prompted it), shown in the Ideation View. Topics are deduplicated against the
-existing watchlist by name. Run it now with the **Find topics** button or
+existing watchlist by name. Run it now with the **Generate topics** button or
 `POST /api/topics/discover`.
+
+The **Generate topics** button asks for a **preview** (`POST /api/topics/discover`
+with `{"preview": true}`): the finder's proposals come back in `proposed` without
+being stored, and the Ideation View shows them in a popup where you tick the ones to
+keep and add them to the watchlist. The scheduled run (and a call without `preview`)
+still adds topics directly.
 
 ## The message format
 
@@ -187,9 +193,9 @@ plus the resolved agent roster; `PUT /api/settings` accepts any subset (an
 | GET | `/info`, `/health` | Service info; health |
 | GET/POST | `/api/topics` | List / create topics |
 | POST | `/api/topics/draft` | Draft a topic (name, description, tags, keywords) from a description |
-| POST | `/api/topics/discover` | Run the topic finder now: read the internet and add new topics |
+| POST | `/api/topics/discover` | Run the topic finder now: read the internet and add new topics (pass `{"preview": true}` to return proposals without storing them) |
 | PUT/DELETE | `/api/topics/{id}` | Update / delete a topic |
-| GET | `/api/ideas`, `/api/ideas/{id}` | Generated ideas |
+| GET | `/api/ideas`, `/api/ideas/{id}` | Generated ideas (filter with `?topic_id=`, `?kind=` or `?session_id=`) |
 | GET | `/api/tree` | The ideas as the frontend's level tree (abstract at 1, concrete at 2) |
 | GET | `/api/signals`, `/api/memory` | The raw feed; the memory |
 | GET/POST | `/api/sessions` | List / start a session |

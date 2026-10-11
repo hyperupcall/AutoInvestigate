@@ -29,6 +29,7 @@
   ];
 
   const STEP_LABELS = {
+    mvp_prototype: 'Build an interactive prototype (MVP) of the idea',
     source_repository: 'Scaffold source repository',
     npm_package: 'Scaffold NPM package',
     docker_image: 'Build Docker image manifest',
@@ -85,6 +86,8 @@
   /* File lists per artifact type, mirroring artifactfactory/artifacts.py. */
   function filesFor(type, base, name) {
     switch (type) {
+      case 'mvp_prototype':
+        return [`${base}/index.html`];
       case 'source_repository': {
         const module = slugify(name).replace(/-/g, '_');
         return [`${base}/README.md`, `${base}/pyproject.toml`, `${base}/src/${module}/__init__.py`,
@@ -183,10 +186,13 @@
     return Object.values(plans).map(clone);
   }
 
-  /** A data: URL so the download button works offline too. */
+  /** A data: URL so the download button works offline too. The prototype is a single HTML file. */
   function artifactUrl(artifactId) {
     const a = artifacts[artifactId];
     if (!a) return null;
+    if (a.type === 'mvp_prototype') {
+      return 'data:text/html;charset=utf-8,' + encodeURIComponent(mockPrototypeHtml(a));
+    }
     const manifest = [
       `Artifact: ${a.name}`,
       `Type: ${a.type}`,
@@ -199,6 +205,19 @@
       '(Mock artifact — the real Artifact Factory returns the built files.)',
     ].join('\n');
     return 'data:text/plain;charset=utf-8,' + encodeURIComponent(manifest);
+  }
+
+  /** One self-contained HTML page, mirroring the real factory's mvp_prototype output. */
+  function mockPrototypeHtml(a) {
+    const title = a.name.replace(/-/g, ' ');
+    return [
+      '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">',
+      '<meta name="viewport" content="width=device-width,initial-scale=1">',
+      `<title>${title}</title></head><body>`,
+      `<header class="app-header"><h1>${title}</h1><p>Demo data</p></header>`,
+      '<div class="main"><div class="card"><p>This is the mock prototype. Connect the Artifact Factory to build the real one.</p></div></div>',
+      '<script>document.title = document.title;</script></body></html>',
+    ].join('');
   }
 
   /** Run a built artifact as a local server (mock: a fake port and URL). */

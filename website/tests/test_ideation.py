@@ -128,6 +128,31 @@ def test_stop_session_marks_cancelled(service):
     assert events[-1]["cancelled"] is True
 
 
+def test_reconcile_closes_orphaned_sessions(service):
+    topic = service.store.list_topics()[0]
+    service.store.create_session({"id": "session-orphan", "topic_id": topic["id"],
+                                  "topic_name": topic["name"], "status": "running"})
+    service.store.create_session({"id": "session-done", "topic_id": topic["id"],
+                                  "topic_name": topic["name"], "status": "done"})
+
+    assert service.reconcile_sessions() == 1
+    assert service.store.get_session("session-orphan")["status"] == "failed"
+    assert service.store.get_session("session-done")["status"] == "done"  # untouched
+    assert [e["kind"] for e in service.store.list_events("session-orphan")] == ["interrupted", "done"]
+
+
+def test_status_counts_running_sessions_from_the_store(service):
+    topic = service.store.list_topics()[0]
+    assert service.status()["running_agents"] == 0
+    service.store.create_session({"id": "session-a", "topic_id": topic["id"],
+                                  "topic_name": topic["name"], "status": "running"})
+    service.store.create_session({"id": "session-b", "topic_id": topic["id"],
+                                  "topic_name": topic["name"], "status": "running"})
+    status = service.status()
+    assert sorted(status["running_sessions"]) == ["session-a", "session-b"]
+    assert status["running_agents"] == 2 * len(agents.AGENTS)
+
+
 def test_http_routes(service):
     seed_if_empty(service.store)
     scheduler = Scheduler(service, 900)

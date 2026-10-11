@@ -30,6 +30,9 @@
   const post = (path, body) => getJSON(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const put = (path, body) => getJSON(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
+  /* Ask the shared navbar badge to recount now, instead of waiting for its next poll. */
+  const refreshAgents = () => { if (Hack.refreshAgents) Hack.refreshAgents(); };
+
   /* The live "Agent View" page, served by the evaluation backend. With a run id it opens that
    * run directly (/live?run=<id>); without one it opens the newest run. Follows the detected
    * backend, so it works whether the page is served by the backend or by run.sh on another port. */
@@ -78,11 +81,11 @@
       cancel() {
         cancelled = true;
         clearTimeout(timer);
-        if (handle.runId) post('/api/stop', { run_id: handle.runId }).catch(() => {});
+        if (handle.runId) post('/api/stop', { run_id: handle.runId }).catch(() => {}).then(refreshAgents);
       },
       finalize() {
         // Graceful stop: the swarm stops and the run writes its final verdict (unlike cancel).
-        if (handle.runId) post('/api/finalize', { run_id: handle.runId }).catch(() => {});
+        if (handle.runId) post('/api/finalize', { run_id: handle.runId }).catch(() => {}).then(refreshAgents);
       },
     };
     const fail = (msg) => { onEvent({ phase: 'Error', kind: 'phase', text: msg, ts: Date.now() }); onDone(buildReport(ideaText, groupIds)); };
@@ -94,6 +97,7 @@
     (async () => {
       try {
         handle.runId = (await post('/api/evaluate', { idea: ideaText, overrides })).run_id;
+        refreshAgents();  // the swarm agents are spawned now
       } catch (e) {
         return fail(`Could not start the evaluation: ${e.message}`);
       }
@@ -106,6 +110,7 @@
           const run = Hack.store && Hack.store.state.evaluation.runs.find((x) => x._handle === handle);
           if (run && r.current) { run.currentPhase = r.current.phase; run.currentAgent = r.current.agent_id; run.backendRunId = handle.runId; Hack.store.notify(); }
           if (!r.running) {
+            refreshAgents();  // the swarm agents are gone now
             const report = await getJSON(`/api/runs/${handle.runId}/report`).catch(() => null);
             return onDone(report || buildReport(ideaText, groupIds));
           }

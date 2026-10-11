@@ -46,6 +46,14 @@
       Hack.components.artifactModal.render();
       Hack.components.toast.render();
     });
+
+    // Ideas handed over from the Ideation View ("Add to idea list") land in the
+    // Idea Evaluation queue: drain what is pending now, and again whenever another
+    // tab pushes while this one is open.
+    Hack.actions.drainIdeaHandoff();
+    window.addEventListener('storage', (e) => {
+      if (Hack.ideaHandoff && e.key === Hack.ideaHandoff.KEY) Hack.actions.drainIdeaHandoff();
+    });
   }
 
   if (document.readyState === 'loading') {

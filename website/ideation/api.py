@@ -149,7 +149,9 @@ class Handler(BaseHTTPRequestHandler):
         if method == "GET" and path == "/api/ideas":
             kind = (query.get("kind") or [None])[0]
             topic_id = (query.get("topic_id") or [None])[0]
-            return self._send_json(200, {"ideas": svc.store.list_ideas(topic_id=topic_id, kind=kind)})
+            session_id = (query.get("session_id") or [None])[0]
+            return self._send_json(200, {"ideas": svc.store.list_ideas(
+                topic_id=topic_id, kind=kind, session_id=session_id)})
         if method == "GET" and path == "/api/tree":
             return self._send_json(200, self._tree())
         if method == "POST" and path == "/api/ideas/related":

@@ -48,6 +48,9 @@ def main(argv=None) -> None:
     store = Store(config.db_path)
     service = Service(config, store)
     service.load_settings()  # persisted settings win over the environment
+    orphaned = service.reconcile_sessions()  # sessions left running by a previous process
+    if orphaned:
+        print(f"Closed {orphaned} session(s) orphaned by a restart.")
     added = seed_if_empty(store)
     if added:
         print(f"Seeded {added} default topics.")

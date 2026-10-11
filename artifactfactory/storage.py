@@ -1,5 +1,6 @@
 import importlib
 import os
+import shutil
 from typing import List
 
 
@@ -20,6 +21,14 @@ class StorageBackend:
         raise NotImplementedError
 
     def list(self, prefix: str = "") -> List[str]:
+        raise NotImplementedError
+
+    def delete(self, key: str) -> bool:
+        """Remove one stored object. False if it was not there."""
+        raise NotImplementedError
+
+    def delete_prefix(self, prefix: str) -> int:
+        """Remove every object under a prefix (a directory). Returns how many were removed."""
         raise NotImplementedError
 
     def uri(self, key: str) -> str:
@@ -63,6 +72,27 @@ class LocalStorage(StorageBackend):
                 rel = os.path.relpath(full, self.root).replace(os.sep, "/")
                 results.append(rel)
         return sorted(results)
+
+    def delete(self, key: str) -> bool:
+        path = self._path(key)
+        if os.path.isdir(path):
+            shutil.rmtree(path, ignore_errors=True)
+            return True
+        if os.path.exists(path):
+            os.remove(path)
+            return True
+        return False
+
+    def delete_prefix(self, prefix: str) -> int:
+        base = self._path(prefix)
+        if not os.path.exists(base):
+            return 0
+        if os.path.isfile(base):
+            os.remove(base)
+            return 1
+        removed = sum(len(files) for _dir, _sub, files in os.walk(base))
+        shutil.rmtree(base, ignore_errors=True)
+        return removed
 
     def uri(self, key: str) -> str:
         return "file://" + self._path(key)
@@ -111,6 +141,24 @@ class S3Storage(StorageBackend):
                 k = k[len(self.prefix) + 1:]
             out.append(k)
         return sorted(out)
+
+    def delete(self, key: str) -> bool:
+        self._client.delete_object(Bucket=self.bucket, Key=self._key(key))
+        return True
+
+    def delete_prefix(self, prefix: str) -> int:
+        full = self._key(prefix) if prefix else self.prefix
+        removed = 0
+        while True:
+            resp = self._client.list_objects_v2(Bucket=self.bucket, Prefix=full)
+            keys = [{"Key": o["Key"]} for o in resp.get("Contents", [])]
+            if not keys:
+                break
+            self._client.delete_objects(Bucket=self.bucket, Delete={"Objects": keys})
+            removed += len(keys)
+            if not resp.get("IsTruncated"):
+                break
+        return removed
 
     def uri(self, key: str) -> str:
         return f"s3://{self.bucket}/{self._key(key)}"

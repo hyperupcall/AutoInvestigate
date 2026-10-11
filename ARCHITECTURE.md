@@ -737,8 +737,8 @@ same level tree (`generation.js`) — abstract ideas at level 1, concrete at lev
 | `GET /` | The Ideation View page. |
 | `GET /info`, `GET /health` | Service info; health. |
 | `GET`/`POST /api/topics`, `PUT`/`DELETE /api/topics/{id}` | The watchlist. |
-| `POST /api/topics/draft`, `POST /api/topics/discover` | Draft a topic from a description; run the topic finder. |
-| `GET /api/ideas`, `GET /api/ideas/{id}`, `GET /api/tree` | Generated ideas; the level tree. |
+| `POST /api/topics/draft`, `POST /api/topics/discover` | Draft a topic from a description; run the topic finder (`{"preview": true}` returns proposals without storing them). |
+| `GET /api/ideas`, `GET /api/ideas/{id}`, `GET /api/tree` | Generated ideas (filter `/api/ideas` with `?topic_id=`, `?kind=` or `?session_id=`); the level tree. |
 | `GET /api/signals`, `GET /api/memory` | The raw feed; the memory. |
 | `GET`/`POST /api/sessions`, `GET /api/sessions/{id}` | Refinement sessions. |
 | `GET /api/sessions/{id}/events?since=N`, `GET /api/sessions/{id}/report` | The live stream; the report. |

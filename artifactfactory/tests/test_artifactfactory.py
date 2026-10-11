@@ -92,8 +92,27 @@ class ServiceTests(unittest.TestCase):
         self.assertGreater(len(data), 0)
         self.assertEqual(data[:2], b"\x1f\x8b")
 
+    def test_prototype_downloads_as_a_single_html_file(self):
+        # What the frontend's Execute -> asks for: one prototype, a single self-contained HTML file.
+        result = self.service.add_idea("A homomorphic encryption toolkit.",
+                                       options={"artifacts": ["mvp_prototype"]})
+        plan_id = result["plan"]["id"]
+        job = self.service.start_implementation(plan_id)
+        assert job is not None
+        self._wait_job(job["id"])
+        plan = self.service.get_plan(plan_id)
+        assert plan is not None
+        proto = next(a for a in plan["artifacts"] if a["type"] == "mvp_prototype")
+        self.assertEqual(proto["files"], [proto["key"] + "/index.html"])
+        dl = self.service.download_artifact(proto["id"])
+        assert dl is not None
+        filename, content_type, data = dl
+        self.assertEqual(filename, "index.html")
+        self.assertTrue(content_type.startswith("text/html"), content_type)
+        self.assertIn(b"<!DOCTYPE html>", data)
+
     def test_execution_plan_tarballs_the_generated_prototype(self):
-        # What the frontend's Execute -> asks for: one prototype, packaged as a tarball.
+        # The tarball builder packages every artifact built so far, including the prototype.
         result = self.service.add_idea("A homomorphic encryption toolkit.",
                                        options={"artifacts": ["mvp_prototype", "tarball"]})
         plan_id = result["plan"]["id"]

@@ -17,11 +17,12 @@
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
   const state = {
-    topics: [], sessions: [], ideas: [], memory: [], status: null, settings: null,
+    topics: [], sessions: [], sessionIdeas: [], memory: [], status: null, settings: null,
     selectedSessionId: null, selectedAgentId: null,
     session: null, lastSeq: 0, tab: 'session', pollTimer: null,
     settingsOpen: false, settingsStatus: null,
     topicModal: { open: false, description: '', draft: null, status: null, busy: false },
+    discoverModal: { open: false, topics: [], selected: null, status: null, busy: false },
   };
 
   /* ------------------------------- helpers ------------------------------- */
@@ -90,6 +91,11 @@
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
   });
 
+  /* Ask the shared navbar badge to recount now (ideation agents spawned or destroyed). */
+  function refreshAgents() {
+    if (window.Hack && window.Hack.refreshAgents) window.Hack.refreshAgents();
+  }
+
   /* ------------------------------- loading ------------------------------- */
   async function detect() {
     const candidates = window.ID_API !== undefined ? [window.ID_API] : ['', 'http://localhost:8091'];
@@ -104,13 +110,12 @@
     setStatus();
     if (!info.live) { renderAll(); return; }
     try {
-      const [topics, sessions, ideas, memory, status, settings] = await Promise.all([
-        getJSON('/api/topics'), getJSON('/api/sessions'), getJSON('/api/ideas'),
+      const [topics, sessions, memory, status, settings] = await Promise.all([
+        getJSON('/api/topics'), getJSON('/api/sessions'),
         getJSON('/api/memory'), getJSON('/api/status'), getJSON('/api/settings'),
       ]);
       state.topics = topics.topics || [];
       state.sessions = sessions.sessions || [];
-      state.ideas = ideas.ideas || [];
       state.memory = memory.memory || [];
       state.status = status;
       state.settings = settings;
@@ -145,6 +150,7 @@
     renderDetail();
     renderSettings();
     renderTopicModal();
+    renderDiscoverModal();
   }
 
   function renderTopics() {
@@ -200,7 +206,7 @@
         onclick: () => openSession(s.id, true),
       }, [
         el('div', { class: 'ideation-session-head' }, [
-          el('span', { class: 'run-status ' + (s.status === 'done' ? 'done' : running ? 'running' : 'cancelled') }, [
+          el('span', { class: 'run-status ' + (s.status === 'done' ? 'done' : running ? 'running' : s.status === 'failed' ? 'failed' : 'cancelled') }, [
             running ? el('span', { class: 'dot-pulse' }) : null,
             s.status,
           ]),
@@ -249,10 +255,15 @@
     state.selectedAgentId = null;
     state.lastSeq = 0;
     state.session = null;
+    state.sessionIdeas = [];
     state.tab = 'session';   // clicking a session always shows it in the main view
     try {
-      const meta = await getJSON(`/api/sessions/${id}`);
-      const ev = await getJSON(`/api/sessions/${id}/events?since=0`);
+      const [meta, ev, ideas] = await Promise.all([
+        getJSON(`/api/sessions/${id}`),
+        getJSON(`/api/sessions/${id}/events?since=0`),
+        getJSON(`/api/ideas?session_id=${encodeURIComponent(id)}`),
+      ]);
+      state.sessionIdeas = ideas.ideas || [];
       state.session = { meta, events: ev.events || [] };
       state.lastSeq = state.session.events.reduce((m, e) => Math.max(m, e.seq || 0), 0);
       const start = state.session.events.find((e) => e.kind === 'session-start');
@@ -281,8 +292,11 @@
           stopPolling();
           const meta = await getJSON(`/api/sessions/${id}`);
           state.session.meta = meta;
+          const ideas = await getJSON(`/api/ideas?session_id=${encodeURIComponent(id)}`);
+          state.sessionIdeas = ideas.ideas || [];
           renderSessions();
-          if (state.tab === 'session') renderDetail();
+          renderDetail();
+          refreshAgents();  // the session's team has stopped
         }
       } catch (e) { stopPolling(); }
     }, 1500);
@@ -296,6 +310,7 @@
     try {
       const session = await post('/api/sessions', { topic_id: topicId });
       state.sessions.unshift(session);
+      refreshAgents();  // the session's team is running now
       renderSessions();
       await openSession(session.id, true);
       state.tab = 'session';
@@ -310,6 +325,7 @@
   async function stopSession(id) {
     try {
       await post(`/api/sessions/${id}/stop`);
+      refreshAgents();  // the team is winding down (it stops after the current turn)
       const meta = await getJSON(`/api/sessions/${id}`);
       const idx = state.sessions.findIndex((s) => s.id === id);
       if (idx >= 0) state.sessions[idx] = meta;
@@ -332,12 +348,10 @@
     const btn = document.getElementById('ideation-discover');
     if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
     try {
-      const r = await post('/api/topics/discover');
-      const n = (r.added || []).length;
-      if (Hack.actions && Hack.actions.showToast) {
-        Hack.actions.showToast(n ? `Found ${n} new topic${n === 1 ? '' : 's'}.` : 'No new topics found.', n ? 'ok' : 'warn');
-      }
-      await load();
+      const r = await post('/api/topics/discover', { preview: true });
+      const proposed = r.proposed || [];
+      if (proposed.length) openDiscoverModal(proposed);
+      else if (Hack.actions && Hack.actions.showToast) Hack.actions.showToast('No new topics found.', 'warn');
     } catch (e) {
       if (Hack.actions && Hack.actions.showToast) Hack.actions.showToast('Could not find topics: ' + e.message, 'error');
     }
@@ -679,6 +693,10 @@
         return el('div', { class: 'event-row kind-muted' }, [
           el('span', { class: 'event-text', text: 'Session terminated by the user.' }),
         ]);
+      case 'interrupted':
+        return el('div', { class: 'event-row kind-muted' }, [
+          el('span', { class: 'event-text', text: ev.reason || 'Session interrupted.' }),
+        ]);
       case 'done':
         return el('div', { class: 'event-row kind-done' }, [
           el('span', { class: 'event-text', text: ev.cancelled
@@ -691,12 +709,30 @@
   }
 
   /* -------------------------------- ideas -------------------------------- */
+  /** Hand this idea to the workspace's Idea Evaluation column (column 2). */
+  function addIdeaToList(idea) {
+    if (!Hack.ideaHandoff) return;
+    const ok = Hack.ideaHandoff.push({ text: idea.text, source: 'ideation' });
+    if (Hack.actions && Hack.actions.showToast) {
+      Hack.actions.showToast(ok
+        ? 'Added to Idea Evaluation. Open the workspace to see it.'
+        : 'Already waiting in Idea Evaluation.', ok ? 'ok' : 'warn');
+    }
+  }
+
   function renderIdeas(host) {
-    if (!state.ideas.length) {
-      host.appendChild(el('p', { class: 'empty', text: 'No ideas yet. Run a session and the team will produce one.' }));
+    if (!state.selectedSessionId) {
+      host.appendChild(el('p', { class: 'empty', text: 'Select a session to see the ideas it produced.' }));
       return;
     }
-    for (const idea of state.ideas) {
+    const session = state.sessions.find((s) => s.id === state.selectedSessionId);
+    const label = (session && (session.topic_name || session.topic_id)) || state.selectedSessionId;
+    host.appendChild(el('p', { class: 'muted small', text: `Ideas from session · ${label}` }));
+    if (!state.sessionIdeas.length) {
+      host.appendChild(el('p', { class: 'empty', text: 'This session has not produced an idea yet.' }));
+      return;
+    }
+    for (const idea of state.sessionIdeas) {
       host.appendChild(el('div', { class: 'ideation-idea-card' }, [
         el('div', { class: 'ideation-final-head' }, [
           el('span', { class: 'ideation-kind ' + idea.kind, text: idea.kind }),
@@ -704,6 +740,13 @@
           el('span', { class: 'muted small', text: idea.topic_name || idea.topic_id || '' }),
           el('span', { class: 'spacer' }),
           el('span', { class: 'muted small', text: (idea.created_at || '').replace('T', ' ').slice(0, 19) }),
+          el('button', {
+            class: 'btn small',
+            type: 'button',
+            text: 'Add to idea list',
+            title: 'Copy this idea into the Idea Evaluation column of the workspace',
+            onclick: () => addIdeaToList(idea),
+          }),
         ]),
         el('p', { class: 'ideation-idea', text: idea.text }),
         renderJustification(idea.justification),
@@ -844,6 +887,122 @@
       el('div', { class: 'modal-body' }, [content]),
     ]);
     host.appendChild(el('div', { class: 'modal-overlay', onclick: closeTopicModal }, [dialog]));
+  }
+
+  /* --------------------------- topic finder popup --------------------------- */
+  function openDiscoverModal(topics) {
+    state.discoverModal = {
+      open: true, topics: topics.slice(),
+      selected: new Set(topics.map((t) => t.id)),
+      status: null, busy: false,
+    };
+    renderDiscoverModal();
+  }
+
+  function closeDiscoverModal() {
+    state.discoverModal.open = false;
+    renderDiscoverModal();
+  }
+
+  function toggleDiscoverAll(checked) {
+    const dm = state.discoverModal;
+    dm.selected = checked ? new Set(dm.topics.map((t) => t.id)) : new Set();
+    renderDiscoverModal();
+  }
+
+  async function addSelectedTopics() {
+    const dm = state.discoverModal;
+    const chosen = dm.topics.filter((t) => dm.selected.has(t.id));
+    if (!chosen.length) {
+      dm.status = { ok: false, text: 'Select at least one topic.' };
+      renderDiscoverModal();
+      return;
+    }
+    dm.busy = true;
+    dm.status = null;
+    renderDiscoverModal();
+    let added = 0;
+    try {
+      for (const t of chosen) {
+        await post('/api/topics', {
+          name: t.name, description: t.description,
+          tags: t.tags || [], keywords: t.keywords || [], sources: t.sources || [],
+        });
+        added += 1;
+      }
+      closeDiscoverModal();
+      if (Hack.actions && Hack.actions.showToast) {
+        Hack.actions.showToast(`Added ${added} topic${added === 1 ? '' : 's'}.`, 'ok');
+      }
+      await load();
+    } catch (e) {
+      dm.busy = false;
+      dm.status = { ok: false, text: `Added ${added} of ${chosen.length} — ${e.message}` };
+      renderDiscoverModal();
+    }
+  }
+
+  function renderDiscoverModal() {
+    const host = document.getElementById('ideation-discover-root');
+    if (!host) return;
+    clear(host);
+    const dm = state.discoverModal;
+    if (!dm || !dm.open) return;
+
+    const allSelected = dm.topics.length > 0 && dm.selected.size === dm.topics.length;
+    const rows = dm.topics.map((t) => el('label', { class: 'discover-topic' }, [
+      el('input', {
+        type: 'checkbox', checked: dm.selected.has(t.id),
+        onchange: (e) => {
+          if (e.target.checked) dm.selected.add(t.id); else dm.selected.delete(t.id);
+          renderDiscoverModal();
+        },
+      }),
+      el('div', { class: 'discover-topic-body' }, [
+        el('div', { class: 'discover-topic-head' }, [
+          el('span', { class: 'ideation-topic-name', text: t.name }),
+          t.origin === 'finder' ? el('span', { class: 'ideation-origin', text: 'found' }) : null,
+        ]),
+        t.description ? el('p', { class: 'muted small', text: t.description }) : null,
+        t.rationale ? el('p', { class: 'ideation-topic-rationale muted small', text: '↳ ' + t.rationale }) : null,
+        el('div', { class: 'ideation-tags' }, (t.tags || []).map((tag) => el('span', { class: 'ideation-tag', text: tag }))),
+      ]),
+    ]));
+
+    const content = el('div', { class: 'settings-content' }, [
+      el('div', { class: 'discover-toolbar' }, [
+        el('label', { class: 'discover-select-all' }, [
+          el('input', {
+            type: 'checkbox', checked: allSelected,
+            onchange: (e) => toggleDiscoverAll(e.target.checked),
+          }),
+          el('span', { text: 'Select all' }),
+        ]),
+        el('span', { class: 'muted small', text: `${dm.selected.size} of ${dm.topics.length} selected` }),
+      ]),
+      el('div', { class: 'discover-list' }, rows),
+      el('div', { class: 'settings-actions' }, [
+        el('button', {
+          class: 'btn primary', type: 'button',
+          text: dm.busy ? 'Adding…' : `Add selected (${dm.selected.size})`,
+          disabled: dm.busy, onclick: addSelectedTopics,
+        }),
+        el('button', { class: 'btn ghost', type: 'button', text: 'Cancel', disabled: dm.busy, onclick: closeDiscoverModal }),
+        dm.status ? el('span', { class: 'settings-status ' + (dm.status.ok ? 'ok' : 'err'), text: dm.status.text }) : null,
+      ]),
+    ]);
+
+    const dialog = el('div', { class: 'modal settings-modal', onclick: (e) => e.stopPropagation() }, [
+      el('div', { class: 'modal-head' }, [
+        el('div', { class: 'modal-head-main' }, [
+          el('h3', { class: 'modal-title', text: 'Topics found' }),
+          el('p', { class: 'muted small', text: 'Pick the ones to add to the watchlist on the left.' }),
+        ]),
+        el('button', { class: 'icon-btn', title: 'Close', text: '✕', onclick: closeDiscoverModal }),
+      ]),
+      el('div', { class: 'modal-body' }, [content]),
+    ]);
+    host.appendChild(el('div', { class: 'modal-overlay', onclick: closeDiscoverModal }, [dialog]));
   }
 
   /* ------------------------------- settings ------------------------------- */
@@ -1008,7 +1167,8 @@
   if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    if (state.topicModal.open) closeTopicModal();
+    if (state.discoverModal.open) closeDiscoverModal();
+    else if (state.topicModal.open) closeTopicModal();
     else if (state.settingsOpen) closeSettings();
   });
 

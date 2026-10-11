@@ -100,6 +100,8 @@ class Service:
     def _run_session_thread(self, session_id: str) -> None:
         try:
             self.run_session_by_id(session_id)
+        except Exception as exc:  # noqa: BLE001 - a crashed thread must not orphan the session
+            self._finalize_if_running(session_id, f"the session thread stopped: {exc}")
         finally:
             with self._lock:
                 self._running.discard(session_id)
@@ -114,6 +116,8 @@ class Service:
             self._running.add(session["id"])
         try:
             self.run_session_by_id(session["id"])
+        except Exception as exc:  # noqa: BLE001 - a crashed thread must not orphan the session
+            self._finalize_if_running(session["id"], f"the session thread stopped: {exc}")
         finally:
             with self._lock:
                 self._running.discard(session["id"])
@@ -139,6 +143,34 @@ class Service:
                 self._emit(session_id, "done", {"cost": session.get("cost", 0.0),
                                                  "idea_id": None, "cancelled": True})
         return self.store.get_session(session_id)
+
+    def _finalize_if_running(self, session_id: str, reason: str) -> None:
+        """Close out a session whose thread ended without finishing (an unexpected error).
+        Without this the row would stay 'running' forever, so the Sessions list and the
+        'agents running' badge would both overcount."""
+        session = self.store.get_session(session_id)
+        if session is None or session.get("status") != "running":
+            return
+        self.store.update_session(session_id, status="failed", finished_at=now_iso())
+        self._emit(session_id, "interrupted", {"reason": reason})
+        self._emit(session_id, "done", {"cost": session.get("cost", 0.0),
+                                         "idea_id": None, "cancelled": True})
+
+    def reconcile_sessions(self) -> int:
+        """Mark sessions left 'running' by a previous process as failed.
+
+        A session only runs inside this process's threads, so any session still
+        'running' in the store at startup was orphaned by a restart (or a crash) and
+        can never finish. Closing them out keeps the Sessions list honest and the
+        'agents running' badge in step with it. Returns how many were closed."""
+        orphans = self.store.list_sessions_by_status("running")
+        for session in orphans:
+            self.store.update_session(session["id"], status="failed", finished_at=now_iso())
+            self._emit(session["id"], "interrupted",
+                       {"reason": "the daemon restarted while this session was running"})
+            self._emit(session["id"], "done", {"cost": session.get("cost", 0.0),
+                                                "idea_id": None, "cancelled": True})
+        return len(orphans)
 
     def _cancelled(self, session_id: str) -> bool:
         with self._lock:
@@ -472,8 +504,10 @@ class Service:
 
     # -------------------------------------------------------------- status
     def status(self) -> Dict[str, Any]:
-        with self._lock:
-            running = sorted(self._running)
+        # Count from the store, the same source the Sessions list reads, so the badge and
+        # the list can never disagree. Orphaned rows are closed out at startup and when a
+        # thread crashes, so this stays accurate.
+        running = sorted(s["id"] for s in self.store.list_sessions_by_status("running"))
         return {
             "service": "ideation",
             "topics": len(self.store.list_topics()),

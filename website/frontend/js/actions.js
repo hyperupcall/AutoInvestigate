@@ -8,6 +8,9 @@
   const state = store.state;
 
   /* ------------------------------ helpers ------------------------------ */
+  /* Ask the shared navbar badge to recount now (agents spawned or destroyed). */
+  const refreshAgents = () => { if (Hack.refreshAgents) Hack.refreshAgents(); };
+
   let toastTimer = null;
   function showToast(message, kind) {
     state.ui.toast = { message, kind: kind || 'info', id: uid('toast') };
@@ -370,6 +373,23 @@
     store.notify();
   }
 
+  /** Pull ideas handed over from the Ideation View ("Add to idea list") into the queue. */
+  function drainIdeaHandoff() {
+    if (!Hack.ideaHandoff) return 0;
+    const pending = Hack.ideaHandoff.drain();
+    let added = 0;
+    for (const item of pending) {
+      if (enqueueIdea({ text: item.text, level: null, id: null })) added += 1;
+    }
+    if (added) {
+      store.notify();
+      showToast(added === 1
+        ? 'Added 1 idea from Ideation to Idea Evaluation.'
+        : `Added ${added} ideas from Ideation to Idea Evaluation.`, 'ok');
+    }
+    return added;
+  }
+
   /** Start the deeper research for a queued idea; it moves to the runs list.
    *  `groupIds` (optional) limits the run to those agent groups. */
   function startQueuedEvaluation(queueId, groupIds) {
@@ -441,6 +461,7 @@
         run.currentPhase = 'Complete';
         run.currentAgent = '';
         store.notify();
+        refreshAgents();  // the swarm agents are gone now
         showToast('Deeper research complete.', 'ok');
       },
     });
@@ -455,6 +476,7 @@
     run.status = 'cancelled';
     run.finishedAt = Date.now();
     store.notify();
+    refreshAgents();  // the swarm agents are being torn down
     showToast('Research run cancelled.', 'warn');
   }
 
@@ -464,6 +486,7 @@
     if (!run || run.status !== 'running') return;
     if (run._handle && run._handle.finalize) run._handle.finalize();
     else if (run.backendRunId && Hack.apiBackend) Hack.apiBackend.forceFinalize(run.backendRunId);
+    refreshAgents();  // the swarm is winding down
     showToast('Stopping the swarm and writing the verdict…', 'warn');
   }
 
@@ -564,7 +587,7 @@
       const { idea, plan } = await execBackend.createIdea({
         text: ex.ideaText, title: ex.title,
         metadata: ex.evaluationRunId ? { evaluation_run_id: ex.evaluationRunId } : undefined,
-        options: { artifacts: ['mvp_prototype', 'tarball'] }, // one clickable prototype, packaged as a tarball
+        options: { artifacts: ['mvp_prototype'] }, // a single self-contained HTML prototype
       });
       if (executionItem(itemId) !== ex) return; // the item was removed while we waited
       ex.plan = plan;
@@ -807,6 +830,7 @@
     queueLevelForEvaluation,
     removeQueuedIdea,
     clearEvaluationQueue,
+    drainIdeaHandoff,
     startQueuedEvaluation,
     startEvaluation,
     cancelEvaluation,

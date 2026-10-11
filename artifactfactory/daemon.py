@@ -5,8 +5,13 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from artifactfactory.config import Config, load_env_file
+
+# Load the single root .env before importing the modules that read it at import time
+# (mvp/evaluation read AF_MVP_MODEL / AF_MODEL / AF_EVAL_API when they are imported).
+load_env_file()
+
 from artifactfactory.api import serve
-from artifactfactory.config import Config
 
 
 def main(argv=None) -> None:
