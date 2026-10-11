@@ -1,10 +1,44 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings</title></head>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings</title>
+<style>
+/* AutoInvestigate base + settings page (see documentation/FRONTEND_STYLE.md) */
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;font-size:14px;line-height:1.5;color:black;background:whitesmoke}
+h1,h2,h3,h4,h5{margin:0;font-weight:600}
+p{margin:0}
+button{font:inherit}
+a{color:blue}
+.muted{color:gray}
+.small{font-size:12px}
+header{padding:8px 12px;border-bottom:1px solid silver}
+main{padding:16px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid gainsboro}
+th{font-size:12px;color:gray;font-weight:600;border-bottom:1px solid silver}
+footer{padding:12px 16px;color:gray;font-size:12px;border-top:1px solid silver}
+/* settings */
+header,main{max-width:1100px;margin-left:auto;margin-right:auto}
+header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h1{font-size:15px}
+fieldset{border:1px solid silver;padding:10px 12px;margin:12px 0;background:white}
+legend{font-size:12px;font-weight:600;color:gray;padding:0 4px}
+label{font-size:12px;color:gray}
+input,select{font:inherit;color:black;background:white;border:1px solid gray;padding:3px 5px}
+input[type=checkbox]{width:auto}
+button{border:1px solid gray;background:whitesmoke;padding:6px 12px;cursor:pointer}
+button:hover{background:gainsboro}
+button[type=submit]{font-weight:600}
+table{border:1px solid silver}
+pre#msg{font-family:monospace;font-size:12px;color:gray;white-space:pre-wrap;margin-top:8px}
+</style>
+</head>
 <body>
-<h1>Settings</h1>
+<header><h1>Settings</h1> <span class="muted small">AutoInvestiage — models, keys and group perspectives</span></header>
+<main>
 <p><a href="/">Back to the evaluation</a></p>
-<p>All models run through OpenRouter. Leave an agent's key blank to use the default key. Keys are stored only on this machine and are never shown again after saving.</p>
+<p class="muted small">All models run through OpenRouter. Leave an agent's key blank to use the default key. Keys are stored only on this machine and are never shown again after saving.</p>
 
 <form id="form">
 <fieldset>
@@ -17,7 +51,7 @@
 <p><label>Deliberation time per round in deep mode, seconds <input type="number" id="deliberation_seconds" min="5" max="900"></label></p>
 <p><label>Maximum cost per evaluation, US dollars <input type="number" id="max_cost_usd" min="0.05" max="50" step="0.05"></label></p>
 <p><label>Web search results per search (for models ending in :online) <input type="number" id="web_search_results" min="0" max="10"></label></p>
-<table border="1" cellpadding="4">
+<table>
 <tr><th>Stage</th><th>Max tokens per reply</th><th>Reasoning effort</th></tr>
 <tbody id="stages"></tbody>
 </table>
@@ -35,6 +69,12 @@
 <label>API key <input type="password" id="judge_key" size="30" autocomplete="off" placeholder="default key"></label></p>
 </fieldset>
 
+<fieldset>
+<legend>Reality check (does the idea make sense in the real world, before the groups run)</legend>
+<p><label>Model <input id="reality_check_model" list="models" size="45"></label>
+<label>API key <input type="password" id="reality_check_key" size="30" autocomplete="off" placeholder="default key"></label></p>
+</fieldset>
+
 <div id="groups"></div>
 
 <p><button type="submit">Save settings</button> <button type="button" id="reset">Reset everything to defaults</button></p>
@@ -45,7 +85,7 @@
 
 <script>
 const EFFORTS = ['', 'none', 'minimal', 'low', 'medium', 'high'];
-const STAGES = [['deliberate', 'Discussion turns'], ['evaluate', 'Evaluations'], ['summarize', 'Summaries'], ['judge', 'Stop or go and final text']];
+const STAGES = [['deliberate', 'Discussion turns'], ['evaluate', 'Evaluations'], ['summarize', 'Summaries'], ['judge', 'Stop or go and final text'], ['reality_check', 'Reality check']];
 let S = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
@@ -61,6 +101,7 @@ function render() {
     <td>${effortSelect(S.reasoning_effort[k], 'model default')}</td></tr>`).join('');
   $('summarizer_model').value = S.stages.summarizer.model; $('summarizer_key').value = S.stages.summarizer.api_key;
   $('judge_model').value = S.stages.judge.model; $('judge_key').value = S.stages.judge.api_key;
+  $('reality_check_model').value = S.stages.reality_check.model; $('reality_check_key').value = S.stages.reality_check.api_key;
   $('groups').innerHTML = S.groups.map((g, gi) => `<fieldset data-g="${gi}">
     <legend>Group perspective: ${esc(g.name)}</legend>
     <p><label>Name <input class="gname" value="${esc(g.name)}" size="40"></label>
@@ -68,7 +109,7 @@ function render() {
       <option value="converge" ${g.consensus === 'converge' ? 'selected' : ''}>aim for a shared view</option>
       <option value="diverge" ${g.consensus === 'diverge' ? 'selected' : ''}>members are not expected to agree</option></select></label>
     <label><input type="checkbox" class="gsrc" ${g.use_sources ? 'checked' : ''}> uses arXiv papers</label></p>
-    <table border="1" cellpadding="4">
+    <table>
       <tr><th>Agent</th><th>Model</th><th>API key</th><th>Reasoning effort</th><th>Prompt</th><th></th></tr>
       ${g.agents.map((a, ai) => `<tr data-a="${ai}">
         <td>${esc(a.name)}</td>
@@ -96,6 +137,7 @@ function collect() {
   });
   S.stages.summarizer = {model: $('summarizer_model').value.trim(), api_key: $('summarizer_key').value};
   S.stages.judge = {model: $('judge_model').value.trim(), api_key: $('judge_key').value};
+  S.stages.reality_check = {model: $('reality_check_model').value.trim(), api_key: $('reality_check_key').value};
   document.querySelectorAll('#groups > fieldset').forEach(fs => {
     const g = S.groups[fs.dataset.g];
     g.name = fs.querySelector('.gname').value.trim() || g.name;
@@ -152,5 +194,6 @@ fetch('/api/models').then(r => r.json()).then(ms => {
   $('models').innerHTML = ms.map(m => `<option value="${esc(m.id)}">$${m.in} in / $${m.out} out per million tokens${m.expires ? ', retires ' + m.expires : ''}</option>`).join('');
 });
 </script>
+</main>
 </body>
 </html>

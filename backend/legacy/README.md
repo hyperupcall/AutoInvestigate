@@ -1,4 +1,4 @@
-# Research Council
+# AutoInvestiage
 
 Four AI agents with competing goals negotiate over a scarce budget (3 build slots, 40 engineer-hours)
 to decide which of 10 emerging-technology ideas Cisco Outshift should pursue first. There is no

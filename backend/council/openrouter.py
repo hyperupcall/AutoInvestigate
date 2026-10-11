@@ -87,7 +87,7 @@ async def chat(model: str, messages: list[dict], api_key: str, *, max_tokens: in
                 async with _semaphore():
                     r = await client.post(URL, json=body, headers={
                         "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
-                        "X-Title": "Research Council"})
+                        "X-Title": "AutoInvestiage"})
             except httpx.TransportError as e:
                 if attempt == retries:
                     raise OpenRouterError(f"{model}: network error {type(e).__name__}") from None

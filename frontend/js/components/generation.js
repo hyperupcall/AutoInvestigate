@@ -134,6 +134,13 @@
           : null,
         lvl.ideas.length
           ? el('button', {
+              class: 'btn small', type: 'button', text: 'Evaluate',
+              title: 'Copy the selected ideas (or the whole level) to Idea Evaluation',
+              onclick: () => actions.queueLevelForEvaluation(lvl.level),
+            })
+          : null,
+        lvl.ideas.length
+          ? el('button', {
               class: 'btn small', type: 'button', text: 'Iterate',
               title: 'Choose an iteration type and generate the next set of ideas',
               onclick: (e) => openIteratePopover(e.currentTarget, { kind: 'level', level: lvl.level }),
@@ -164,7 +171,6 @@
       el('div', { class: 'idea-body' }, [
         el('p', { class: 'idea-text', text: idea.text }),
         el('div', { class: 'idea-meta' }, [
-          idea.label ? el('span', { class: 'idea-label', text: idea.label }) : null,
           el('button', {
             class: 'mini-btn', text: 'Evaluate →',
             title: 'Copy this idea to the Idea Evaluation column',

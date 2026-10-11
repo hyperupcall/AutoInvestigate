@@ -464,6 +464,11 @@
           el('span', { class: 'event-kind', text: 'Cross-group analysis' }),
           renderCrossGroup(ev.cross_group),
         ]);
+      case 'reality-check':
+        return el('div', { class: 'event-row kind-decision' }, [
+          el('span', { class: 'event-kind', text: 'Reality check' }),
+          renderRealityCheck(ev.reality_check),
+        ]);
       case 'stop-go':
         return el('div', { class: 'event-row kind-decision' }, [
           el('span', { class: 'event-kind', text: 'Stop-or-Go' }),
@@ -500,6 +505,9 @@
 
     // Run header.
     body.appendChild(renderRunMeta(report.run, report.pipeline));
+
+    // Reality check (ran before the groups: does the idea make sense at all?).
+    if (report.reality_check) body.appendChild(renderRealityCheck(report.reality_check));
 
     // Stop-or-go banner.
     if (report.stop_go) body.appendChild(renderStopGoBanner(report.stop_go));
@@ -556,6 +564,30 @@
     return { cls: 'stopped', value: 'Stopped', note: 'The evidence was enough to conclude.' };
   }
   Hack.deliberationOutcome = deliberationOutcome;
+
+  /* The reality check runs before the groups: does the idea make sense in the real world at all? */
+  function renderRealityCheck(rc) {
+    const cls = rc.verdict === 'nonsense' ? 'nonsense' : rc.verdict === 'questionable' ? 'questionable' : 'grounded';
+    const label = rc.verdict === 'nonsense' ? 'Does not make sense' : rc.verdict === 'questionable' ? 'Questionable' : 'Makes sense';
+    const meta = [
+      rc.category && rc.category !== 'none' ? rc.category.replace(/_/g, ' ') : '',
+      rc.confidence != null ? rc.confidence + '% confident' : '',
+    ].filter(Boolean).join(' · ');
+    const blockers = rc.blockers || [];
+    const assumptions = rc.assumptions || [];
+    return el('div', { class: 'reality-banner ' + cls }, [
+      el('div', { class: 'decision-head' }, [
+        el('span', { class: 'decision-label', text: 'Reality check' }),
+        el('span', { class: 'decision-value', text: label }),
+        meta ? el('span', { class: 'decision-confidence', text: meta }) : null,
+      ]),
+      rc.summary ? el('p', { class: 'decision-rationale', text: rc.summary }) : null,
+      blockers.length || assumptions.length ? el('div', { class: 'decision-cols' }, [
+        el('div', { class: 'decision-col' }, [el('h4', { text: 'Real-world blockers' }), el('ul', {}, blockers.map((b) => el('li', { text: b })))]),
+        el('div', { class: 'decision-col' }, [el('h4', { text: 'Assumptions that may be false' }), el('ul', {}, assumptions.map((a) => el('li', { text: a })))]),
+      ]) : null,
+    ]);
+  }
 
   function renderStopGoBanner(sg) {
     const o = deliberationOutcome(sg);

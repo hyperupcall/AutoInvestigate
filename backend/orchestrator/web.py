@@ -277,5 +277,5 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8090"))
-    print(f"Research Council on http://localhost:{port} (frontend: {FRONTEND if os.path.isdir(FRONTEND) else 'not mounted'})", flush=True)
+    print(f"AutoInvestiage on http://localhost:{port} (frontend: {FRONTEND if os.path.isdir(FRONTEND) else 'not mounted'})", flush=True)
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()

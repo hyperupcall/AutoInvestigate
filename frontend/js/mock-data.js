@@ -94,22 +94,22 @@
 
   const IDEA_TEMPLATES = {
     refinement: [
-      'Refined concept: {idea} — narrowed to a concrete MVP with a defined technical milestone, validated against existing open-source prior art and near-term demand.',
-      'Sharpened: {idea}. Scope reduced to a single deployable component; success measured as a measurable reduction in operator toil.',
-      'Hardened: {idea}. The vague ambition is replaced with a specific buyer, a specific workflow, and a specific first deliverable.',
+      'Refined: {subject} — scoped to a concrete MVP with one measurable milestone.',
+      'Sharpened: {subject} — reduced to a single deployable component.',
+      'Hardened: {subject} — pinned to a specific buyer and first deliverable.',
     ],
     variation: [
-      'Variation {n}: {idea} — repositioned for the {market} market, {twist}.',
-      'Variation {n}: {idea} — same core mechanism, but {twist} to serve {market}.',
-      'Variation {n}: {idea} — a narrower cut aimed at {market}, {twist}.',
+      '{subject} — repositioned for the {market} market, {twist}.',
+      '{subject} — same core mechanism, but {twist} to serve {market}.',
+      '{subject} — a narrower cut aimed at {market}, {twist}.',
     ],
-    combination: [
-      'Consolidated: {ideas} — a unified system where {bridge}.',
-      'Merged: {ideas} — the combined idea keeps the strongest part of each and drops the overlap.',
+    consolidation: [
+      'Consolidated: {subjects} — a unified system where {bridge}.',
+      'Merged: {subjects} — keeps the strongest part of each and drops the overlap.',
     ],
     freeform: [
-      'Modified: {idea} — {prompt}',
-      'Adjusted: {idea} — {prompt} (applied as a free-form constraint).',
+      'Modified: {subject} — {prompt}',
+      'Adjusted: {subject} — {prompt} (applied as a free-form constraint).',
     ],
   };
 

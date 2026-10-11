@@ -18,67 +18,56 @@
       el('p', { class: 'column-sub', text: 'Ideas you copy over with Evaluate appear here. Start deeper research to run the multi-agent deliberation.' }),
     ]);
 
-    const targets = el('div', { class: 'eval-targets' });
-    const runs = el('div', { class: 'eval-runs' });
+    const list = el('div', { class: 'eval-list' });
 
     container.appendChild(header);
-    container.appendChild(el('div', { class: 'column-body', 'data-scroll-key': 'eval-body' }, [
-      el('div', { class: 'eval-section-label', text: 'Queued for evaluation' }),
-      targets,
-      el('div', { class: 'eval-section-label', text: 'Research runs' }),
-      runs,
-    ]));
+    container.appendChild(el('div', { class: 'column-body', 'data-scroll-key': 'eval-body' }, [list]));
 
-    refs = { targets, runs };
+    refs = { list };
     render();
   }
 
   function render() {
     const s = store.state;
     const queue = s.evaluation.queue;
+    const runs = s.evaluation.runs;
+    const finishedCount = runs.filter((r) => r.status !== 'running').length;
 
-    preserveView(refs.targets, () => {
-      clear(refs.targets);
-      if (!queue.length) {
-        refs.targets.appendChild(el('div', { class: 'empty-state small' }, [
+    preserveView(refs.list, () => {
+      clear(refs.list);
+      if (!queue.length && !runs.length) {
+        refs.list.appendChild(el('div', { class: 'empty-state small' }, [
           el('p', { class: 'muted', text: 'Click Evaluate on an idea in the left column to copy it here.' }),
         ]));
         return;
       }
-      refs.targets.appendChild(el('div', { class: 'queue-head' }, [
-        el('span', { class: 'muted small', text: queue.length + (queue.length === 1 ? ' idea queued' : ' ideas queued') }),
-        el('button', { class: 'link-btn', text: 'Clear all', onclick: () => actions.clearEvaluationQueue() }),
+      const total = queue.length + runs.length;
+      refs.list.appendChild(el('div', { class: 'queue-head' }, [
+        el('span', { class: 'muted small', text: total + (total === 1 ? ' idea' : ' ideas') }),
+        el('div', { class: 'level-head-actions' }, [
+          queue.length
+            ? el('button', { class: 'link-btn', text: 'Clear queued', onclick: () => actions.clearEvaluationQueue() })
+            : null,
+          finishedCount
+            ? el('button', { class: 'link-btn', text: 'Hide finished', title: 'Hide all completed and cancelled runs', onclick: () => actions.clearFinishedRuns() })
+            : null,
+        ]),
       ]));
-      queue.forEach((item) => {
-        refs.targets.appendChild(el('div', { class: 'eval-target' }, [
-          el('p', { class: 'eval-target-text', text: truncate(item.text, 180) }),
-          el('div', { class: 'eval-target-foot' }, [
-            el('div', { class: 'eval-target-actions' }, [
-              el('button', { class: 'mini-btn', title: 'Remove from queue', text: '✕', onclick: () => actions.removeQueuedIdea(item.id) }),
-              el('button', { class: 'btn small primary', text: 'Start Deeper Research', onclick: () => actions.startQueuedEvaluation(item.id) }),
-            ]),
-          ]),
-        ]));
-      });
+      queue.forEach((item) => refs.list.appendChild(renderQueued(item)));
+      runs.forEach((run) => refs.list.appendChild(renderRun(run)));
     });
+  }
 
-    preserveView(refs.runs, () => {
-      clear(refs.runs);
-      if (!s.evaluation.runs.length) {
-        refs.runs.appendChild(el('div', { class: 'empty-state small' }, [
-          el('p', { class: 'muted', text: 'No research runs yet.' }),
-        ]));
-        return;
-      }
-      const finishedCount = s.evaluation.runs.filter((r) => r.status !== 'running').length;
-      if (finishedCount) {
-        refs.runs.appendChild(el('div', { class: 'queue-head' }, [
-          el('span', { class: 'muted small', text: s.evaluation.runs.length + (s.evaluation.runs.length === 1 ? ' run' : ' runs') }),
-          el('button', { class: 'link-btn', text: 'Hide finished', title: 'Hide all completed and cancelled runs', onclick: () => actions.clearFinishedRuns() }),
-        ]));
-      }
-      s.evaluation.runs.forEach((run) => refs.runs.appendChild(renderRun(run)));
-    });
+  function renderQueued(item) {
+    return el('div', { class: 'eval-target' }, [
+      el('p', { class: 'eval-target-text', text: truncate(item.text, 180) }),
+      el('div', { class: 'eval-target-foot' }, [
+        el('div', { class: 'eval-target-actions' }, [
+          el('button', { class: 'mini-btn', title: 'Remove from queue', text: '✕', onclick: () => actions.removeQueuedIdea(item.id) }),
+          el('button', { class: 'btn small primary', text: 'Start Deeper Research', onclick: () => actions.startQueuedEvaluation(item.id) }),
+        ]),
+      ]),
+    ]);
   }
 
   function renderRun(run) {

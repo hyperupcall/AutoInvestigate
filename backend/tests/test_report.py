@@ -46,6 +46,21 @@ def test_verify_drops_invented_quotes_and_unknown_ids():
     assert kept == 1 and dropped == 1 and item["sides"][1]["agent_ids"] == ["b"] and item["evidence_verified"]
 
 
+def test_report_includes_reality_check():
+    from council.report import build
+    events = [
+        {"kind": "run_start", "t": "2026-01-01T00:00:00+00:00", "run": "r1", "idea": "x", "max_cost": 1, "mode": "quick",
+         "groups": [{"id": "g", "name": "G", "consensus": "converge", "use_sources": False,
+                     "agents": [{"id": "a", "name": "A", "model": "m", "prompt": None}]}]},
+        {"kind": "reality_check", "t": "2026-01-01T00:00:01+00:00", "verdict": "nonsense", "confidence": 90,
+         "category": "physically_impossible", "summary": "Breaks physics.", "blockers": ["energy"],
+         "assumptions": [], "model": "m"},
+        {"kind": "run_end", "t": "2026-01-01T00:00:02+00:00", "status": "done", "calls": 1, "spent": 0.01},
+    ]
+    r = build(events)
+    assert r["reality_check"]["verdict"] == "nonsense" and r["reality_check"]["blockers"] == ["energy"]
+
+
 def test_exported_reports_match_the_schema():
     import glob
     import json

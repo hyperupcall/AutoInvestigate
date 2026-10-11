@@ -1,8 +1,8 @@
-# CLAUDE.md — Research Council (UCSC AI Hackathon, Cisco Cloud AI track)
+# CLAUDE.md — AutoInvestiage (UCSC AI Hackathon, Cisco Cloud AI track)
 
 ## What we're building
 
-A **Research Council**: 4 AI agents with competing objectives negotiate over a scarce
+A **AutoInvestiage**: 4 AI agents with competing objectives negotiate over a scarce
 budget (3 build slots, 40 engineer-hours) to decide which of 10 emerging-technology
 research ideas Cisco Outshift should pursue first. It targets **Cisco's Level 3
 "Collective Intelligence"** challenge:

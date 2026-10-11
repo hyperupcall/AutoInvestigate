@@ -53,21 +53,23 @@ Pages:
   matching extra inputs (variation count / free-form instruction).
 - Iterating a level uses the **selected** ideas in that level, or the **whole level**
   when nothing is selected (consolidation requires ≥ 2 ideas).
-- **Evaluate →** copies the idea into the **Idea Evaluation** column (it does *not*
-  start the run). Selection is only used for iterating.
-- Each idea shows the label derived from its lineage, e.g. `Idea after 1 refinement`,
-  `Idea after 3 variations`, `Idea after combining 2 ideas`,
-  `Idea after 2 variations and 1 combination`.
+- Each level also has an **Evaluate** button next to **Iterate**; it uses the same
+  selection rule and copies the chosen ideas into the **Idea Evaluation** column (it
+  does *not* start the run).
+- **Evaluate →** on an individual idea copies just that idea into the **Idea
+  Evaluation** column.
 - The **level terminology lives in the code** (`state.levels`, `level` numbers) but
   is **not shown in the interface** — no "Level N" labels.
+- Each level's control row (**Select all**, **Evaluate**, **Iterate**) stays pinned to
+  the top of the column while you scroll that level's ideas.
 - The column scrolls independently and auto-scrolls to the newest level.
 
 ### Column 2 — Idea Evaluation
 
-- **Evaluate →** in column 1 copies an idea into the **Queued for evaluation** list
-  here (duplicates are blocked; remove one with ✕ or clear all).
+- **Evaluate →** in column 1 copies an idea into this column's single list
+  (duplicates are blocked; remove a queued idea with ✕ or **Clear queued**).
 - Each queued idea has its own **Start Deeper Research** button, which starts the run
-  and moves the idea into the **Research runs** list.
+  and turns the entry into a run card in the same list.
 - Click a run to open a large popup with two tabs:
   - **Cluster Status** — each group is drawn as a **graph**: one circle per agent
     with the agent's name beside it (the agent currently speaking is highlighted).

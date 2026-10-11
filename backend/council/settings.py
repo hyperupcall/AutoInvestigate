@@ -43,7 +43,7 @@ def validate(s: dict) -> list[str]:
         errs.append("max_cost_usd must be between 0.05 and 50")
     if not 0 <= s.get("web_search_results", -1) <= 10:
         errs.append("web_search_results must be between 0 and 10")
-    for stage in ("summarizer", "judge"):
+    for stage in ("summarizer", "judge", "reality_check"):
         if not str(s.get("stages", {}).get(stage, {}).get("model", "")).strip():
             errs.append(f"stages.{stage}.model is required")
     for k, v in s.get("reasoning_effort", {}).items():

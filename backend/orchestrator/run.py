@@ -25,6 +25,7 @@ class Run:
         self.s = s or settings.load()
         self.budget = RunBudget(self.s["max_cost_usd"])
         self.quick = self.s.get("mode", "quick") == "quick"
+        self.reality_check: dict | None = None  # the outside check that runs before the groups (see pipeline)
         self.sources: dict = {}
         self.sources_text = ""
         self._sources_task = None

@@ -126,9 +126,14 @@ a.btn { text-decoration: none; display: inline-block; }
 
 /* ------------------------------ levels ------------------------------ */
 .sections { display: flex; flex-direction: column; }
-.level-group { padding: 8px 0; border-top: 1px solid silver; }
+.level-group { padding: 4px 0 8px; border-top: 1px solid silver; }
 .level-group:first-child { border-top: none; padding-top: 0; }
-.level-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.level-group-head {
+  display: flex; align-items: center; gap: 8px;
+  position: sticky; top: 0; z-index: 2;
+  background: white; padding: 6px 0; margin-bottom: 4px;
+  border-bottom: 1px solid gainsboro;
+}
 .level-head-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .level-badge { font-size: 11px; font-weight: 600; color: gray; border: 1px solid silver; padding: 0 4px; white-space: nowrap; }
 .input-card.level-0 { border-color: gray; }
@@ -145,7 +150,6 @@ a.btn { text-decoration: none; display: inline-block; }
 .idea-body { flex: 1; min-width: 0; }
 .idea-text { font-size: 13px; }
 .idea-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
-.idea-label { font-size: 11px; color: gray; }
 
 .level-iteration { margin-top: 8px; padding-top: 8px; border-top: 1px solid gainsboro; }
 .level-iteration .field:first-child { margin-top: 0; }
@@ -167,8 +171,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .empty-mark { font-size: 20px; }
 
 /* --------------------------- evaluation --------------------------- */
-.eval-section-label { font-size: 12px; color: gray; margin: 4px 0 6px; }
-.eval-targets, .eval-runs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.eval-list { display: flex; flex-direction: column; gap: 8px; }
 .eval-target { border: 1px solid silver; padding: 8px; }
 .eval-target-text { font-size: 13px; }
 .eval-target-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
@@ -427,6 +430,14 @@ a.btn { text-decoration: none; display: inline-block; }
 .decision-banner.kept .decision-value { color: darkorange; }
 .run-decision.extra { color: blue; border-color: blue; }
 .run-decision.kept { color: darkorange; border-color: darkorange; }
+/* reality check (runs before the groups): does the idea make sense in the real world at all? */
+.reality-banner { border: 1px solid gray; padding: 10px; }
+.reality-banner.grounded { border-color: green; }
+.reality-banner.questionable { border-color: darkorange; }
+.reality-banner.nonsense { border-color: red; }
+.reality-banner.grounded .decision-value { color: green; }
+.reality-banner.questionable .decision-value { color: darkorange; }
+.reality-banner.nonsense .decision-value { color: red; }
 
 /* --------------------------- spinner + toast --------------------------- */
 .spinner {

@@ -36,6 +36,10 @@ class FakeRun:
 
 
 def fake_stage(decision, seen):
+    async def reality_check(run):
+        seen.append("reality_check")
+        return {"verdict": "grounded", "summary": "coherent"}
+
     async def summarize(run, g, stage, t, e):
         seen.append(stage)
         return f"summary of {g['id']}"
@@ -47,18 +51,20 @@ def fake_stage(decision, seen):
     async def conclude(run, groups, summaries, sg, log=True):
         seen.append(("final", sorted(summaries)))
         return {"overall": {"headline": "h"}, "groups": {}, "_model": "m", "_cost": 0}
-    return summarize, stop_or_go, conclude
+    return reality_check, summarize, stop_or_go, conclude
 
 
 @pytest.mark.parametrize("decision,rounds", [("stop", 2), ("go", 3)])
 def test_rounds_and_always_finish(monkeypatch, decision, rounds):
     seen = []
-    s, sg, c = fake_stage(decision, seen)
+    rc, s, sg, c = fake_stage(decision, seen)
+    monkeypatch.setattr(P, "reality_check", rc)
     monkeypatch.setattr(P, "summarize", s)
     monkeypatch.setattr(P, "stop_or_go", sg)
     monkeypatch.setattr(P, "conclude", c)
     run = FakeRun()
     assert asyncio.run(P.pipeline(run)) == "done"
+    assert seen.count("reality_check") == 1 and seen[0] == "reality_check"  # runs once, before any group
     delib = [c for c in run.calls if c.startswith("deliberation_")]
     assert len(delib) == rounds * len(GROUPS)
     assert "evaluation_1:evaluate" in run.calls and "evaluation_2:cross_review" in run.calls
@@ -80,7 +86,8 @@ def test_budget_stop_ends_cleanly(monkeypatch):
 
 def test_quick_mode_uses_the_early_verdict_when_stop(monkeypatch):
     seen = []
-    s, sg, c = fake_stage("stop", seen)
+    rc, s, sg, c = fake_stage("stop", seen)
+    monkeypatch.setattr(P, "reality_check", rc)
     monkeypatch.setattr(P, "summarize", s)
     monkeypatch.setattr(P, "stop_or_go", sg)
     monkeypatch.setattr(P, "conclude", c)

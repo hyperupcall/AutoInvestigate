@@ -2,8 +2,8 @@
 our raw run log. The finished report needs no translation: the frontend reads schema/evaluation-report.schema.json
 directly (GET /api/runs/<id>/report).
 
-Event kinds, in order: phase, cluster, group-start, round-start, turn, missed, evaluation, failed, summary,
-cross-group, stop-go, verdict.
+Event kinds, in order: phase, cluster, reality-check, group-start, round-start, turn, missed, evaluation, failed,
+summary, cross-group, stop-go, verdict.
 """
 import re
 from datetime import datetime
@@ -69,6 +69,10 @@ def ui_events(events: list[dict]) -> list[dict]:
             add(e, phase=_label(n), kind="failed", round=n, agent_id=e["agent"], reason=e.get("error", ""), **common)
         elif k == "summary":
             add(e, phase=_label(n), kind="summary", round=n, summary={**parse_summary(e["text"]), "complete": _summary_complete(e)}, **common)
+        elif k == "reality_check":
+            add(e, phase="Reality check", kind="reality-check", reality_check={
+                "verdict": e["verdict"], "confidence": e.get("confidence"), "category": e.get("category", "none"),
+                "summary": e["summary"], "blockers": e.get("blockers", []), "assumptions": e.get("assumptions", [])})
         elif k == "stop_go":
             add(e, phase="Stop-or-Go", kind="stop-go", stop_go={
                 "decision": e["decision"], "consensus_feasible": e["consensus_feasible"],

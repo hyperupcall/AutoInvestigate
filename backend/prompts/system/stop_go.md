@@ -9,6 +9,10 @@ reaction group of customer archetypes. This is where each group stands now:
 
 <<SUMMARIES>>
 
+Before the groups started, a reality check judged whether the idea makes sense in the real world at all:
+
+<<REALITY_CHECK>>
+
 Decide whether to STOP or to GO (run one more round of deliberation).
 
 STOP means the evidence is enough for a useful conclusion: either the groups largely agree, or their
@@ -19,6 +23,9 @@ Keep in mind that the market reaction group is made of different customer types 
 agree with each other. Their disagreement is information, not a reason to continue.
 
 Also judge whether a consensus across the groups is feasible at all, and say so honestly.
+
+If the reality check says the idea is nonsense, say so in the overall rationale and do not let the groups'
+enthusiasm bury it. A real-world blocker is not something another round of talking can fix.
 
 Reply with JSON only, in this shape:
 {

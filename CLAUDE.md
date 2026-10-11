@@ -106,6 +106,16 @@ The pipeline should be simple and use **models configured by the user**.
 
 **Evaluation flow:**
 
+0. **Reality check** (added): before any group deliberates, one outside call asks
+   whether the idea makes sense in the real world at all — coherent and physically,
+   legally and logically possible — and returns a structured verdict
+   (`grounded` / `questionable` / `nonsense`, a category, a one-line summary,
+   real-world blockers, and assumptions that may be false). It is advisory: if the
+   call fails the run continues without it. The result is fed into the stop-or-go
+   and final prompts (a `nonsense` idea cannot get a plain "Go") and shown to the
+   user as a banner. This is the guard against a bad idea slipping through: the
+   three groups all argue *inside* the idea, so none of them steps outside to ask
+   whether it is real.
 1. Give the idea string to each group perspective; tell them to **deliberate for a
    configurable number of seconds** and output an evaluation. Encourage use of the
    **Jev/TypeSafe AI** model and open decision models. **All models via OpenRouter.**
@@ -175,24 +185,29 @@ of truth for the settings dropdown too).
   matching extra inputs (variation count / free-form instruction).
 - Iterating a level uses the **selected** ideas in that level, or the **whole level**
   when nothing is selected (consolidation requires ≥ 2 ideas).
-- **Evaluate →** copies the idea into the **Idea Evaluation** column (it does *not*
-  start the run). Selection is only used for iterating.
-- Each idea shows a **lineage label**, e.g. `Idea after 1 refinement`,
-  `Idea after 3 variations`, `Idea after combining 2 ideas`,
-  `Idea after 2 variations and 1 combination`.
+- Each level also has an **Evaluate** button next to **Iterate**; it uses the same
+  selection rule and copies the chosen ideas into the **Idea Evaluation** column (it
+  does *not* start the run).
+- **Evaluate →** on an individual idea copies just that idea into the **Idea
+  Evaluation** column.
+- Ideas do **not** show a lineage label (no `Idea after N …` text).
 - The **level terminology lives in the code** (`state.levels`, `level` numbers) but
   is **not shown in the interface** — no "Level N" labels.
+- Each level's control row (**Select all**, **Evaluate**, **Iterate**) stays pinned to
+  the top of the column while you scroll that level's ideas.
 - The column scrolls independently and auto-scrolls to the newest level.
 
 ### Column 2 — Idea Evaluation
 
-- **Evaluate →** in column 1 copies an idea into the **Queued for evaluation** list
-  here (duplicates are blocked; each queued item can be removed with ✕ or cleared
-  with **Clear all**).
+- **Evaluate →** in column 1 copies an idea into this column's **single list**
+  (duplicates are blocked; each queued item can be removed with ✕ or cleared with
+  **Clear queued**).
 - Each queued idea has its own **Start Deeper Research** button, which starts the run
-  and moves the idea into the **Research runs** list.
-- Each run appears in the **Research runs** list. A running run can be **cancelled** (from its card or the popup header); any run can be **hidden** with ✕, and **Hide finished** clears all completed/cancelled runs. Clicking a run opens a large popup with
-  **two tabs**:
+  and turns the entry into a run card in the same list.
+- Queued ideas and runs share **one regular list** (no separate "Queued" / "Research
+  runs" sections). A running run can be **cancelled** (from its card or the popup
+  header); any run can be **hidden** with ✕, and **Hide finished** clears all
+  completed/cancelled runs. Clicking a run opens a large popup with **two tabs**:
   - **Cluster Status** — each group is drawn as a **graph**: one circle per agent
     with the agent's name beside it (the agent currently speaking is highlighted).
     Clicking a circle shows that agent's output — its discussion turns and
@@ -318,8 +333,8 @@ const handle = Hack.mockBackend.startEvaluation({
 handle.cancel();
 ```
 
-Event kinds streamed to `onEvent`: `phase`, `cluster`, `group-start`,
-`round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
+Event kinds streamed to `onEvent`: `phase`, `cluster`, `reality-check`,
+`group-start`, `round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
 `cross-group`, `stop-go`, `verdict`. The **Cluster Status** tab renders these live;
 the **Evaluation** tab renders the final `report`.
 
@@ -340,6 +355,13 @@ light/minimal styling.
 on :8090, or `localhost:8090` from `run.sh` on :8000); otherwise the mock still runs. Past runs load into
 "Research runs". Stop-or-go is shown as the deliberation outcome (Stopped / Extra round / Disagreement kept),
 not as a verdict on the idea; the idea's verdict is the "Final verdict" block.
+
+**Done (real): Reality check** — a stage before the groups (`prompts/system/reality_check.md`, stage
+`reality_check` in settings) that judges whether the idea makes sense in the real world at all and returns a
+structured verdict (`grounded` / `questionable` / `nonsense` + category, summary, blockers, assumptions). It is
+advisory (a failed call does not stop the run), feeds the stop-or-go and final prompts so a `nonsense` idea
+cannot get a plain "Go", lands in the report as `reality_check`, and shows as a banner in the Evaluation tab and
+a `reality-check` event in Cluster Status. The mock mirrors it with a small keyword heuristic.
 
 **Done (real): Column 3 · Idea Execution** — `frontend/js/api-execution.js` swaps the mock for the real
 `artifactfactory/` service whenever it answers (same origin, or `localhost:8080` from `run.sh` on :8000; the

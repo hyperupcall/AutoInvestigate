@@ -12,6 +12,10 @@ And the decision to stop that was reached:
 
 <<STOP_GO>>
 
+A reality check ran before the groups, judging whether the idea makes sense in the real world at all:
+
+<<REALITY_CHECK>>
+
 Write the final conclusion for each group, to be shown directly to the person who submitted the idea.
 
 Reply with JSON only:
@@ -27,6 +31,9 @@ Reply with JSON only:
     }
   }
 }
+If the reality check says the idea is nonsense, the overall headline must say so plainly and must not be a plain
+Go. Name the real-world blocker in the headline or the conclusion; do not soften it into a normal risk.
+
 Every group id above must appear. For "scores", use only these metric names, exactly as written: Feasibility,
 Technical risk, Market demand, Differentiation, Time to first value, Cost to build and run, Adoption likelihood.
 Each value is the median (1-10) of what this group's members gave in their latest evaluations. Leave a metric out

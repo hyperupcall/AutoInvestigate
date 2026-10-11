@@ -90,5 +90,5 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8090"))
-    print(f"Research Council UI on http://localhost:{port}", flush=True)
+    print(f"AutoInvestiage UI on http://localhost:{port}", flush=True)
     ThreadingHTTPServer(("0.0.0.0", port), H).serve_forever()

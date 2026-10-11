@@ -1,5 +1,6 @@
 """The idea-evaluation pipeline:
 
+  0. a reality check: does the idea make sense in the real world at all?
   1. every group discusses the idea (timed round-robin)        5. re-evaluate with all summaries + template
   2. every agent writes its evaluation                         6. summarize again
   3. the summarizer writes each group's pros and cons          7. stop or go?  go -> one more discuss/evaluate/summarize
@@ -18,11 +19,24 @@ def summaries_block(groups: list[dict], summaries: dict[str, str]) -> str:
     return "\n\n".join(f"=== {g['name']} ===\n{summaries.get(g['id'], '(no summary)')}" for g in groups)
 
 
+def reality_block(rc: dict | None) -> str:
+    """The reality check as text for the stop-or-go and final prompts."""
+    if not rc:
+        return "No reality check was run."
+    lines = [f"Verdict: {rc.get('verdict', '?')} (confidence {rc.get('confidence', '?')}, category {rc.get('category', 'none')}).",
+             rc.get("summary", "")]
+    if rc.get("blockers"):
+        lines.append("Real-world blockers: " + "; ".join(rc["blockers"]))
+    if rc.get("assumptions"):
+        lines.append("Assumptions that may be false: " + "; ".join(rc["assumptions"]))
+    return "\n".join(lines)
+
+
 async def stage_call(run: Run, stage_cfg: str, budget_key: str, prompt: str, validate=None):
     """Summarizer or judge call made directly by the orchestrator (these are not deliberating agents)."""
     s = run.s
     cfg = s["stages"][stage_cfg]
-    quick_tokens = {"summarize": 900, "judge": 2400}
+    quick_tokens = {"summarize": 900, "judge": 2400, "reality_check": 900}
     kw = dict(max_tokens=quick_tokens[budget_key] if run.quick else s["max_tokens"][budget_key],
               reasoning_effort="none" if run.quick else s["reasoning_effort"][budget_key],
               budget=run.budget, web_results=s["web_search_results"])
@@ -55,10 +69,37 @@ def _check_groups(obj: dict, ids: list[str], fields: tuple) -> str | None:
     return None
 
 
+async def reality_check(run: Run) -> dict | None:
+    """One outside call, before any group deliberates: does this idea make sense in the real world at all?
+    Advisory only: if the call fails, the run continues without it."""
+    run.log("stage_start", stage="reality_check")
+    prompt = prompts.system("reality_check", IDEA=run.idea)
+
+    def validate(o):
+        if o.get("verdict") not in ("grounded", "questionable", "nonsense"):
+            return "verdict must be grounded, questionable or nonsense"
+        if not isinstance(o.get("summary"), str) or not o["summary"].strip():
+            return "summary is required"
+        return None
+    try:
+        obj, res = await stage_call(run, "reality_check", "reality_check", prompt, validate)
+    except BudgetExceeded:
+        raise
+    except Exception as e:  # never let the reality check break an evaluation
+        run.log("note", text=f"Reality check skipped: {type(e).__name__}: {e}"[:300])
+        return None
+    run.log("reality_check", verdict=obj["verdict"], confidence=obj.get("confidence"),
+            category=obj.get("category", "none"), summary=obj["summary"],
+            blockers=obj.get("blockers", []), assumptions=obj.get("assumptions", []),
+            model=res.model, cost=res.cost)
+    return obj
+
+
 async def stop_or_go(run: Run, groups: list[dict], summaries: dict[str, str]) -> dict:
     ids = [g["id"] for g in groups]
     run.log("stage_start", stage="stop_go")
     prompt = prompts.system("stop_go", IDEA=run.idea, SUMMARIES=summaries_block(groups, summaries),
+                            REALITY_CHECK=reality_block(getattr(run, "reality_check", None)),
                             GROUP_IDS='", "'.join(ids))
 
     def validate(o):
@@ -81,7 +122,8 @@ async def conclude(run: Run, groups: list[dict], summaries: dict[str, str], sg: 
     sg_text = (f"Decision: {sg['decision']}. Consensus feasible: {sg.get('consensus_feasible')}. "
                f"{sg['overall'].get('rationale', '')}") if sg else "The groups' latest positions above are final."
     prompt = prompts.system("final", IDEA=run.idea, SUMMARIES=summaries_block(groups, summaries),
-                            STOP_GO=sg_text, GROUP_IDS='", "'.join(ids))
+                            STOP_GO=sg_text, REALITY_CHECK=reality_block(getattr(run, "reality_check", None)),
+                            GROUP_IDS='", "'.join(ids))
 
     def validate(o):
         if not isinstance(o.get("overall"), dict) or "headline" not in o["overall"]:
@@ -124,6 +166,7 @@ async def pipeline(run: Run) -> str:
     try:
         await run.start()
         groups = run.s["groups"]
+        run.reality_check = await reality_check(run)
         s1 = await round_(run, groups, 1, "", "")
         shared1 = summaries_block(groups, s1)
         prior2 = ("Every group has finished a first discussion and evaluation. Their summaries:\n\n" + shared1 +

@@ -65,11 +65,12 @@ DEFAULT_SETTINGS = {
     "deliberation_seconds": 60,          # per deliberation round, per group
     "max_cost_usd": 1.0,                 # a run stops when this is spent
     "web_search_results": 3,             # per search for ":online" models
-    "max_tokens": {"deliberate": 500, "evaluate": 4500, "summarize": 5000, "judge": 4000},
-    "reasoning_effort": {"deliberate": "none", "evaluate": "low", "summarize": "none", "judge": "low"},
+    "max_tokens": {"deliberate": 500, "evaluate": 4500, "summarize": 5000, "judge": 4000, "reality_check": 1200},
+    "reasoning_effort": {"deliberate": "none", "evaluate": "low", "summarize": "none", "judge": "low", "reality_check": "low"},
     "stages": {
         "summarizer": {"model": "openai/gpt-oss-120b", "api_key": ""},
         "judge": {"model": "openai/gpt-oss-120b", "api_key": ""},
+        "reality_check": {"model": "openai/gpt-oss-120b", "api_key": ""},
     },
     "groups": _groups(),
 }

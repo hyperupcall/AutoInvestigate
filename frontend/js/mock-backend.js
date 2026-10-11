@@ -12,7 +12,7 @@
  */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
-  const { sleep, truncate, makeRng, uid } = Hack.util;
+  const { sleep, makeRng, uid } = Hack.util;
   const D = Hack.mockData;
 
   /* ================================================================== *
@@ -81,17 +81,28 @@
     return template.replace(/\{(\w+)\}/g, (_, key) => (vars[key] != null ? vars[key] : `{${key}}`));
   }
 
-  function buildIdeaTexts({ iterationType, sourceIdeas, variationCount, freeformPrompt, seedText, rng }) {
+  /** A short, stable reference to an idea. Derived once from the seed and then
+   *  inherited, so generated text never grows by embedding its parent's text. */
+  function subjectOf(text) {
+    const clean = String(text == null ? '' : text).trim().replace(/\s+/g, ' ');
+    if (!clean) return 'the seed idea';
+    if (clean.length <= 90) return clean;
+    const cut = clean.slice(0, 90);
+    const at = cut.lastIndexOf(' ');
+    return (at > 40 ? cut.slice(0, at) : cut).trim();
+  }
+
+  function buildIdeaTexts({ iterationType, subject, subjects, variationCount, freeformPrompt, depth, rng }) {
     const templates = D.IDEA_TEMPLATES[iterationType] || D.IDEA_TEMPLATES.refinement;
-    const sources = sourceIdeas.length ? sourceIdeas : [{ text: seedText || 'the seed idea', lineage: [] }];
-    const ideaList = sources.map((s) => truncate(s.text, 90));
+    // Rotate the template by lineage depth so successive generations differ
+    // instead of repeating the same sentence.
+    const template = (offset) => templates[(depth + (offset || 0)) % templates.length];
 
     if (iterationType === 'variation') {
       const out = [];
       for (let n = 1; n <= variationCount; n += 1) {
-        out.push(fill(rng.pick(templates), {
-          n,
-          idea: ideaList[0] || ideaList.join('; '),
+        out.push(fill(template(n - 1), {
+          subject,
           market: rng.pick(D.MARKETS),
           twist: rng.pick(D.TWISTS),
         }));
@@ -99,15 +110,15 @@
       return out;
     }
     if (iterationType === 'consolidation') {
-      return [fill(rng.pick(templates), { ideas: ideaList.join(' + '), bridge: rng.pick(D.BRIDGES) })];
+      return [fill(template(), { subjects, bridge: rng.pick(D.BRIDGES) })];
     }
     if (iterationType === 'freeform') {
-      return [fill(rng.pick(templates), {
-        idea: ideaList.join('; '),
+      return [fill(template(), {
+        subject,
         prompt: freeformPrompt || 'apply the requested modification',
       })];
     }
-    return [fill(rng.pick(templates), { idea: ideaList.join('; ') })];
+    return [fill(template(), { subject })];
   }
 
   /* ================================================================== *
@@ -118,17 +129,31 @@
     await sleep(900 + Math.random() * 900);
 
     const seed = seedText || sourceIdeas.map((i) => i.text).join('|') || 'seed';
-    const rng = makeRng(seed + '|' + iterationType + '|' + variationCount);
     const baseLineage = pickBaseLineage(sourceIdeas.map((i) => i.lineage || []));
+    const depth = baseLineage.length;
+    const rng = makeRng(seed + '|' + iterationType + '|' + variationCount + '|' + depth);
     const op = makeOp(iterationType, sourceIdeas, variationCount);
     const lineage = [...baseLineage, op];
-    const texts = buildIdeaTexts({ iterationType, sourceIdeas, variationCount, freeformPrompt, seedText, rng });
+
+    // The subject is derived once (from the seed) and inherited by descendants,
+    // so ideas stay short instead of embedding their parent's full text.
+    const sources = sourceIdeas.length ? sourceIdeas : [{ text: seedText || 'the seed idea' }];
+    const subjectList = [];
+    for (const s of sources) {
+      const subj = s.subject || subjectOf(s.text);
+      if (subj && !subjectList.includes(subj)) subjectList.push(subj);
+    }
+    const subject = subjectList[0] || 'the seed idea';
+    const subjects = subjectList.join(' + ');
+
+    const texts = buildIdeaTexts({ iterationType, subject, subjects, variationCount, freeformPrompt, depth, rng });
 
     return {
       label: describeLineage(lineage),
       lineage,
       operation: op,
       model: model || 'mock/model',
+      subject,
       ideas: texts.map((text) => ({ text })),
     };
   }
@@ -145,6 +170,33 @@
     return JSON.parse(JSON.stringify(Hack.mockReport));
   }
 
+  /* Mock reality check: a tiny keyword heuristic so the UI shows the feature without a backend. The real check
+   * is one model call on the backend (prompts/system/reality_check.md). */
+  const NONSENSE = [
+    { re: /perpetual motion|free energy|over[- ]unity/i, category: 'physically_impossible',
+      summary: 'Perpetual motion and free energy break conservation of energy, so no build can deliver it.' },
+    { re: /faster[- ]than[- ]light|\bftl\b|time travel/i, category: 'physically_impossible',
+      summary: 'Travel faster than light is not possible with known physics.' },
+    { re: /teleport/i, category: 'physically_impossible',
+      summary: 'Teleporting matter is not possible with known physics.' },
+  ];
+  const QUESTIONABLE = [
+    { re: /quantum|agi|superintelligence|conscious/i, category: 'false_premise',
+      summary: 'The idea leans on a capability that is not proven yet, so the plan rests on an unverified assumption.' },
+  ];
+
+  function realityCheckFor(ideaText) {
+    const text = String(ideaText || '');
+    for (const m of NONSENSE) {
+      if (m.re.test(text)) return { verdict: 'nonsense', confidence: 90, category: m.category, summary: m.summary, blockers: [m.summary], assumptions: [] };
+    }
+    for (const m of QUESTIONABLE) {
+      if (m.re.test(text)) return { verdict: 'questionable', confidence: 60, category: m.category, summary: m.summary, blockers: [], assumptions: [m.summary] };
+    }
+    return { verdict: 'grounded', confidence: 80, category: 'none',
+             summary: 'The idea is coherent and could exist; nothing in it breaks physics, law or logic.', blockers: [], assumptions: [] };
+  }
+
   /** Build the full evaluation report for an idea. Synchronous so the UI can
    *  show the agent cluster immediately, before any events stream in. */
   function buildReport(ideaText) {
@@ -157,6 +209,7 @@
       started_at: new Date().toISOString(),
       finished_at: new Date().toISOString(),
     });
+    report.reality_check = realityCheckFor(ideaText);
     return report;
   }
 
@@ -175,6 +228,10 @@
         agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question, who_they_are: a.who_they_are })),
       })),
     }, 700);
+
+    if (report.reality_check) {
+      push({ phase: 'Reality check', kind: 'reality-check', reality_check: report.reality_check }, 620);
+    }
 
     for (const g of report.groups) {
       push({

@@ -58,6 +58,10 @@ papers, who cited each, and any citation of an id that was not in the list. Togg
 
 ## What happens in an evaluation
 
+0. A reality check runs first: one outside call (`prompts/system/reality_check.md`, stage `reality_check`) judges
+   whether the idea makes sense in the real world at all and returns `grounded` / `questionable` / `nonsense` with a
+   category, a summary, real-world blockers and shaky assumptions. It is advisory (a failed call does not stop the
+   run) and is fed into the stop-or-go and final prompts, so a `nonsense` idea cannot get a plain "Go".
 1. Each group discusses the idea for a set time (round-robin, everyone hears everything).
 2. Every member writes an evaluation in its own format (`prompts/<group>/<agent>.md`).
 3. A summarizer writes each group's pros and cons.
@@ -67,7 +71,7 @@ papers, who cited each, and any citation of an id that was not in the list. Togg
 7. Stop or go. This decides whether to keep deliberating, not whether the idea is good: stop, or run one
    extra round and then always finish. If a consensus across groups is not feasible, the disagreement is kept.
 8. Final conclusions per group, written for a person. Then a disagreement analysis (quotes are checked word for
-   word) and the JSON report in `results/<run_id>.json`.
+   word) and the JSON report in `results/<run_id>.json` (the reality check lands in its `reality_check` field).
 
 The orchestrator only opens SLIM groups, relays commands and records events; it decides nothing.
 

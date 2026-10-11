@@ -1,7 +1,7 @@
 [project]
 name = "research-council"
 version = "0.1.0"
-description = "Research Council: 4 competing agents negotiate over AGNTCY/SLIM"
+description = "AutoInvestiage: 4 competing agents negotiate over AGNTCY/SLIM"
 requires-python = ">=3.13,<3.14"
 # Pins copied from coffeeAGNTCY lungo/pyproject.toml
 dependencies = [

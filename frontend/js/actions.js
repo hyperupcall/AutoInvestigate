@@ -89,6 +89,7 @@
         lvl.ideas.push({
           id: uid('idea'),
           text: idea.text,
+          subject: res.subject,
           lineage: res.lineage,
           label: res.label,
           level: targetLevel,
@@ -96,7 +97,7 @@
           index,
         });
       });
-      showToast(`Added: ${res.label}`, 'ok');
+      showToast(res.ideas.length === 1 ? 'Added 1 idea.' : `Added ${res.ideas.length} ideas.`, 'ok');
     } catch (err) {
       lvl.error = String((err && err.message) || err);
       showToast('Generation failed (mock).', 'error');
@@ -153,7 +154,7 @@
     const sourceIdeas = ids
       .map((id) => lvl.ideas.find((i) => i.id === id))
       .filter(Boolean)
-      .map((i) => ({ text: i.text, lineage: i.lineage }));
+      .map((i) => ({ text: i.text, lineage: i.lineage, subject: i.subject }));
 
     await runGeneration({
       sourceIdeas,
@@ -166,14 +167,10 @@
 
   /* --------------------------- evaluation --------------------------- */
 
-  /** Copy an idea from column 1 into the evaluation queue (column 2). */
-  function queueIdeaForEvaluation(ideaId) {
-    const idea = store.ideaById(ideaId);
-    if (!idea) return;
-    if (state.evaluation.queue.some((q) => q.text === idea.text)) {
-      showToast('Already in the evaluation queue.', 'warn');
-      return;
-    }
+  /** Add one idea to the evaluation queue. Returns false if it is already there. */
+  function enqueueIdea(idea) {
+    if (!idea) return false;
+    if (state.evaluation.queue.some((q) => q.text === idea.text)) return false;
     state.evaluation.queue.push({
       id: uid('queue'),
       text: idea.text,
@@ -181,8 +178,34 @@
       sourceIdeaId: idea.id,
       addedAt: Date.now(),
     });
+    return true;
+  }
+
+  /** Copy an idea from column 1 into the evaluation queue (column 2). */
+  function queueIdeaForEvaluation(ideaId) {
+    const idea = store.ideaById(ideaId);
+    if (!idea) return;
+    if (!enqueueIdea(idea)) {
+      showToast('Already in the evaluation queue.', 'warn');
+      return;
+    }
     store.notify();
     showToast('Copied to Idea Evaluation.', 'ok');
+  }
+
+  /** Copy the selected ideas in a level (or the whole level) into the queue. */
+  function queueLevelForEvaluation(level) {
+    const lvl = state.levels.find((l) => l.level === level);
+    if (!lvl || !lvl.ideas.length) return;
+    let ids = state.selectedIdeaIds.filter((id) => lvl.ideas.some((i) => i.id === id));
+    if (!ids.length) ids = lvl.ideas.map((i) => i.id);
+    let added = 0;
+    for (const id of ids) {
+      if (enqueueIdea(lvl.ideas.find((i) => i.id === id))) added += 1;
+    }
+    store.notify();
+    if (added) showToast(added === 1 ? 'Copied 1 idea to Idea Evaluation.' : `Copied ${added} ideas to Idea Evaluation.`, 'ok');
+    else showToast('Already in the evaluation queue.', 'warn');
   }
 
   function removeQueuedIdea(queueId) {
@@ -474,6 +497,7 @@
     submitSeed,
     generateFromLevel,
     queueIdeaForEvaluation,
+    queueLevelForEvaluation,
     removeQueuedIdea,
     clearEvaluationQueue,
     startQueuedEvaluation,
