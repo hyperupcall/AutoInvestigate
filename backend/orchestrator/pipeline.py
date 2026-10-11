@@ -109,6 +109,8 @@ async def stop_or_go(run: Run, groups: list[dict], summaries: dict[str, str]) ->
             return "overall is required"
         return _check_groups(o, ids, ("pros", "cons", "rationale"))
     obj, res = await stage_call(run, "judge", "judge", prompt, validate)
+    if isinstance(obj.get("if_go_resolve"), list):  # some models return the questions as a list
+        obj["if_go_resolve"] = "; ".join(str(x) for x in obj["if_go_resolve"])
     run.log("stop_go", decision=obj["decision"], consensus_feasible=bool(obj.get("consensus_feasible")),
             overall=obj["overall"], groups=obj["groups"], if_go_resolve=obj.get("if_go_resolve", ""),
             model=res.model, cost=res.cost)
