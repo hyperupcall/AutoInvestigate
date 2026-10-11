@@ -8,6 +8,8 @@ The idea under evaluation, exactly as submitted:
 <<IDEA>>
 """
 
+<<SOURCES>>
+
 <<PRIOR_CONTEXT>>
 
 Your group's discussion:

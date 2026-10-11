@@ -80,6 +80,12 @@ def ui_events(events: list[dict]) -> list[dict]:
         elif k == "analysis":
             add(e, phase="Cross-group", kind="cross-group", cross_group={"disagreements": e.get("cross_group", []),
                                                                          "agreements": e.get("agreements", [])})
+        elif k == "sources":
+            papers = e.get("papers", [])
+            names = ", ".join(x["name"] for x in groups.values() if x.get("use_sources")) or "no group"
+            add(e, phase="Setup", kind="phase", papers=papers,
+                text=(f"Found {len(papers)} arXiv papers for {names}: " + "; ".join(f"{p['title']} ({p['year']})" for p in papers[:4])
+                      + ("…" if len(papers) > 4 else "")) if papers else f"No arXiv papers found ({e.get('error') or 'no match'}).")
         elif k == "note":
             add(e, phase="Notes", kind="phase", text=e["text"])
     return out

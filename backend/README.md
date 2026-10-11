@@ -35,6 +35,27 @@ Then open:
 
 Stop: `docker compose down` (from the repo root). Logs: `docker compose logs -f agent_host web`.
 
+## Quick and Deep mode
+
+| | Quick (default) | Deep |
+|---|---|---|
+| Time | about 75 seconds | about 7 minutes |
+| Discussion | everyone speaks at once each round; round 2 answers round 1 | timed round-robin, everyone hears everything |
+| Write-ups | short (scores, verdict, 3 reasons) | full role format and evaluation template |
+| Slow members | skipped after 18-20 s (logged) | retried |
+| Web search | none (arXiv list only) | `:online` models search the web |
+| Cost | about $0.03 | about $0.15 |
+
+Switch in /settings, in the frontend's settings popup, or per run: `POST /api/evaluate {"idea": "...", "overrides": {"mode": "deep"}}`.
+
+## arXiv sources
+
+The research and private-equity groups get 6-8 relevant arXiv papers (title, authors, year, link, abstract) and cite
+them as `[arXiv:ID]`. A cheap model writes 3 keyword queries, the papers come from OpenAlex restricted to arXiv
+(the arXiv API itself rate-limits shared networks hard, so it is only the fallback), a cheap model keeps the most
+relevant, and results are cached per idea in `data/sources_cache.json`. The report's `sources` section lists the
+papers, who cited each, and any citation of an id that was not in the list. Toggle per group in /settings.
+
 ## What happens in an evaluation
 
 1. Each group discusses the idea for a set time (round-robin, everyone hears everything).
@@ -82,4 +103,4 @@ legacy/         the earlier 4-agent negotiation demo (runs on its own)
 
 ## Cost
 
-About $0.10 to $0.15 per evaluation with 60-second discussions; each run has a cost cap (default $1).
+Quick: about $0.03 per evaluation. Deep: about $0.10 to $0.15. Each run has a cost cap (default $1).

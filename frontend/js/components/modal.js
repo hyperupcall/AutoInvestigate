@@ -360,6 +360,7 @@
 
     // Final verdict.
     if (report.verdict) body.appendChild(renderVerdictBlock('Final verdict', report.verdict));
+    if (report.sources && (report.sources.papers || []).length) body.appendChild(renderSources(report.sources));
 
     // Cross-group.
     if (report.cross_group) body.appendChild(renderCrossGroupBlock(report.cross_group));
@@ -403,6 +404,7 @@
    * the "Final verdict" block. Neutral colours so STOP doesn't read as "rejected". */
   function deliberationOutcome(sg) {
     if (!sg) return null;
+    if (!sg.consensus_feasible && sg.decision === 'go') return { cls: 'kept', value: 'Extra round, disagreement kept', note: 'Ran one more round; the groups still cannot converge, so a person should decide.' };
     if (!sg.consensus_feasible) return { cls: 'kept', value: 'Disagreement kept', note: 'The groups cannot converge, so a person should decide.' };
     if (sg.decision === 'go') return { cls: 'extra', value: 'Extra round', note: 'Ran one more round to settle an open question, then finished.' };
     return { cls: 'stopped', value: 'Stopped', note: 'The evidence was enough to conclude.' };
@@ -423,6 +425,20 @@
         el('div', { class: 'decision-col' }, [el('h4', { text: 'Cons' }), el('ul', {}, (sg.cons || []).map((c) => el('li', { text: c })))]),
       ]),
       sg.resolve_next ? el('p', { class: 'muted small', text: 'Extra round had to settle: ' + sg.resolve_next }) : null,
+    ]);
+  }
+
+  /* arXiv papers the research and business groups were given; citations were checked against this list. */
+  function renderSources(src) {
+    const unknown = src.unknown_citations || [];
+    return el('div', { class: 'conclusion' }, [
+      el('h4', { text: `arXiv sources (${src.papers.length}) · used by ${(src.used_by_groups || []).join(', ')}` }),
+      el('ul', {}, src.papers.map((p) => el('li', {}, [
+        el('a', { href: p.url, target: '_blank', text: 'arXiv:' + p.id }),
+        ` ${p.title} (${p.year})`,
+        p.cited_by && p.cited_by.length ? el('span', { class: 'muted small', text: ` · cited by ${p.cited_by.join(', ')}` }) : null,
+      ]))),
+      unknown.length ? el('p', { class: 'muted small', text: `Citations not in the list (possibly invented): ${unknown.map((u) => u.agent_id + ' → ' + u.id).join(', ')}` }) : null,
     ]);
   }
 

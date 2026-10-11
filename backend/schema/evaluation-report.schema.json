@@ -4,163 +4,980 @@
   "title": "Research Council evaluation report",
   "description": "Everything one idea evaluation produced: groups, agents, every discussion turn, evaluations, summaries, disagreements within and across groups, the stop-or-go decision and the verdict. One file per run in results/<run_id>.json; results/index.json lists all runs.",
   "type": "object",
-  "required": ["schema_version", "generated_at", "run", "pipeline", "groups", "cross_group", "stop_go", "verdict", "agntcy", "analysis"],
+  "required": [
+    "schema_version",
+    "generated_at",
+    "run",
+    "pipeline",
+    "groups",
+    "cross_group",
+    "stop_go",
+    "verdict",
+    "agntcy",
+    "analysis"
+  ],
   "properties": {
-    "schema_version": {"const": "1.0"},
-    "generated_at": {"type": "string", "format": "date-time"},
+    "schema_version": {
+      "const": "1.0"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "run": {
       "type": "object",
-      "required": ["id", "idea", "status", "started_at", "finished_at", "duration_seconds", "cost_usd", "llm_calls", "max_cost_usd"],
+      "required": [
+        "id",
+        "idea",
+        "status",
+        "started_at",
+        "finished_at",
+        "duration_seconds",
+        "cost_usd",
+        "llm_calls",
+        "max_cost_usd"
+      ],
       "properties": {
-        "id": {"type": "string", "description": "Run id, also the file name"},
-        "idea": {"type": "string", "description": "The idea exactly as submitted"},
-        "status": {"enum": ["done", "cancelled", "budget_stopped", "error", "incomplete"]},
-        "started_at": {"type": "string", "format": "date-time"},
-        "finished_at": {"type": ["string", "null"], "format": "date-time"},
-        "duration_seconds": {"type": "integer"},
-        "cost_usd": {"type": "number"},
-        "llm_calls": {"type": ["integer", "null"]},
-        "max_cost_usd": {"type": ["number", "null"]}
+        "id": {
+          "type": "string",
+          "description": "Run id, also the file name"
+        },
+        "idea": {
+          "type": "string",
+          "description": "The idea exactly as submitted"
+        },
+        "status": {
+          "enum": [
+            "done",
+            "cancelled",
+            "budget_stopped",
+            "error",
+            "incomplete"
+          ]
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finished_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "duration_seconds": {
+          "type": "integer"
+        },
+        "cost_usd": {
+          "type": "number"
+        },
+        "llm_calls": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_cost_usd": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "quick",
+            "deep"
+          ],
+          "description": "quick: one pass per round, short write-ups (about a minute); deep: timed discussions, full write-ups (about 7 minutes)"
+        }
       }
     },
     "pipeline": {
       "type": "object",
-      "required": ["rounds", "extra_round", "stop_go_decision"],
+      "required": [
+        "rounds",
+        "extra_round",
+        "stop_go_decision"
+      ],
       "properties": {
-        "rounds": {"type": "integer", "description": "Discussion rounds that ran (2, or 3 when stop-or-go said go)"},
-        "extra_round": {"type": "boolean"},
-        "stop_go_decision": {"enum": ["stop", "go", null]}
+        "rounds": {
+          "type": "integer",
+          "description": "Discussion rounds that ran (2, or 3 when stop-or-go said go)"
+        },
+        "extra_round": {
+          "type": "boolean"
+        },
+        "stop_go_decision": {
+          "enum": [
+            "stop",
+            "go",
+            null
+          ]
+        }
       }
     },
-    "groups": {"type": "array", "items": {"$ref": "#/$defs/group"}},
+    "groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/group"
+      }
+    },
     "cross_group": {
       "type": "object",
-      "required": ["disagreements", "agreements"],
+      "required": [
+        "disagreements",
+        "agreements"
+      ],
       "properties": {
-        "disagreements": {"type": "array", "items": {"$ref": "#/$defs/crossDisagreement"}},
-        "agreements": {"type": "array", "items": {
-          "type": "object", "required": ["topic", "group_ids", "summary"],
-          "properties": {"topic": {"type": "string"}, "group_ids": {"type": "array", "items": {"type": "string"}, "minItems": 2}, "summary": {"type": "string"}}}}
+        "disagreements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/crossDisagreement"
+          }
+        },
+        "agreements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "topic",
+              "group_ids",
+              "summary"
+            ],
+            "properties": {
+              "topic": {
+                "type": "string"
+              },
+              "group_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 2
+              },
+              "summary": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "stop_go": {
-      "type": ["object", "null"],
-      "required": ["decision", "consensus_feasible", "rationale", "pros", "cons", "resolve_next"],
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "decision",
+        "consensus_feasible",
+        "rationale",
+        "pros",
+        "cons",
+        "resolve_next"
+      ],
       "properties": {
-        "decision": {"enum": ["stop", "go"]},
-        "consensus_feasible": {"type": "boolean", "description": "Whether a consensus across groups looked reachable"},
-        "rationale": {"type": ["string", "null"]},
-        "pros": {"type": "array", "items": {"type": "string"}, "description": "Reasons for (shown to users)"},
-        "cons": {"type": "array", "items": {"type": "string"}, "description": "Reasons against (shown to users)"},
-        "resolve_next": {"type": ["string", "null"], "description": "What the extra round had to settle, when the decision was go"}
+        "decision": {
+          "enum": [
+            "stop",
+            "go"
+          ]
+        },
+        "consensus_feasible": {
+          "type": "boolean",
+          "description": "Whether a consensus across groups looked reachable"
+        },
+        "rationale": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pros": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reasons for (shown to users)"
+        },
+        "cons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reasons against (shown to users)"
+        },
+        "resolve_next": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "What the extra round had to settle, when the decision was go"
+        }
       }
     },
     "verdict": {
-      "type": ["object", "null"],
-      "required": ["headline", "conclusion"],
-      "properties": {"headline": {"type": ["string", "null"]}, "conclusion": {"type": ["string", "null"]}}
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "headline",
+        "conclusion"
+      ],
+      "properties": {
+        "headline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "conclusion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     },
     "agntcy": {
       "type": "object",
-      "required": ["transport", "protocol", "slim_groups_opened", "endpoints"],
+      "required": [
+        "transport",
+        "protocol",
+        "slim_groups_opened",
+        "endpoints"
+      ],
       "properties": {
-        "transport": {"const": "SLIM"}, "protocol": {"const": "A2A"},
-        "slim_groups_opened": {"type": "integer"},
-        "endpoints": {"type": "array", "items": {"type": "string"}}
+        "transport": {
+          "const": "SLIM"
+        },
+        "protocol": {
+          "const": "A2A"
+        },
+        "slim_groups_opened": {
+          "type": "integer"
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "analysis": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "How the disagreement analysis went. Quotes that did not appear word for word in what the cited agent said were dropped.",
-      "properties": {"model": {"type": "string"}, "verified_quotes": {"type": "integer"}, "dropped_quotes": {"type": "integer"}, "dropped_items": {"type": "integer"}}
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "verified_quotes": {
+          "type": "integer"
+        },
+        "dropped_quotes": {
+          "type": "integer"
+        },
+        "dropped_items": {
+          "type": "integer"
+        }
+      }
+    },
+    "sources": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "arXiv papers given to the groups listed in used_by_groups. Citations ([arXiv:ID]) are checked against this list.",
+      "properties": {
+        "provider": {
+          "const": "arXiv"
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "candidates": {
+          "type": "integer"
+        },
+        "used_by_groups": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "papers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "authors",
+              "year",
+              "url",
+              "cited_by"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "authors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "year": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "abstract": {
+                "type": "string"
+              },
+              "cited_by": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "agent ids that cited this paper"
+              }
+            }
+          }
+        },
+        "unknown_citations": {
+          "type": "array",
+          "description": "citations of ids that were not in the list (possibly invented)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   },
   "$defs": {
     "group": {
       "type": "object",
-      "required": ["id", "name", "style", "agents", "rounds", "scores", "verdict_counts", "disagreements", "stop_go", "verdict"],
+      "required": [
+        "id",
+        "name",
+        "style",
+        "agents",
+        "rounds",
+        "scores",
+        "verdict_counts",
+        "disagreements",
+        "stop_go",
+        "verdict"
+      ],
       "properties": {
-        "id": {"type": "string", "description": "research | private_equity | market (or custom)"},
-        "name": {"type": "string"},
-        "style": {"enum": ["converge", "diverge"], "description": "converge: aims for a shared view; diverge: members are different customer types and are not expected to agree"},
-        "agents": {"type": "array", "items": {"$ref": "#/$defs/agent"}},
-        "rounds": {"type": "array", "items": {"$ref": "#/$defs/round"}},
+        "id": {
+          "type": "string",
+          "description": "research | private_equity | market (or custom)"
+        },
+        "name": {
+          "type": "string"
+        },
+        "style": {
+          "enum": [
+            "converge",
+            "diverge"
+          ],
+          "description": "converge: aims for a shared view; diverge: members are different customer types and are not expected to agree"
+        },
+        "agents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/agent"
+          }
+        },
+        "rounds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/round"
+          }
+        },
         "scores": {
           "type": "object",
           "description": "Per template metric, computed from the members' latest evaluations (never invented). Keys come from: Feasibility, Technical risk (10 = very risky), Market demand, Differentiation, Time to first value (10 = fastest), Cost to build and run (10 = cheapest), Adoption likelihood.",
-          "additionalProperties": {"type": "object", "required": ["median", "min", "max", "n"],
-            "properties": {"median": {"type": "number"}, "min": {"type": "number"}, "max": {"type": "number"}, "n": {"type": "integer", "description": "members who gave this score"}}}
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "median",
+              "min",
+              "max",
+              "n"
+            ],
+            "properties": {
+              "median": {
+                "type": "number"
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "n": {
+                "type": "integer",
+                "description": "members who gave this score"
+              }
+            }
+          }
         },
-        "verdict_counts": {"type": "object", "description": "How many members chose each verdict in the latest round", "propertyNames": {"enum": ["Go", "Go with changes", "Hold", "No-go"]}, "additionalProperties": {"type": "integer"}},
-        "disagreements": {"type": "array", "items": {"$ref": "#/$defs/withinDisagreement"}},
-        "stop_go": {"type": ["object", "null"], "properties": {"pros": {"type": "array", "items": {"type": "string"}}, "cons": {"type": "array", "items": {"type": "string"}}, "rationale": {"type": "string"}}},
-        "verdict": {"type": ["object", "null"], "properties": {"headline": {"type": ["string", "null"]}, "conclusion": {"type": ["string", "null"]}, "pros": {"type": "array", "items": {"type": "string"}}, "cons": {"type": "array", "items": {"type": "string"}}}}
+        "verdict_counts": {
+          "type": "object",
+          "description": "How many members chose each verdict in the latest round",
+          "propertyNames": {
+            "enum": [
+              "Go",
+              "Go with changes",
+              "Hold",
+              "No-go"
+            ]
+          },
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "disagreements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/withinDisagreement"
+          }
+        },
+        "stop_go": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "pros": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "rationale": {
+              "type": "string"
+            }
+          }
+        },
+        "verdict": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "headline": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "conclusion": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "pros": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     },
     "agent": {
       "type": "object",
-      "required": ["id", "name", "model", "question", "who_they_are"],
+      "required": [
+        "id",
+        "name",
+        "model",
+        "question",
+        "who_they_are"
+      ],
       "properties": {
-        "id": {"type": "string"}, "name": {"type": "string"},
-        "model": {"type": "string", "description": "OpenRouter model id the agent ran on"},
-        "question": {"type": ["string", "null"], "description": "The question this agent answers"},
-        "who_they_are": {"type": ["string", "null"]},
-        "final_position": {"type": ["object", "null"], "description": "From the agent's latest evaluation",
-          "properties": {"round": {"type": "integer"}, "template_verdict": {"$ref": "#/$defs/templateVerdict"},
-                         "role_verdict": {"$ref": "#/$defs/roleVerdict"}, "template_scores": {"$ref": "#/$defs/templateScores"}}}
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string",
+          "description": "OpenRouter model id the agent ran on"
+        },
+        "question": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The question this agent answers"
+        },
+        "who_they_are": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "final_position": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "From the agent's latest evaluation",
+          "properties": {
+            "round": {
+              "type": "integer"
+            },
+            "template_verdict": {
+              "$ref": "#/$defs/templateVerdict"
+            },
+            "role_verdict": {
+              "$ref": "#/$defs/roleVerdict"
+            },
+            "template_scores": {
+              "$ref": "#/$defs/templateScores"
+            }
+          }
+        }
       }
     },
     "round": {
       "type": "object",
-      "required": ["round", "label", "shared_summaries_before", "discussion", "missed_turns", "evaluations", "failed_evaluations", "summary"],
+      "required": [
+        "round",
+        "label",
+        "shared_summaries_before",
+        "discussion",
+        "missed_turns",
+        "evaluations",
+        "failed_evaluations",
+        "summary"
+      ],
       "properties": {
-        "round": {"type": "integer", "description": "1, 2, or 3 (extra round)"},
-        "label": {"type": "string"},
-        "shared_summaries_before": {"type": "boolean", "description": "True when members had read every group's summary before this round"},
-        "discussion": {"type": "array", "items": {
-          "type": "object", "required": ["turn", "agent_id", "model", "text", "at"],
-          "properties": {"turn": {"type": "integer"}, "agent_id": {"type": "string"}, "model": {"type": "string"}, "text": {"type": "string"},
-                         "at": {"type": "string", "format": "date-time"}, "elapsed_seconds": {"type": ["number", "null"]}}}},
-        "missed_turns": {"type": "array", "items": {"type": "object", "properties": {"agent_id": {"type": "string"}, "reason": {"type": "string"}}}},
-        "evaluations": {"type": "array", "items": {
-          "type": "object", "required": ["agent_id", "model", "text", "role_verdict", "role_scores", "template_verdict", "template_scores", "complete"],
+        "round": {
+          "type": "integer",
+          "description": "1, 2, or 3 (extra round)"
+        },
+        "label": {
+          "type": "string"
+        },
+        "shared_summaries_before": {
+          "type": "boolean",
+          "description": "True when members had read every group's summary before this round"
+        },
+        "discussion": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "turn",
+              "agent_id",
+              "model",
+              "text",
+              "at"
+            ],
+            "properties": {
+              "turn": {
+                "type": "integer"
+              },
+              "agent_id": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "elapsed_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "missed_turns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "evaluations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "agent_id",
+              "model",
+              "text",
+              "role_verdict",
+              "role_scores",
+              "template_verdict",
+              "template_scores",
+              "complete"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string",
+                "description": "Full evaluation as written"
+              },
+              "role_verdict": {
+                "$ref": "#/$defs/roleVerdict"
+              },
+              "role_scores": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "value",
+                    "max"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "number"
+                    },
+                    "max": {
+                      "enum": [
+                        10,
+                        100
+                      ]
+                    }
+                  }
+                }
+              },
+              "template_verdict": {
+                "$ref": "#/$defs/templateVerdict"
+              },
+              "template_scores": {
+                "$ref": "#/$defs/templateScores"
+              },
+              "complete": {
+                "type": "boolean",
+                "description": "False when the evaluation was cut off or is missing its template part (rounds 2+)"
+              }
+            }
+          }
+        },
+        "failed_evaluations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "summary": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "text",
+            "pros",
+            "cons",
+            "disagreements",
+            "scores_and_verdicts",
+            "open_questions",
+            "complete"
+          ],
           "properties": {
-            "agent_id": {"type": "string"}, "model": {"type": "string"}, "text": {"type": "string", "description": "Full evaluation as written"},
-            "role_verdict": {"$ref": "#/$defs/roleVerdict"},
-            "role_scores": {"type": "array", "items": {"type": "object", "required": ["label", "value", "max"],
-              "properties": {"label": {"type": "string"}, "value": {"type": "number"}, "max": {"enum": [10, 100]}}}},
-            "template_verdict": {"$ref": "#/$defs/templateVerdict"},
-            "template_scores": {"$ref": "#/$defs/templateScores"},
-            "complete": {"type": "boolean", "description": "False when the evaluation was cut off or is missing its template part (rounds 2+)"}}}},
-        "failed_evaluations": {"type": "array", "items": {"type": "object", "properties": {"agent_id": {"type": "string"}, "reason": {"type": "string"}}}},
-        "summary": {"type": ["object", "null"],
-          "required": ["text", "pros", "cons", "disagreements", "scores_and_verdicts", "open_questions", "complete"],
-          "properties": {"text": {"type": "string"}, "pros": {"type": "array", "items": {"type": "string"}}, "cons": {"type": "array", "items": {"type": "string"}},
-                         "disagreements": {"type": "string"}, "scores_and_verdicts": {"type": "string"}, "open_questions": {"type": "array", "items": {"type": "string"}},
-                         "complete": {"type": "boolean", "description": "False when the summary was cut off or misses a section"}}}
+            "text": {
+              "type": "string"
+            },
+            "pros": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "disagreements": {
+              "type": "string"
+            },
+            "scores_and_verdicts": {
+              "type": "string"
+            },
+            "open_questions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "complete": {
+              "type": "boolean",
+              "description": "False when the summary was cut off or misses a section"
+            }
+          }
+        }
       }
     },
-    "evidence": {"type": "array", "description": "Quotes verified word for word against the cited agent's own words",
-      "items": {"type": "object", "required": ["agent_id", "group_id", "quote"],
-        "properties": {"agent_id": {"type": "string"}, "group_id": {"type": "string"}, "quote": {"type": "string"}}}},
+    "evidence": {
+      "type": "array",
+      "description": "Quotes verified word for word against the cited agent's own words",
+      "items": {
+        "type": "object",
+        "required": [
+          "agent_id",
+          "group_id",
+          "quote"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "group_id": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "withinDisagreement": {
-      "type": "object", "required": ["topic", "sides", "status", "evidence", "evidence_verified", "round", "resolution"],
+      "type": "object",
+      "required": [
+        "topic",
+        "sides",
+        "status",
+        "evidence",
+        "evidence_verified",
+        "round",
+        "resolution"
+      ],
       "properties": {
-        "topic": {"type": "string"}, "round": {"type": ["integer", "null"]},
-        "sides": {"type": "array", "minItems": 2, "items": {"type": "object", "required": ["agent_ids", "position"],
-          "properties": {"agent_ids": {"type": "array", "items": {"type": "string"}}, "position": {"type": "string"}}}},
-        "status": {"enum": ["resolved", "open"]}, "resolution": {"type": ["string", "null"]},
-        "evidence": {"$ref": "#/$defs/evidence"}, "evidence_verified": {"type": "boolean"}}},
+        "topic": {
+          "type": "string"
+        },
+        "round": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "sides": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": [
+              "agent_ids",
+              "position"
+            ],
+            "properties": {
+              "agent_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "position": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "resolved",
+            "open"
+          ]
+        },
+        "resolution": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "evidence_verified": {
+          "type": "boolean"
+        }
+      }
+    },
     "crossDisagreement": {
-      "type": "object", "required": ["topic", "sides", "status", "evidence", "evidence_verified"],
+      "type": "object",
+      "required": [
+        "topic",
+        "sides",
+        "status",
+        "evidence",
+        "evidence_verified"
+      ],
       "properties": {
-        "topic": {"type": "string"},
-        "sides": {"type": "array", "minItems": 2, "items": {"type": "object", "required": ["group_id", "agent_ids", "position"],
-          "properties": {"group_id": {"type": "string"}, "agent_ids": {"type": "array", "items": {"type": "string"}}, "position": {"type": "string"}}}},
-        "status": {"enum": ["resolved", "open"]},
-        "evidence": {"$ref": "#/$defs/evidence"}, "evidence_verified": {"type": "boolean"}}},
-    "templateVerdict": {"enum": ["Go", "Go with changes", "Hold", "No-go", null]},
-    "roleVerdict": {"type": ["object", "null"], "required": ["label", "value"], "properties": {"label": {"type": "string"}, "value": {"type": "string"}}},
-    "templateScores": {"type": "object", "propertyNames": {"enum": ["Feasibility", "Technical risk", "Market demand", "Differentiation", "Time to first value", "Cost to build and run", "Adoption likelihood"]}, "additionalProperties": {"type": "number"}}
+        "topic": {
+          "type": "string"
+        },
+        "sides": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": [
+              "group_id",
+              "agent_ids",
+              "position"
+            ],
+            "properties": {
+              "group_id": {
+                "type": "string"
+              },
+              "agent_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "position": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "resolved",
+            "open"
+          ]
+        },
+        "evidence": {
+          "$ref": "#/$defs/evidence"
+        },
+        "evidence_verified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "templateVerdict": {
+      "enum": [
+        "Go",
+        "Go with changes",
+        "Hold",
+        "No-go",
+        null
+      ]
+    },
+    "roleVerdict": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "label",
+        "value"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "templateScores": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "Feasibility",
+          "Technical risk",
+          "Market demand",
+          "Differentiation",
+          "Time to first value",
+          "Cost to build and run",
+          "Adoption likelihood"
+        ]
+      },
+      "additionalProperties": {
+        "type": "number"
+      }
+    }
   }
 }

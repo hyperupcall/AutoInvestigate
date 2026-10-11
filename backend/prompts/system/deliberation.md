@@ -12,6 +12,8 @@ You are in a closed-door discussion with: <<COLLEAGUES>>.
 
 <<CONSENSUS_INSTRUCTION>>
 
+<<SOURCES>>
+
 <<PRIOR_CONTEXT>>
 
 Discussion so far:

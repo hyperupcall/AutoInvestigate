@@ -66,20 +66,25 @@ class AgentWorker(AgentExecutor):
         # The orchestrator sends the run's snapshot of this agent (model, prompt, effort); the key stays local.
         agent = {**agent, **(cmd.get("agents", {}).get(self.id) or {})}
         stage = {"turn": "deliberate", "evaluate": "evaluate", "cross_review": "evaluate"}[cmd["kind"]]
+        quick = bool(cmd.get("quick"))
         values = dict(AGENT_NAME=agent["name"], GROUP_NAME=cmd["group_name"], ROLE_DOC=prompts.read(agent["prompt"]),
                       IDEA=cmd["idea"], PRIOR_CONTEXT=cmd.get("prior_context", ""),
-                      TRANSCRIPT=cmd.get("transcript") or "(nobody has spoken yet)")
+                      TRANSCRIPT=cmd.get("transcript") or "(nobody has spoken yet)", SOURCES=cmd.get("sources", ""))
         if cmd["kind"] == "turn":
-            values.update(COLLEAGUES=", ".join(cmd["colleagues"]) or "no one else",
+            values.update(COLLEAGUES=", ".join(c for c in cmd["colleagues"] if c != agent["name"]) or "no one else",
                           CONSENSUS_INSTRUCTION=prompts.consensus_instruction(cmd["consensus"]))
         elif cmd["kind"] == "cross_review":
             values.update(SUMMARIES=cmd["summaries"],
                           EVALUATION_TEMPLATE=prompts.read("prompts/system/evaluation_template.md"))
-        prompt = prompts.system(KINDS[cmd["kind"]], **values)
-        model = agent["model"].removesuffix(":online") if cmd["kind"] == "turn" else agent["model"]  # search only when evaluating
+        template = KINDS[cmd["kind"]] + ("_quick" if quick and cmd["kind"] != "turn" else "")
+        prompt = prompts.system(template, **values)
+        # Web search only when evaluating in deep mode (quick mode relies on the arXiv list: faster, cheaper).
+        model = agent["model"].removesuffix(":online") if (cmd["kind"] == "turn" or quick) else agent["model"]
+        QUICK_TOKENS = {"deliberate": 350, "evaluate": 800}
         res = await orr.chat(
             model, [{"role": "user", "content": prompt}], settings.resolve_key(agent["api_key"], s),
-            max_tokens=s["max_tokens"][stage], reasoning_effort=agent.get("reasoning_effort") or s["reasoning_effort"][stage],
+            max_tokens=QUICK_TOKENS[stage] if quick else s["max_tokens"][stage],
+            reasoning_effort="none" if quick else (agent.get("reasoning_effort") or s["reasoning_effort"][stage]),
             web_results=s["web_search_results"], on_length="trim" if cmd["kind"] == "turn" else "retry")
         text = trim_to_sentence(res.text) if res.finish_reason == "length" else res.text
         return {"text": text, "cost": res.cost, "model": model, "truncated": res.finish_reason == "length"}

@@ -78,7 +78,7 @@ details.eval .txt{margin-top:8px;font-size:13px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px 16px}
 .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:0 0 8px}
 .badge{display:inline-block;font-weight:800;border-radius:8px;padding:3px 12px;font-size:15px;margin-right:8px}
-.badge.stop{background:var(--okbg);color:var(--ok)}.badge.go{background:var(--wnbg);color:var(--wn)}
+.badge.stopped{background:var(--slimbg);color:var(--slim)}.badge.go{background:var(--g-research-bg);color:var(--g-research)}.badge.kept{background:var(--wnbg);color:var(--wn)}
 .pc{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
 @media(max-width:700px){.pc{grid-template-columns:1fr}}
 .pc ul{margin:4px 0 0;padding-left:18px}.pc li{margin-bottom:3px}
@@ -182,6 +182,8 @@ function build(evs) {
     }
     if (e.kind === 'stage_end' && e.group) { S.speaking[e.group] = null; if (String(e.stage).startsWith('evaluation')) S.writing[e.group] = new Set(); }
     if (e.kind === 'summary') { ensureGroup(e.group); S.summarizing[e.group] = false; S.items[e.group].push({type: 'summary', text: e.text, stage: e.stage}); }
+    if (e.kind === 'sources') S.sources = e;
+    if (e.kind === 'run_start') S.mode = e.mode;
     if (e.kind === 'stop_go') S.stopgo = e;
     if (e.kind === 'final') S.final = e;
     if (e.kind === 'note') S.notes.push(e.text);
@@ -240,10 +242,11 @@ function render(S) {
     else if (st.startsWith('summary')) { $('nowt').textContent = 'Summarizing each group\'s pros and cons'; $('nows').textContent = 'The summarizer keeps the details: numbers, names and disagreements.'; }
     else if (st === 'stop_go') { $('nowt').textContent = 'Deciding whether another round would change anything'; $('nows').textContent = 'Stop or go: is there an open question the groups could still settle?'; }
     else if (st === 'final') { $('nowt').textContent = 'Writing the final verdict'; $('nows').textContent = ''; }
+    else if (st === 'sources' && !S.sources) { $('nowt').textContent = 'Finding arXiv papers for the research and business groups'; $('nows').textContent = 'The market group has already started.'; }
     else { $('nowt').textContent = 'Starting the evaluation'; $('nows').textContent = 'Sending the idea to every group.'; }
   }
   $('ideaShown').innerHTML = S.idea ? `Idea under evaluation: <b>${esc(S.idea)}</b>` : '';
-  $('cost').innerHTML = S.idea ? `spent <b>$${S.spent.toFixed(3)}</b> of $${Number(S.max).toFixed(2)}` : '';
+  $('cost').innerHTML = S.idea ? `${S.mode === 'deep' ? 'deep' : 'quick'} mode · spent <b>$${S.spent.toFixed(3)}</b> of $${Number(S.max).toFixed(2)}` : '';
   // stepper
   const cur = stepIndex(S.stage); const fin = !!S.end;
   $('steps').innerHTML = STEPS.map(([k, label, hint], i) => {
@@ -281,10 +284,17 @@ function render(S) {
   document.querySelectorAll('.feed').forEach(f => { const s = scroll[f.dataset.g]; f.scrollTop = !s || s.atBottom ? f.scrollHeight : s.top; });
   // decision and verdict
   let d = '';
+  if (S.sources && (S.sources.papers || []).length) {
+    d += `<div class="card"><h2>arXiv papers given to the research and business groups</h2>${S.sources.papers.map(p => `<div style="margin:3px 0"><a href="${esc(p.url)}" target="_blank">arXiv:${esc(p.id)}</a> ${esc(p.title)} <span class="sub">(${esc(p.year)}${p.authors && p.authors.length ? ', ' + esc(p.authors[0]) + ' et al.' : ''})</span></div>`).join('')}</div>`;
+  }
   if (S.stopgo) {
     const sg = S.stopgo; const gname = id => (S.groups.find(g => g.id === id) || {name: id}).name;
-    d += `<div class="card"><h2>Stop or go?</h2><div><span class="badge ${sg.decision}">${sg.decision === 'stop' ? 'STOP' : 'GO ONE MORE ROUND'}</span>
-      <span class="sub">${sg.consensus_feasible ? 'A consensus across the groups looks reachable.' : 'A consensus across the groups does not look reachable.'}</span></div>
+    const o = !sg.consensus_feasible && sg.decision === 'go' ? ['kept', 'Extra round, disagreement kept', 'Ran one more round; the groups still cannot converge, so a person should decide.']
+      : !sg.consensus_feasible ? ['kept', 'Disagreement kept', 'The groups cannot converge, so a person should decide.']
+      : sg.decision === 'go' ? ['go', 'Extra round', 'Ran one more round to settle an open question, then finished.']
+      : ['stopped', 'Stopped', 'The evidence was enough to conclude.'];
+    d += `<div class="card"><h2>Deliberation: keep going or stop?</h2><div><span class="badge ${o[0]}">${o[1]}</span>
+      <span class="sub">${o[2]}</span></div>
       <p>${esc(sg.overall.rationale)}</p>
       <div class="pc"><div class="p"><b>For</b><ul>${(sg.overall.pros || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div><div class="c"><b>Against</b><ul>${(sg.overall.cons || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></div>
       ${sg.decision === 'go' && sg.if_go_resolve ? `<p><b>The extra round should settle:</b> ${esc(sg.if_go_resolve)}</p>` : ''}

@@ -49,6 +49,7 @@
       evaluationModel: 'anthropic/claude-3.5-sonnet',
       summarizerModel: 'google/gemini-2.0-flash',
       deliberationSeconds: 15,
+      mode: 'quick', // 'quick' (about a minute) | 'deep' (about 7 minutes)
       promptSet: 'default',
       groupPerspectives: JSON.parse(JSON.stringify(Hack.mockData.GROUP_PERSPECTIVES)),
     },

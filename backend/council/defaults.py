@@ -16,7 +16,7 @@ def _groups() -> list[dict]:
     return [
         {"id": "research", "name": "Professional Research Group",
          "description": "Researchers judging feasibility, architecture, whether an LLM is needed, and prior art.",
-         "consensus": "converge",
+         "consensus": "converge", "use_sources": True,
          "agents": [
              _agent("feasibility_scientist", "prompts/research/feasibility_scientist.md", "deepseek/deepseek-v4-pro"),
              _agent("systems_architect", "prompts/research/systems_architect.md", "tencent/hy3"),
@@ -25,7 +25,7 @@ def _groups() -> list[dict]:
          ]},
         {"id": "private_equity", "name": "Private Equity and Business",
          "description": "Four partners judging technical risk, market size, competitive position, and returns.",
-         "consensus": "converge",
+         "consensus": "converge", "use_sources": True,
          "agents": [
              _agent("technical_risk_partner", "prompts/private_equity/technical_risk_partner.md", "nvidia/nemotron-3-super-120b-a12b"),
              _agent("market_revenue_partner", "prompts/private_equity/market_revenue_partner.md", "qwen/qwen3.8-flash:online"),
@@ -34,7 +34,7 @@ def _groups() -> list[dict]:
          ]},
         {"id": "market", "name": "Market Reaction",
          "description": "Customer archetypes reacting to the idea. They are not expected to agree.",
-         "consensus": "diverge",
+         "consensus": "diverge", "use_sources": False,
          "agents": [
              _agent("power_user", "prompts/market/power_user.md", "qwen/qwen3.7-flash"),
              _agent("enterprise_decision_maker", "prompts/market/enterprise_decision_maker.md", "upstage/solar-pro4"),
@@ -60,6 +60,8 @@ def archetype_library() -> list[dict]:
 
 
 DEFAULT_SETTINGS = {
+    "mode": "quick",                     # quick: about a minute (one pass per round, short write-ups) | deep: about 7 minutes
+    "sources": {"enabled": True, "max_papers": 8, "model": "anthropic/claude-haiku-5.5"},  # arXiv papers for groups with use_sources
     "openrouter_api_key": "",            # default key; blank per-agent keys fall back to this, then to $OPENROUTER_API_KEY
     "deliberation_seconds": 60,          # per deliberation round, per group
     "max_cost_usd": 1.0,                 # a run stops when this is spent
