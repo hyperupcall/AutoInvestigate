@@ -14,6 +14,7 @@ def main(argv=None) -> None:
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
     parser.add_argument("--data-dir")
+    parser.add_argument("--artifacts-dir")
     parser.add_argument("--storage", choices=["local", "s3"])
     parser.add_argument("--s3-bucket")
     parser.add_argument("--s3-prefix")
@@ -26,6 +27,8 @@ def main(argv=None) -> None:
         config.port = args.port
     if args.data_dir is not None:
         config.data_dir = args.data_dir
+    if args.artifacts_dir is not None:
+        config.artifacts_dir = args.artifacts_dir
     if args.storage is not None:
         config.storage_backend = args.storage
     if args.s3_bucket is not None:

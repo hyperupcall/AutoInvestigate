@@ -37,12 +37,36 @@ Both print the listening URL (default `http://127.0.0.1:8080`).
 | --- | --- | --- | --- |
 | `AF_HOST` | `--host` | `127.0.0.1` | Bind host |
 | `AF_PORT` | `--port` | `8080` | Bind port |
-| `AF_DATA_DIR` | `--data-dir` | `./artifactfactory-data` | Root for `state.json` + local artifacts |
+| `AF_DATA_DIR` | `--data-dir` | `<repo>/_artifactfactory-data` | Where `state.json` lives |
+| `AF_ARTIFACTS_DIR` | `--artifacts-dir` | `<repo>/_artifacts` | Where generated artifacts are written |
 | `AF_STORAGE` | `--storage` | `local` | `local` or `s3` |
 | `AF_S3_BUCKET` | `--s3-bucket` | `` | S3 bucket (s3 backend) |
 | `AF_S3_PREFIX` | `--s3-prefix` | `` | Key prefix (s3 backend) |
 
-CLI flags override environment variables.
+CLI flags override environment variables. The defaults are anchored to the
+project root (the directory containing the `artifactfactory` package), so they
+do not depend on the current working directory.
+
+## Where artifacts are stored
+
+With the default `local` backend, artifacts are written under the project's
+`_artifacts/` directory, laid out as:
+
+```
+_artifacts/
+  plans/
+    <plan-id>/
+      source_repository/<name>/...
+      npm_package/<name>/...
+      docker_image/<name>/...
+      literature_review/<name>/...
+      tarball/<name>/<name>.tar.gz
+```
+
+`state.json` (ideas, plans, artifact metadata) lives in `_artifactfactory-data/`.
+Override either location with `--artifacts-dir` / `--data-dir` (or the matching
+env vars). Switching to the `s3` backend replaces `_artifacts/` with the
+configured bucket/prefix.
 
 ## API
 

@@ -204,6 +204,7 @@ frontend/
   js/
     util.js               DOM + misc helpers (el, preserveView, seeded RNG, …)
     mock-data.js          fixtures: groups, archetypes, prompts, text templates
+    mock-report.js        sample evaluation report (evaluation-report.schema.json)
     mock-backend.js       ← the MOCKED backend (swap for real calls)
     state.js              single source of truth + pub/sub + selectors
     actions.js            mutations + orchestration
@@ -213,7 +214,7 @@ frontend/
       execution.js        column 3 (blank)
       settings.js         settings content (shared by popup + page)
       settingsModal.js    settings popup
-      modal.js            the two-tab popup (thinking / results)
+      modal.js            the two-tab popup (cluster status / evaluation)
       toast.js            notifications
     app.js                bootstrap
 ```
@@ -225,7 +226,7 @@ state = {
   seed: { text, iterationType, variationCount, freeformPrompt, submitting }, // level 0
   levels: [ { level, ideas, iteration, pending, error } ],                    // level 1+
   selectedIdeaIds: [],
-  evaluation: { runs: [ { id, ideaId, ideaText, status, events, results, … } ], activeRunId },
+  evaluation: { runs: [ { id, ideaId, ideaText, status, events, report, cluster, … } ], activeRunId },
   settings: { generationModel, evaluationModel, summarizerModel,
               deliberationSeconds, promptSet, groupPerspectives },
   ui: { modal: { open, runId, tab }, settingsOpen, toast },
@@ -262,26 +263,32 @@ await Hack.mockBackend.generateIdeas({
 });
 // -> { label, lineage, operation, model, ideas: [{ text }] }
 
-// Part 2 — Idea evaluation (streams events, then results)
+// Part 2 — Idea evaluation (streams cluster events, then delivers the report)
+const report = Hack.mockBackend.buildReport(ideaText); // full report, available up front
 const handle = Hack.mockBackend.startEvaluation({
   ideaText,           // the single idea string to evaluate
   settings,           // { deliberationSeconds, groupPerspectives, … }
-  onEvent(ev),        // { phase, kind, group, agent, role, text, ts }
-  onDone(results),    // { groups, stopOrGo, conclusion, generatedAt }
+  onEvent(ev),        // { phase, kind, ts, … } — see event kinds below
+  onDone(report),     // the report, shaped like evaluation-report.schema.json
 });
 handle.cancel();
 ```
 
-The mock evaluation emits ~41 events across these phases: **Round 1 · Deliberation
-→ Summarization · Pass 1 → Round 2 · Deliberation → Summarization · Pass 2 →
-Stop-or-Go Decision → Final Conclusions**, paced to `deliberationSeconds`.
+Event kinds streamed to `onEvent`: `phase`, `cluster`, `group-start`,
+`round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
+`cross-group`, `stop-go`, `verdict`. The **Cluster Status** tab renders these live;
+the **Evaluation** tab renders the final `report`.
+
+The report fixture (`js/mock-report.js`) is generated from
+`20261011-014311-b2e9.json` and conforms to `evaluation-report.schema.json`.
 
 ---
 
 ## 7. Status & next steps
 
 **Done (mocked):** three-column UI, level tree with per-level/per-idea iteration,
-lineage labels, evaluation runs with the two-tab popup, settings popup + page,
+lineage labels, evaluation runs with the two-tab popup (**Cluster Status** live
+stream + **Evaluation** report with raw JSON), settings popup + page,
 light/minimal styling.
 
 **Not done:**

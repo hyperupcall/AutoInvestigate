@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import tempfile
 import threading
@@ -15,7 +16,8 @@ from artifactfactory.service import Service
 class ServiceTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
-        self.config = Config(data_dir=self.tmp)
+        self.config = Config(data_dir=self.tmp,
+                             artifacts_dir=os.path.join(self.tmp, "artifacts"))
         self.service = Service(self.config)
 
     def tearDown(self):
@@ -65,6 +67,10 @@ class ServiceTests(unittest.TestCase):
         self.assertIn("source_repository", types)
         self.assertIn("tarball", types)
         self.assertIn("literature_review", types)
+        # Artifacts must land under the configured artifacts directory.
+        prefix = "file://" + self.config.artifacts_dir
+        for a in plan["artifacts"]:
+            self.assertTrue(a["uri"].startswith(prefix), a["uri"])
 
     def test_download_tarball(self):
         result = self.service.add_idea("Federated learning scheduler.")
@@ -86,7 +92,9 @@ class ServiceTests(unittest.TestCase):
 class HttpTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
-        self.config = Config(data_dir=self.tmp, host="127.0.0.1", port=0)
+        self.config = Config(data_dir=self.tmp,
+                             artifacts_dir=os.path.join(self.tmp, "artifacts"),
+                             host="127.0.0.1", port=0)
         self.service = Service(self.config)
         handler = make_handler(self.service)
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)

@@ -8,7 +8,7 @@ PORT=8099
 DATA_DIR=$(mktemp -d)
 BASE="http://127.0.0.1:$PORT"
 
-python3 -m artifactfactory.daemon --port "$PORT" --data-dir "$DATA_DIR" &
+python3 -m artifactfactory.daemon --port "$PORT" --data-dir "$DATA_DIR" --artifacts-dir "$DATA_DIR/artifacts" &
 PID=$!
 trap 'kill "$PID" 2>/dev/null || true; rm -rf "$DATA_DIR"' EXIT
 

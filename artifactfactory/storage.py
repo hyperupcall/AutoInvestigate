@@ -119,4 +119,4 @@ class S3Storage(StorageBackend):
 def build_storage(config) -> StorageBackend:
     if config.storage_backend == "s3":
         return S3Storage(config.s3_bucket, config.s3_prefix)
-    return LocalStorage(os.path.join(config.data_dir, "artifacts"))
+    return LocalStorage(config.artifacts_dir)
