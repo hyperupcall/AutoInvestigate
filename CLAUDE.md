@@ -381,9 +381,8 @@ root `.env` (template: `.env.example`), plus an optional **`SMITH_API_KEY`** for
 agents' MCP servers. There are no per-directory `.env` files and no other provider keys. Each service reads that one file: the root `docker-compose.yml`
 defines the evaluation backend with `env_file: .env` (and `backend/setup.sh` /
 `backend/Makefile` drive it via `docker compose -f ../docker-compose.yml --env-file
-../.env`), `backend/legacy/` via `../../.env` (litellm `openrouter/...` models),
-`evalreport/` via `load_dotenv(<repo-root>/.env)` (OpenAI SDK pointed at OpenRouter),
-and `artifactfactory/run.sh` sources it.
+../.env`), `evalreport/` via `load_dotenv(<repo-root>/.env)` (OpenAI SDK pointed at
+OpenRouter), and `artifactfactory/run.sh` sources it.
 
 ---
 

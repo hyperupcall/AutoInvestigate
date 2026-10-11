@@ -94,7 +94,7 @@ Two relevant facts:
 | C6 Memory | `results/` is a write-only archive | nothing is read back into new runs | `council/memory.py` (local) or memory MCP |
 | C7 GitHub | none | no repo inspection | GitHub MCP via C1 |
 | C8 Sandbox | `artifactfactory/` exists but is separate and dummy | no measured experiment | wire artifactfactory + a sandbox runner |
-| C9 Baseline | `legacy/` and `evalreport/` have baselines | backend has none | `orchestrator/baseline.py` + benchmark harness |
+| C9 Baseline | `evalreport/` has a baseline | backend has none | `orchestrator/baseline.py` + benchmark harness |
 | C10 Security | keys server-side, budget cap, timeouts | no untrusted-content handling, no read-only policy, no audit | policy in `council/mcp.py` + settings |
 
 ---
@@ -244,7 +244,7 @@ Two options, in order of effort:
 ### 5.6 Baseline and benchmark (C9)
 
 `orchestrator/baseline.py` runs the same idea through one general-purpose call (the pattern already
-exists in `evalreport/app.py` `run_baseline` and `legacy/baseline/`). `orchestrator/benchmark.py`
+exists in `evalreport/app.py` `run_baseline`). `orchestrator/benchmark.py`
 runs N objectives through both and scores the dimensions `MCP_INFO.md` §13 lists: factual accuracy,
 source verification rate, business-analysis quality, technical feasibility, experiment quality, risk
 identification. Expose it as `POST /api/benchmark` and a report section.

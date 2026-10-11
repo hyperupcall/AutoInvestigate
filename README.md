@@ -37,8 +37,8 @@ docker compose up --build
 ```
 
 Everything runs on a **single OpenRouter key**. The root `.env` holds one
-`OPENROUTER_API_KEY`, and every service reads that one file (`backend/`,
-`backend/legacy/`, and `evalreport/`). The evaluation backend also needs a
+`OPENROUTER_API_KEY`, and every service reads that one file (`backend/` and
+`evalreport/`). The evaluation backend also needs a
 `SLIM_SHARED_SECRET`; `cd backend && ./setup.sh` writes both for you.
 
 Then open http://localhost:8000 (frontend). The evaluation backend also serves the

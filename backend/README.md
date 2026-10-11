@@ -120,7 +120,6 @@ prompts/        every agent's role and the system prompts (markdown, editable, m
 schema/         evaluation-report.schema.json
 examples/       two finished reports
 tests/          `make test` (needs uv)
-legacy/         the earlier 4-agent negotiation demo (runs on its own)
 ```
 
 ## Cost
