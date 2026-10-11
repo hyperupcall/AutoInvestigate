@@ -1,10 +1,10 @@
 /* components/navbar.js — the app header (navbar), shared by every page so it looks
- * the same everywhere: the brand on the left, the primary links (Agent View,
- * Artifact Factory) in the middle, and the actions (backend badge, Information,
+ * the same everywhere: the brand on the left, the primary links (Idea Evaluation
+ * View, Artifact Generation View) in the middle, and the actions (backend badge, Information,
  * Settings) on the right. The links open in the same tab.
  *
  * The workspace (index.html) mounts it from app.js; the other pages mount it from
- * shell.js. The backend badge and the Agent View href follow the detected backend
+ * shell.js. The backend badge and the Idea Evaluation View href follow the detected backend
  * (Hack.backendInfo, set by api-backend.js), so the header stays correct on every
  * page without each page wiring it up itself. */
 (function () {
@@ -61,8 +61,8 @@
     ]));
 
     root.appendChild(el('nav', { class: 'app-nav', 'aria-label': 'Primary' }, [
-      navLink('agent-view', 'Agent View', agentViewHref(), 'The live view served by the backend'),
-      navLink('artifact-factory-view', 'Artifact Factory', 'artifactfactory.html', 'The Artifact Factory dashboard'),
+      navLink('agent-view', 'Idea Evaluation View', agentViewHref(), 'The live view served by the backend'),
+      navLink('artifact-factory-view', 'Artifact Generation View', 'artifactfactory.html', 'The Artifact Generation View dashboard'),
     ]));
 
     root.appendChild(el('div', { class: 'header-actions' }, [

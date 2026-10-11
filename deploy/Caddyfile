@@ -1,0 +1,52 @@
+# Caddy reverse proxy for the AutoInvestigate stack.
+#
+# One public entry point (port 80) with HTTP basic auth on everything. The
+# username and the bcrypt hash of the password come from the environment
+# (CADDY_USER, CADDY_PASSWORD_HASH in .env), so no secret is committed.
+#
+# Everything is proxied on the same origin, so the frontend finds the backend
+# and the Artifact Factory without any CORS or window.EVAL_API/AF_API overrides:
+#
+#   /api/*, /live*                                        -> web:8090
+#   /health, /info, /ideas*, /plans*, /jobs*, /artifacts* -> artifactfactory:8080
+#   everything else                                       -> frontend:80
+#
+# The backend services are bound to 127.0.0.1 in docker-compose.yml, so this
+# proxy is the only way in.
+{
+	admin off
+}
+
+:80 {
+	basic_auth {
+		{$CADDY_USER} {$CADDY_PASSWORD_HASH}
+	}
+
+	handle /api/* {
+		reverse_proxy web:8090
+	}
+	handle /live* {
+		reverse_proxy web:8090
+	}
+	handle /health {
+		reverse_proxy artifactfactory:8080
+	}
+	handle /info {
+		reverse_proxy artifactfactory:8080
+	}
+	handle /ideas* {
+		reverse_proxy artifactfactory:8080
+	}
+	handle /plans* {
+		reverse_proxy artifactfactory:8080
+	}
+	handle /jobs* {
+		reverse_proxy artifactfactory:8080
+	}
+	handle /artifacts* {
+		reverse_proxy artifactfactory:8080
+	}
+	handle {
+		reverse_proxy frontend:80
+	}
+}

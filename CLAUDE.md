@@ -162,7 +162,7 @@ single `window.Hack` namespace. Open `website/frontend/index.html` directly, or 
 | --- | --- |
 | **1 · Idea Generation** | Seed box + the level tree of ideas. |
 | **2 · Idea Evaluation** | Selected ideas + deeper-research runs. |
-| **3 · Idea Execution** | **Blank for now** — reserved for turning a chosen idea into an artifact. |
+| **3 · Idea Execution** | Chosen ideas build into prototypes here — several at once — each opening a popup that explains the artifact and how to download or interact with it. |
 
 **Settings is a popup**, opened from the **Settings** button in the header (not a
 sidebar). It is the one settings surface: when the backend is connected it renders
@@ -361,12 +361,13 @@ website/frontend/
       navbar.js           the shared app header (navbar)
       generation.js       column 1 (level tree)
       evaluation.js       column 2
-      execution.js        column 3 (blank)
+      execution.js        column 3 (prototype builds)
       settings.js         the settings form (backend settings when live, mock otherwise)
       settingsModal.js    settings popup
       infoModal.js        "Information" popup (about, connections, models, links)
       runConfigModal.js   per-run group picker (Start Deeper Research)
       variationsModal.js  "Create variations" popup (generate, regenerate, pick)
+      artifactModal.js    artifact popup (what it is, download / interact)
       modal.js            the two-tab popup (evaluation swarm / evaluation)
       toast.js            notifications
     app.js                bootstrap
@@ -479,7 +480,11 @@ a `reality-check` event in Evaluation Swarm. The mock mirrors it with a small ke
 **Done (real): Column 3 · Idea Execution** — `website/frontend/js/api-execution.js` swaps the mock for the real
 `artifactfactory/` service whenever it answers (same origin, or `localhost:8080` from `run.sh` on :8000; the
 factory allows that origin via `AF_CORS_ORIGINS`). "Execute →" on a research run sends its idea to column 3,
-which creates a plan, implements it and lists the artifacts with download links. Artifact content is still dummy.
+which creates a plan and implements it. The column holds **one entry per prototype and builds several at the same
+time**; each entry shows its status ("Building prototype…" → "Done generating"). The prototype is **not shown
+inline**: clicking a finished entry opens a popup (`website/frontend/js/components/artifactModal.js`) that explains
+what the artifact is and how to download or interact with it (a sandboxed preview, "Open full screen", "Download").
+Artifact content is still dummy.
 
 **Not done:**
 

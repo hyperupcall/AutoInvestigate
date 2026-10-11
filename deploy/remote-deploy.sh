@@ -142,13 +142,25 @@ wait_for() {  # name url
   return 1
 }
 
+wait_for_caddy() {  # Caddy is up and enforcing auth when / answers 401
+  local code
+  for _ in $(seq 1 60); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/ 2>/dev/null || echo 000)"
+    if [ "$code" = "401" ]; then printf '  ok    %s\n' "caddy (auth enforced)"; return 0; fi
+    sleep 2
+  done
+  printf '  FAIL  caddy (expected 401, got %s)\n' "$code" >&2
+  return 1
+}
+
 wait_for "artifactfactory" "http://127.0.0.1:8080/health"      || FAILED=1
 wait_for "web"             "http://127.0.0.1:8090/api/status"  || FAILED=1
 wait_for "frontend"        "http://127.0.0.1:8000/"             || FAILED=1
+wait_for_caddy                                                   || FAILED=1
 
 if [ "$FAILED" = 1 ]; then
   log "recent logs"
-  "${COMPOSE[@]}" logs --tail=40 web artifactfactory 2>/dev/null || true
+  "${COMPOSE[@]}" logs --tail=40 web artifactfactory caddy 2>/dev/null || true
   die "one or more services did not become healthy"
 fi
 

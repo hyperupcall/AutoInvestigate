@@ -220,8 +220,8 @@ has `margin-top: 8px`; `.field.inline` puts label and control on one row.
 ### Cards / panels
 
 One recipe, reused: `border: 1px solid silver; padding: 8px` (or `10px` for larger
-cards). Existing examples: `.eval-target`, `.run-card`, `.exec-idea`, `.exec-plan`,
-`.exec-artifact`, `.group-card`, `.result-group`, `.cluster-group-block`,
+cards). Existing examples: `.eval-target`, `.run-card`, `.exec-item`,
+`.artifact-block`, `.group-card`, `.result-group`, `.cluster-group-block`,
 `.input-card`. Hoverable cards add `:hover { background: whitesmoke }` and
 `cursor: pointer`.
 
@@ -233,7 +233,7 @@ The "pill" recipe — `font-size: 11px; color: gray; border: 1px solid silver; p
 <span class="tag">A</span>
 <span class="mock-badge">MOCK BACKEND</span>
 <span class="level-badge">3 ideas</span>
-<span class="exec-plan-status">planned</span>
+<span class="exec-item-status">planned</span>
 <span class="cluster-style">open</span>
 <span class="run-decision stop">stop</span>
 ```

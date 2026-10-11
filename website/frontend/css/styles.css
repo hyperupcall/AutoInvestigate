@@ -235,24 +235,35 @@ a.link-btn { text-decoration: none; }
 .exec-status { font-size: 12px; color: gray; margin-bottom: 8px; }
 .exec-status .live { color: green; }
 .exec-section-label { font-size: 12px; color: gray; margin: 4px 0 6px; }
-.exec-idea { border: 1px solid silver; padding: 8px; margin-bottom: 10px; }
-.exec-idea-text { font-size: 13px; }
-.exec-idea-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
-.exec-plan { border: 1px solid silver; padding: 8px; margin-bottom: 10px; }
-.exec-plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.exec-plan-title { font-weight: 600; }
-.exec-plan-status { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 4px; }
-.exec-steps { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
-.exec-steps li { margin: 2px 0; }
-.exec-steps li.done { color: gray; text-decoration: line-through; }
-.exec-progress { display: flex; align-items: center; gap: 8px; color: gray; margin-bottom: 10px; }
-.exec-artifacts { display: flex; flex-direction: column; gap: 8px; }
-.exec-artifact { border: 1px solid silver; padding: 8px; }
-.exec-artifact-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.exec-item { border: 1px solid silver; padding: 8px; margin-bottom: 8px; }
+.exec-item.clickable { cursor: pointer; }
+.exec-item.clickable:hover { background: whitesmoke; }
+.exec-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.exec-item-head-right { display: flex; align-items: center; gap: 6px; }
+.exec-item-status { font-size: 12px; color: gray; }
+.exec-item-status.building { color: darkorange; }
+.exec-item-status.done { color: green; }
+.exec-item-status.failed { color: red; }
+.exec-item-idea { margin-top: 6px; font-size: 13px; }
+.exec-item-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; }
+.exec-item-actions { display: flex; align-items: center; gap: 6px; }
 .exec-artifact-type { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 4px; margin-right: 6px; }
 .exec-artifact-name { font-weight: 600; font-size: 13px; }
-.exec-artifact-files { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color: gray; }
-.exec-artifact-files li { margin: 1px 0; }
+
+/* --------------------------- artifact popup --------------------------- */
+.modal.artifact-modal { width: 80vw; max-width: 900px; height: 85vh; }
+.artifact-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.artifact-idea { border: 1px solid silver; padding: 8px; margin-bottom: 10px; }
+.artifact-idea-text { font-size: 13px; }
+.artifact-list { display: flex; flex-direction: column; gap: 10px; }
+.artifact-block { border: 1px solid silver; padding: 8px; }
+.artifact-block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.artifact-block-actions { display: flex; align-items: center; gap: 6px; }
+.artifact-desc { font-size: 13px; margin-top: 6px; }
+.artifact-preview { width: 100%; height: 460px; border: 1px solid silver; margin-top: 6px; background: white; }
+.artifact-files { margin-top: 8px; }
+.artifact-files ul { margin: 6px 0 0; padding-left: 16px; font-size: 12px; color: gray; }
+.artifact-files li { margin: 1px 0; }
 
 /* --------------------------- settings --------------------------- */
 .settings-section { margin-bottom: 20px; }
@@ -569,7 +580,6 @@ a.link-btn { text-decoration: none; }
 .decision-banner.kept { border-color: darkorange; }
 .decision-banner.extra .decision-value { color: blue; }
 .decision-banner.kept .decision-value { color: darkorange; }
-.exec-preview { width: 100%; height: 460px; border: 1px solid silver; margin-top: 6px; background: white; }
 .run-decision.extra { color: blue; border-color: blue; }
 .run-decision.kept { color: darkorange; border-color: darkorange; }
 /* reality check (runs before the groups): does the idea make sense in the real world at all? */

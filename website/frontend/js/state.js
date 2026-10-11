@@ -29,18 +29,12 @@
 
     /* Right column */
     execution: {
-      // The idea chosen to turn into artifacts (sent from column 2 or column 1).
-      ideaId: null,
-      ideaText: '',
-      title: '',
+      // One entry per prototype; several build at the same time.
+      //   { id, ideaId, ideaText, title, evaluationRunId, createdAt,
+      //     plan, job, artifacts, pending, building, error }
       // plan: { id, title, idea_text, status, artifact_specs, steps, artifacts }
       // job:  { id, status, artifact_ids, error }
-      plan: null,
-      job: null,
-      artifacts: [],
-      pending: false,   // creating the plan
-      building: false,  // implementing the plan
-      error: null,
+      items: [],
     },
 
     /* Settings (popup) */
@@ -66,6 +60,9 @@
       //   { open, target, resolved, count, loading, error,
       //     items: [{ id, text, selected }], meta, nonce }
       variations: { open: false, target: null, resolved: null, count: 3, loading: false, error: null, items: [], meta: null, nonce: 0 },
+      // Artifact popup (opened by clicking a finished prototype in column 3).
+      //   { open, itemId }
+      artifactModal: { open: false, itemId: null },
       toast: null,
     },
   };

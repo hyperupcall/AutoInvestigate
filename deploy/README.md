@@ -14,11 +14,42 @@ The root `docker-compose.yml` stack:
 
 | Service | Host URL | Health check |
 | --- | --- | --- |
-| `frontend` | http://localhost:8000 | `GET /` |
-| `artifactfactory` | http://localhost:8080 | `GET /health` |
-| `web` (+ `slim`, `agent_host`) | http://localhost:8090 | `GET /api/status` |
+| `caddy` | http://<droplet>/ (public, basic auth) | `GET /` → `401` |
+| `frontend` | http://127.0.0.1:8000 | `GET /` |
+| `artifactfactory` | http://127.0.0.1:8080 | `GET /health` |
+| `web` (+ `slim`, `agent_host`) | http://127.0.0.1:8090 | `GET /api/status` |
 
 `orchestrator` is behind the `run` profile and is not started by a deploy.
+
+## Reverse proxy and password
+
+`caddy` is the **only** service published to the internet (port 80). The others
+are bound to `127.0.0.1`, so the proxy is the only way in. Caddy puts **HTTP basic
+auth on everything** and proxies each path to the right service on one origin
+(so the browser needs no CORS or `window.EVAL_API`/`AF_API` overrides):
+
+| Path | Goes to |
+| --- | --- |
+| `/api/*`, `/live*` | `web:8090` |
+| `/health`, `/info`, `/ideas*`, `/plans*`, `/jobs*`, `/artifacts*` | `artifactfactory:8080` |
+| everything else | `frontend:80` |
+
+The username and the bcrypt hash of the password live in `.env` as `CADDY_USER`
+and `CADDY_PASSWORD_HASH` (the Caddyfile reads them with `{$…}`), so no secret is
+committed. Generate them with:
+
+```bash
+python3 deploy/gen_caddy_password.py          # writes CADDY_USER/CADDY_PASSWORD/CADDY_PASSWORD_HASH to .env
+```
+
+The 40-character password is written to `.env` as `CADDY_PASSWORD` (read it with
+`grep '^CADDY_PASSWORD=' .env`); the script never prints it. To rotate, run the
+script again and redeploy.
+
+> **No TLS yet.** Caddy serves plain HTTP on `:80`, so the password is sent
+> base64-encoded, not encrypted. Point a domain at the droplet and change the
+> site address in `deploy/Caddyfile` from `:80` to that domain and Caddy will
+> fetch a certificate automatically.
 
 ## Triggers
 

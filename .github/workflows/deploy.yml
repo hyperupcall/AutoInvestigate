@@ -15,6 +15,8 @@ name: Deploy to Vultr
 #   VULTR_KNOWN_HOSTS     pinned host key(s); if absent, ssh-keyscan is used
 #   OPENROUTER_API_KEY    only needed to bootstrap .env on a brand-new server
 #   SLIM_SHARED_SECRET    only needed to bootstrap .env on a brand-new server
+#   CADDY_USER            basic-auth username for the Caddy proxy (default admin)
+#   CADDY_PASSWORD_HASH   bcrypt hash of the basic-auth password (deploy/gen_caddy_password.py)
 # Optional repository variable:
 #   APP_DIR               repo location on the server (default /opt/autoinvestigate)
 #
@@ -82,11 +84,13 @@ jobs:
           SSH_PORT: ${{ secrets.VULTR_PORT || '22' }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           SLIM_SHARED_SECRET: ${{ secrets.SLIM_SHARED_SECRET }}
+          CADDY_USER: ${{ secrets.CADDY_USER }}
+          CADDY_PASSWORD_HASH: ${{ secrets.CADDY_PASSWORD_HASH }}
         run: |
           set -euo pipefail
           umask 077
-          printf 'OPENROUTER_API_KEY=%s\nSLIM_SHARED_SECRET=%s\n' \
-            "$OPENROUTER_API_KEY" "$SLIM_SHARED_SECRET" > "$RUNNER_TEMP/bootstrap.env"
+          printf 'OPENROUTER_API_KEY=%s\nSLIM_SHARED_SECRET=%s\nCADDY_USER=%s\nCADDY_PASSWORD_HASH=%s\n' \
+            "$OPENROUTER_API_KEY" "$SLIM_SHARED_SECRET" "$CADDY_USER" "$CADDY_PASSWORD_HASH" > "$RUNNER_TEMP/bootstrap.env"
           scp -i ~/.ssh/deploy_key -P "$SSH_PORT" -o IdentitiesOnly=yes \
             "$RUNNER_TEMP/bootstrap.env" \
             "$SSH_USER@$SSH_HOST:/tmp/autoinvestigate-bootstrap.env"

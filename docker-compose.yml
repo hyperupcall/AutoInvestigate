@@ -3,10 +3,14 @@
 #   docker compose up --build
 #
 # Host ports:
-#   8000   frontend         static site (no build step)
-#   8080   artifactfactory  REST API (idea execution backend — the frontend's column 3)
-#   8090   web              evaluation backend (idea evaluation — the frontend's column 2)
-#   46357  slim             AGNTCY/SLIM bus (used by the evaluation agents)
+#   80     caddy            the only public entry point (basic auth; see deploy/Caddyfile)
+#   8000   frontend         static site (no build step)      — bound to 127.0.0.1
+#   8080   artifactfactory  REST API (idea execution)         — bound to 127.0.0.1
+#   8090   web              evaluation backend (idea evaluation) — bound to 127.0.0.1
+#   46357  slim             AGNTCY/SLIM bus (used by the agents)  — bound to 127.0.0.1
+#
+# Caddy fronts everything on :80 with HTTP basic auth and proxies the API paths
+# to the right service on the same origin, so the browser needs no CORS overrides.
 #
 # The evaluation backend (slim / agent_host / web) reads the single root .env
 # (OPENROUTER_API_KEY, SLIM_SHARED_SECRET, ...). Copy `.env.example` to `.env` and
@@ -34,7 +38,7 @@ services:
       context: ./website/frontend
     image: outshift/frontend:latest
     ports:
-      - "8000:80"
+      - "127.0.0.1:8000:80"
     depends_on:
       - artifactfactory
     restart: unless-stopped
@@ -46,7 +50,7 @@ services:
     image: outshift/artifactfactory:latest
     user: "${HOST_UID:-0}:${HOST_GID:-0}"   # files written to _artifacts/ and _artifactfactory-data/ stay owned by you
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     env_file: .env   # OPENROUTER_API_KEY: real literature review and experiment repo (artifactfactory/evaluation.py)
     environment:
       AF_HOST: 0.0.0.0
@@ -65,7 +69,7 @@ services:
     image: ghcr.io/agntcy/slim:1.4.0@sha256:7a7531cb81f1e24682f08364713da06a158411df3e90b687acf8d5836da5a78e
     container_name: deliberation-slim
     ports:
-      - "46357:46357"
+      - "127.0.0.1:46357:46357"
     environment:
       - PASSWORD=${SLIM_SHARED_SECRET}
       - CONFIG_PATH=/config.yaml
@@ -105,3 +109,24 @@ services:
     depends_on:
       - slim
       - agent_host
+
+  # ------------------------------------------------------- reverse proxy (public)
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file: .env   # CADDY_USER, CADDY_PASSWORD_HASH
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - artifactfactory
+      - web
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -13,6 +13,7 @@
     const infoRoot = document.getElementById('info-root');
     const runConfigRoot = document.getElementById('run-config-root');
     const variationsRoot = document.getElementById('variations-root');
+    const artifactRoot = document.getElementById('artifact-root');
     const toastRoot = document.getElementById('toast-root');
 
     if (!generation || !evaluation || !execution) {
@@ -29,6 +30,7 @@
     Hack.components.infoModal.mount(infoRoot);
     Hack.components.runConfigModal.mount(runConfigRoot);
     Hack.components.variationsModal.mount(variationsRoot);
+    Hack.components.artifactModal.mount(artifactRoot);
     Hack.components.toast.mount(toastRoot);
 
     store.subscribe(() => {
@@ -41,6 +43,7 @@
       Hack.components.infoModal.render();
       Hack.components.runConfigModal.render();
       Hack.components.variationsModal.render();
+      Hack.components.artifactModal.render();
       Hack.components.toast.render();
     });
   }

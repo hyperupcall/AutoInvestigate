@@ -491,33 +491,51 @@
 
   /* --------------------------- execution --------------------------- */
 
-  /** Copy an idea into column 3 (from an evaluation run or an idea row). */
+  /** Copy an idea into column 3 and start building it. Several build at the same time. */
   function sendToExecution({ ideaId, ideaText, title, evaluationRunId }) {
     const text = ideaText != null ? ideaText : (store.ideaById(ideaId) || {}).text;
     if (!text) return;
-    state.execution = {
+    const item = {
+      id: uid('exec'),
       ideaId: ideaId || null, ideaText: text, title: title || '',
       evaluationRunId: evaluationRunId || null, // lets the factory build from the real evaluation report
       plan: null, job: null, artifacts: [], pending: false, building: false, error: null,
+      createdAt: Date.now(),
     };
+    state.execution.items.push(item);
     store.notify();
-    showToast('Sent to Idea Execution.', 'ok');
+    showToast('Building a prototype…', 'ok');
+    buildArtifacts(item.id);
+  }
+
+  function executionItem(itemId) {
+    return state.execution.items.find((x) => x.id === itemId) || null;
+  }
+
+  function removeExecutionItem(itemId) {
+    const items = state.execution.items;
+    const i = items.findIndex((x) => x.id === itemId);
+    if (i === -1) return;
+    items.splice(i, 1);
+    if (state.ui.artifactModal.itemId === itemId) state.ui.artifactModal = { open: false, itemId: null };
+    store.notify();
   }
 
   function clearExecution() {
-    state.execution = {
-      ideaId: null, ideaText: '', title: '',
-      plan: null, job: null, artifacts: [], pending: false, building: false, error: null,
-    };
+    state.execution.items = [];
+    state.ui.artifactModal = { open: false, itemId: null };
     store.notify();
   }
 
-  /** Create the plan for the chosen idea, then implement it and poll the job. */
-  async function buildArtifacts() {
-    const ex = state.execution;
-    if (!ex.ideaText || ex.pending || ex.building) return;
+  /** Create the plan for one prototype, then implement it and poll the job. */
+  async function buildArtifacts(itemId) {
+    const ex = executionItem(itemId);
+    if (!ex || ex.pending || ex.building) return;
     ex.pending = true;
     ex.error = null;
+    ex.plan = null;
+    ex.job = null;
+    ex.artifacts = [];
     store.notify();
     try {
       const { idea, plan } = await execBackend.createIdea({
@@ -525,7 +543,7 @@
         metadata: ex.evaluationRunId ? { evaluation_run_id: ex.evaluationRunId } : undefined,
         options: { artifacts: ['mvp_prototype'] }, // Execute builds one clickable prototype of the idea
       });
-      if (state.execution !== ex) return; // the column was reset while we waited
+      if (executionItem(itemId) !== ex) return; // the item was removed while we waited
       ex.plan = plan;
       ex.ideaId = ex.ideaId || idea.id;
       ex.pending = false;
@@ -533,7 +551,7 @@
       store.notify();
 
       const { job } = await execBackend.implementPlan(plan.id);
-      if (state.execution !== ex) return;
+      if (executionItem(itemId) !== ex) return;
       ex.job = job;
       store.notify();
       pollJob(ex, plan.id, job.id);
@@ -548,7 +566,7 @@
 
   function pollJob(ex, planId, jobId) {
     const tick = async () => {
-      if (state.execution !== ex) return; // reset since
+      if (executionItem(ex.id) !== ex) return; // removed since
       try {
         const job = await execBackend.getJob(jobId);
         if (!job) return;
@@ -559,7 +577,7 @@
           ex.building = false;
           if (job.status === 'failed') ex.error = job.error || 'Build failed.';
           store.notify();
-          showToast(job.status === 'succeeded' ? 'Artifacts built.' : 'Build failed.',
+          showToast(job.status === 'succeeded' ? 'Prototype ready.' : 'Build failed.',
                     job.status === 'succeeded' ? 'ok' : 'error');
           return;
         }
@@ -577,6 +595,16 @@
 
   function artifactViewUrl(artifactId) {
     return execBackend.viewUrl ? execBackend.viewUrl(artifactId) : null;
+  }
+
+  function openArtifactModal(itemId) {
+    state.ui.artifactModal = { open: true, itemId };
+    store.notify();
+  }
+
+  function closeArtifactModal() {
+    state.ui.artifactModal = { open: false, itemId: null };
+    store.notify();
   }
 
   /* --------------------------- settings popup --------------------------- */
@@ -721,10 +749,13 @@
     removeRun,
     clearFinishedRuns,
     sendToExecution,
+    removeExecutionItem,
     clearExecution,
     buildArtifacts,
     artifactDownloadUrl,
     artifactViewUrl,
+    openArtifactModal,
+    closeArtifactModal,
     openModal,
     closeModal,
     setModalTab,

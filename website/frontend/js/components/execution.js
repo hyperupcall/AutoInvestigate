@@ -1,14 +1,16 @@
 /* components/execution.js — RIGHT column: Idea Execution.
  *
- * Turns a chosen idea into tangible artifacts via the Artifact Factory backend
- * (the repo's artifactfactory/). An idea arrives here with "Execute →" from a research
- * run in column 2 (or an idea row in column 1). Building creates a plan, then
- * implements it and lists the artifacts with download links.
+ * Turns chosen ideas into tangible prototypes via the Artifact Factory backend
+ * (the repo's artifactfactory/). Ideas arrive here with "Execute →" from a research
+ * run in column 2; each one builds on its own, so several build at the same time.
+ * The column lists each prototype with its status; clicking a finished one opens a
+ * popup (artifactModal) that explains the artifact and how to download or interact
+ * with it. The prototype is not shown inline here.
  */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
   Hack.components = Hack.components || {};
-  const { el, clear, truncate, preserveView } = Hack.util;
+  const { el, clear, truncate, timeAgo, preserveView } = Hack.util;
   const store = Hack.store;
   const actions = Hack.actions;
 
@@ -21,7 +23,7 @@
         el('span', { class: 'column-index', text: '3' }),
         el('h2', { text: 'Idea Execution' }),
       ]),
-      el('p', { class: 'column-sub', text: 'Turn a chosen idea into a tangible artifact.' }),
+      el('p', { class: 'column-sub', text: 'Turn chosen ideas into tangible prototypes. Several build at the same time.' }),
     ]);
 
     const body = el('div', { class: 'column-body', 'data-scroll-key': 'exec-body' });
@@ -32,46 +34,33 @@
     render();
   }
 
-  /* Only redraw when the execution state actually changes: redrawing recreates the prototype frame, which would
-   * reload the prototype and throw away whatever the viewer just clicked in it. */
-  let lastSignature = null;
-  function signature(ex) {
-    const job = ex.job || {};
-    const live = !!(Hack.artifactFactoryInfo && Hack.artifactFactoryInfo.live);
-    const plan = ex.plan ? [ex.plan.id, ex.plan.status, (ex.plan.artifact_specs || []).map((x) => x.status).join()] : null;
-    return JSON.stringify([ex.ideaText, ex.title, ex.pending, ex.building, ex.error, plan, job.id, job.status,
-      ex.artifacts.map((a) => a.id), live]);
-  }
-
   function render() {
     if (!refs.body) return;
     const ex = store.state.execution;
-    const sig = signature(ex);
-    if (sig === lastSignature) return;
-    lastSignature = sig;
     preserveView(refs.body, () => {
       clear(refs.body);
       refs.body.appendChild(renderStatus());
 
-      if (!ex.ideaText) {
+      if (!ex.items.length) {
         refs.body.appendChild(el('div', { class: 'empty-state' }, [
           el('img', { class: 'empty-mark', src: 'favicon.svg', alt: '', width: 20, height: 20 }),
-          el('p', { text: 'No idea selected.' }),
-          el('p', { class: 'muted', text: 'Open a research run in Idea Evaluation and press Execute → to send its idea here.' }),
+          el('p', { text: 'No prototypes yet.' }),
+          el('p', { class: 'muted', text: 'Open a research run in Idea Evaluation and press Execute → to build its idea here.' }),
         ]));
         return;
       }
 
-      refs.body.appendChild(renderIdea(ex));
-      if (ex.pending) {
-        refs.body.appendChild(el('div', { class: 'exec-progress' }, [el('div', { class: 'spinner' }), el('span', { text: 'Creating the plan…' })]));
-      }
-      if (ex.plan) refs.body.appendChild(renderPlan(ex));
-      if (ex.building) {
-        refs.body.appendChild(el('div', { class: 'exec-progress' }, [el('div', { class: 'spinner' }), el('span', { text: 'Building the prototype (about a minute)…' })]));
-      }
-      if (ex.artifacts.length) refs.body.appendChild(renderArtifacts(ex));
-      if (ex.error) refs.body.appendChild(el('div', { class: 'section-error', text: ex.error }));
+      const building = ex.items.filter((it) => it.pending || it.building).length;
+      refs.body.appendChild(el('div', { class: 'queue-head' }, [
+        el('span', {
+          class: 'muted small',
+          text: ex.items.length + (ex.items.length === 1 ? ' prototype' : ' prototypes') + (building ? ` · ${building} building` : ''),
+        }),
+        el('div', { class: 'level-head-actions' }, [
+          el('button', { class: 'link-btn', text: 'Clear all', title: 'Remove every prototype', onclick: () => actions.clearExecution() }),
+        ]),
+      ]));
+      ex.items.forEach((item) => refs.body.appendChild(renderItem(item)));
     });
   }
 
@@ -83,92 +72,47 @@
     ]);
   }
 
-  function renderIdea(ex) {
-    const canBuild = !ex.pending && !ex.building && !(ex.plan && ex.plan.status === 'implemented');
-    return el('div', { class: 'exec-idea' }, [
-      el('p', { class: 'exec-idea-text', text: truncate(ex.ideaText, 260) }),
-      el('div', { class: 'exec-idea-foot' }, [
-        el('button', { class: 'link-btn', text: 'Clear', onclick: () => actions.clearExecution() }),
-        canBuild
-          ? el('button', { class: 'btn small primary', text: ex.plan ? 'Build again' : 'Build prototype', onclick: () => actions.buildArtifacts() })
-          : null,
-      ]),
-    ]);
+  function itemStatus(item) {
+    if (item.error) return { cls: 'failed', text: 'Failed' };
+    if (item.pending) return { cls: 'building', text: 'Creating plan…' };
+    if (item.building) return { cls: 'building', text: 'Building prototype…' };
+    if (item.artifacts.length) return { cls: 'done', text: 'Done generating' };
+    return { cls: '', text: 'Queued' };
   }
 
-  function renderPlan(ex) {
-    const plan = ex.plan;
-    const built = new Set((plan.artifact_ids || []));
-    return el('div', { class: 'exec-plan' }, [
-      el('div', { class: 'exec-plan-head' }, [
-        el('span', { class: 'exec-plan-title', text: plan.title || 'Plan' }),
-        el('span', { class: 'exec-plan-status', text: plan.status }),
-      ]),
-      el('ol', { class: 'exec-steps' }, (plan.steps || []).map((step, i) => {
-        const spec = (plan.artifact_specs || [])[i];
-        const done = spec && spec.status === 'built';
-        return el('li', { class: done ? 'done' : '', text: step });
-      })),
-    ]);
-  }
-
-  function renderArtifacts(ex) {
-    return el('div', {}, [
-      el('div', { class: 'exec-section-label', text: 'Artifacts' }),
-      el('div', { class: 'exec-artifacts' }, ex.artifacts.map(renderArtifact)),
-    ]);
-  }
-
-  /* The prototype is fetched and shown through srcdoc in a sandboxed frame (scripts only: no network, no forms,
-   * no navigation, no access to this page). Loading it by URL from another port renders blank in some browsers.
-   * The HTML is cached per artifact so re-renders do not refetch; if the fetch fails, the frame loads the URL. */
-  const previewCache = new Map();
-  function previewFrame(id, view) {
-    const frame = el('iframe', { class: 'exec-preview', sandbox: 'allow-scripts', title: 'Prototype preview' });
-    // Set the content only once the frame is in the page (content set on a detached frame can stay blank).
-    const show = (html, tries = 0) => {
-      if (frame.isConnected) frame.srcdoc = html;
-      else if (tries < 50) requestAnimationFrame(() => show(html, tries + 1));
-    };
-    const html = previewCache.get(id);
-    if (html) { show(html); return frame; }
-    fetch(view).then((r) => (r.ok ? r.text() : Promise.reject(r.status))).then((text) => {
-      previewCache.set(id, text);
-      show(text);
-    }).catch(() => { frame.src = view; });
-    return frame;
-  }
-
-  function renderArtifact(a) {
-    const url = actions.artifactDownloadUrl(a.id);
-    const view = a.type === 'mvp_prototype' ? actions.artifactViewUrl(a.id) : null;
-    if (view) {
-      // The prototype itself: a sandboxed preview (scripts only: no network, no forms, no navigation).
-      return el('div', { class: 'exec-artifact' }, [
-        el('div', { class: 'exec-artifact-head' }, [
-          el('div', {}, [
-            el('span', { class: 'exec-artifact-type', text: 'prototype' }),
-            el('span', { class: 'exec-artifact-name', text: a.name }),
-          ]),
-          el('div', {}, [
-            el('a', { class: 'mini-btn', href: view, target: '_blank', rel: 'noopener', text: 'Open full screen' }),
-            url ? el('a', { class: 'mini-btn', href: url, download: '', text: 'Download' }) : null,
-          ]),
+  function renderItem(item) {
+    const status = itemStatus(item);
+    const ready = !item.pending && !item.building && (item.artifacts.length > 0 || !!item.error);
+    return el('div', {
+      class: 'exec-item ' + status.cls + (ready ? ' clickable' : ''),
+      title: ready ? 'Open the artifact' : '',
+      onclick: ready ? () => actions.openArtifactModal(item.id) : null,
+    }, [
+      el('div', { class: 'exec-item-head' }, [
+        el('span', { class: 'exec-item-status ' + status.cls }, [
+          (item.pending || item.building) ? el('span', { class: 'dot-pulse' }) : null,
+          status.text,
         ]),
-        previewFrame(a.id, view),
-      ]);
-    }
-    return el('div', { class: 'exec-artifact' }, [
-      el('div', { class: 'exec-artifact-head' }, [
-        el('div', {}, [
-          el('span', { class: 'exec-artifact-type', text: a.type }),
-          el('span', { class: 'exec-artifact-name', text: a.name }),
+        el('div', { class: 'exec-item-head-right' }, [
+          el('span', { class: 'muted small', text: timeAgo(item.createdAt) }),
+          el('button', {
+            class: 'mini-btn', text: '✕', title: 'Remove this prototype',
+            onclick: (e) => { e.stopPropagation(); actions.removeExecutionItem(item.id); },
+          }),
         ]),
-        url
-          ? el('a', { class: 'mini-btn', href: url, download: '', text: 'Download' })
-          : el('span', { class: 'muted small', text: 'no download' }),
       ]),
-      el('ul', { class: 'exec-artifact-files' }, (a.files || []).map((f) => el('li', { text: f }))),
+      el('p', { class: 'exec-item-idea', text: truncate(item.ideaText, 160) }),
+      item.plan ? el('p', { class: 'muted small', text: item.plan.title || 'Plan' }) : null,
+      item.error ? el('div', { class: 'section-error', text: item.error }) : null,
+      el('div', { class: 'exec-item-foot' }, [
+        el('span', { class: 'muted small', text: item.artifacts.length ? `${item.artifacts.length} artifact${item.artifacts.length === 1 ? '' : 's'}` : '' }),
+        el('div', { class: 'exec-item-actions' }, [
+          item.error
+            ? el('button', { class: 'mini-btn', text: 'Retry', onclick: (e) => { e.stopPropagation(); actions.buildArtifacts(item.id); } })
+            : null,
+          ready ? el('span', { class: 'link-btn', text: 'Open →' }) : null,
+        ]),
+      ]),
     ]);
   }
 
