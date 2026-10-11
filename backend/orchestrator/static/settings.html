@@ -70,9 +70,15 @@ pre#msg{font-family:monospace;font-size:12px;color:gray;white-space:pre-wrap;mar
 </fieldset>
 
 <fieldset>
-<legend>Stop-or-go judge and final text</legend>
+<legend>Stop-or-go judge</legend>
 <p><label>Model <input id="judge_model" list="models" size="45"></label>
 <label>API key <input type="password" id="judge_key" size="30" autocomplete="off" placeholder="default key"></label></p>
+</fieldset>
+
+<fieldset>
+<legend>Final report writer (the comprehensive verdict)</legend>
+<p><label>Model <input id="final_model" list="models" size="45"></label>
+<label>API key <input type="password" id="final_key" size="30" autocomplete="off" placeholder="default key"></label></p>
 </fieldset>
 
 <fieldset>
@@ -99,7 +105,7 @@ pre#msg{font-family:monospace;font-size:12px;color:gray;white-space:pre-wrap;mar
 
 <script>
 const EFFORTS = ['', 'none', 'minimal', 'low', 'medium', 'high'];
-const STAGES = [['deliberate', 'Discussion turns'], ['evaluate', 'Evaluations'], ['summarize', 'Summaries'], ['judge', 'Stop or go and final text'], ['reality_check', 'Reality check']];
+const STAGES = [['deliberate', 'Discussion turns'], ['evaluate', 'Evaluations'], ['summarize', 'Summaries'], ['judge', 'Stop or go'], ['final', 'Final report'], ['reality_check', 'Reality check']];
 let S = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
@@ -130,6 +136,7 @@ function render() {
     <td>${effortSelect(S.reasoning_effort[k], 'model default')}</td></tr>`).join('');
   $('summarizer_model').value = S.stages.summarizer.model; $('summarizer_key').value = S.stages.summarizer.api_key;
   $('judge_model').value = S.stages.judge.model; $('judge_key').value = S.stages.judge.api_key;
+  $('final_model').value = S.stages.final.model; $('final_key').value = S.stages.final.api_key;
   $('reality_check_model').value = S.stages.reality_check.model; $('reality_check_key').value = S.stages.reality_check.api_key;
   $('mcp_enabled').checked = S.mcp.enabled;
   if (S.mcp.api_key_env) {
@@ -175,6 +182,7 @@ function collect() {
   });
   S.stages.summarizer = {model: $('summarizer_model').value.trim(), api_key: $('summarizer_key').value};
   S.stages.judge = {model: $('judge_model').value.trim(), api_key: $('judge_key').value};
+  S.stages.final = {model: $('final_model').value.trim(), api_key: $('final_key').value};
   S.stages.reality_check = {model: $('reality_check_model').value.trim(), api_key: $('reality_check_key').value};
   const mcpKeyEl = $('mcp_key');
   S.mcp = {enabled: $('mcp_enabled').checked, api_key: mcpKeyEl ? mcpKeyEl.value : (S.mcp.api_key || ''),

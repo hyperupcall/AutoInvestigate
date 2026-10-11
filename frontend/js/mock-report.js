@@ -661,6 +661,13 @@
       "verdict": {
         "headline": "A narrow BFV aggregation prototype is feasible, but the design is not ready for production.",
         "conclusion": "Microsoft SEAL, Lattigo, and OpenFHE provide a practical starting point for a BFV sum of 100,000 32-bit integers. One researcher estimated 4 to 6 weeks for a bare prototype, plus another 4 to 6 weeks for range proofs and an end-to-end benchmark. The compute host need not see plaintext, but untrusted inputs can still poison an aggregate unless proofs are bound to the ciphertext and query, with replay and duplicate submissions handled separately. The proof size may be only 1 to 2 KB, but verification time at this scale remains unestablished. Stop the product effort; test this only against a specific workload and threat model.",
+        "findings": [
+          "A BFV sum over 100,000 32-bit integers needs no bootstrapping, so the prototype is weeks of work rather than a research program.",
+          "At N=2^15 a ciphertext serializes to roughly 2 MB per packed batch of 32,000 integers, so 1,000 clients uploading once incur about 2 GB of uplink.",
+          "Two-server additive secret sharing needs about 40 MB of uplink for the same 1,000 clients, so HE only wins when clients cannot reach a second server.",
+          "Range proofs were estimated at 200 to 400 KB and 50 to 150 ms per client, and must be part of the data-flow specification.",
+          "A plaintext modulus below roughly 2^37 causes silent modulo-wrap overflow on the sum, a failure mode secret sharing avoids."
+        ],
         "pros": [
           "The compute host can process ciphertexts without entering the plaintext trust boundary.",
           "Clients can upload one ciphertext rather than shares to multiple servers.",
@@ -670,7 +677,8 @@
           "Estimated batch latency is seconds on one CPU node, far slower than SGX or MPC for simple sums.",
           "Malformed ciphertexts can poison an aggregate; range proofs, identity checks, deduplication, and proof binding are required.",
           "Proof verification time at 100,000 inputs and production fault tolerance remain unresolved."
-        ]
+        ],
+        "scores": {"Feasibility": 4, "Technical risk": 7, "Market demand": 3, "Differentiation": 4, "Time to first value": 3, "Cost to build and run": 4}
       }
     },
     {
@@ -1192,6 +1200,11 @@
       "verdict": {
         "headline": "The trust benefit is real, but the performance and cost case does not support a product now.",
         "conclusion": "Homomorphic encryption has a defensible niche for shallow, batchable work where clients need to upload once and the compute host must never see plaintext. For a sum of 100,000 integers, the group's estimates put compute around 120 ms per core, before adding proof verification or operating costs. Estimates for a 1,000-QPS service range from hundreds of thousands of dollars to several million dollars a year, and were not reconciled. A feature attached to an existing security product could be more plausible than a standalone SKU, but no repeatable buyer demand was established. Stop until a named customer and workload justify a measured cost and latency test.",
+        "findings": [
+          "Compute for a 100,000-integer sum was estimated at about 120 ms per core, before proof verification or operating cost.",
+          "Annual cost estimates for a 1,000-QPS service spanned hundreds of thousands to several million dollars and were never reconciled.",
+          "No repeatable buyer demand was found; the plausible path is a feature attached to an existing security product, not a standalone SKU."
+        ],
         "pros": [
           "The compute host never handles plaintext, unlike enclave-based approaches.",
           "A single ciphertext upload can reduce client communication for bandwidth-constrained batch workloads.",
@@ -1201,7 +1214,8 @@
           "Estimated compute latency and throughput are poor for interactive or high-volume services.",
           "Proof verification and cloud costs could consume the potential revenue; the cost estimates vary widely.",
           "Open-source alternatives and Zama Concrete limit pricing power, and no standalone buyer was identified."
-        ]
+        ],
+        "scores": {"Feasibility": 4, "Technical risk": 7, "Market demand": 3, "Differentiation": 4, "Time to first value": 3, "Cost to build and run": 3, "Adoption likelihood": 3}
       }
     },
     {
@@ -1838,6 +1852,11 @@
       "verdict": {
         "headline": "Some customers may pay for the trust boundary, but others will prefer faster and cheaper alternatives.",
         "conclusion": "Customers who cannot trust a cloud compute host may value homomorphic encryption for a narrow batch workload, especially in cross-organization data sharing. Customers who accept Nitro Enclaves or other confidential-computing products are more likely to choose their near-native performance and simpler operations. Buyers focused on cost or avoiding data sharing may choose neither option. The phrase submitted does not identify a workload, service design, or buyer, and the reported costs and market estimates are too uncertain to support a product decision. Stop the product proposal; revisit only with a specific customer requirement and benchmark.",
+        "findings": [
+          "The group split along customer type: trust-boundary buyers versus performance-first buyers, with a third group that chooses neither.",
+          "Buyers who already accept confidential computing are unlikely to switch to a slower option for the same threat model.",
+          "No customer archetype could name a workload where the trust benefit outweighed the latency and cost."
+        ],
         "pros": [
           "The compute host does not see plaintext, which can matter to customers that reject enclave trust assumptions.",
           "Single-shot encrypted uploads may suit clients with limited bandwidth.",
@@ -1847,7 +1866,8 @@
           "The idea has no specified workload, key custody plan, audit trail, or operational design.",
           "Estimated slowdown, ciphertext size, proof costs, and cloud costs make many commercial workloads unattractive.",
           "Confidential-computing services, open-source libraries, and the option not to share data are strong alternatives."
-        ]
+        ],
+        "scores": {"Market demand": 3, "Differentiation": 4, "Adoption likelihood": 3, "Time to first value": 3}
       }
     }
   ],
@@ -1957,7 +1977,47 @@
   },
   "verdict": {
     "headline": "Stop the product idea, but keep homomorphic encryption as a narrow technical option.",
-    "conclusion": "Homomorphic encryption keeps data hidden from the compute host, a real advantage when cloud-provider trust is unacceptable. It is also slow and costly, and the discussion did not establish a product workload or buyer that justifies those costs. A specific batch-aggregation use case may merit a prototype, but this is not a product endorsement."
+    "recommendation": "Hold",
+    "summary": "Homomorphic encryption keeps data hidden from the compute host, and that is a real advantage when cloud-provider trust is unacceptable. It is also slow and costly, and the discussion did not establish a product workload or a buyer that justifies those costs. The research group put a bare prototype of a BFV sum over 100,000 32-bit integers at 4 to 6 weeks for one engineer, using Microsoft SEAL or Lattigo, and another 4 to 6 weeks for range proofs and an end-to-end benchmark. The private equity group could not reconcile its own cost estimates, which ranged from hundreds of thousands to several million dollars a year for a 1,000-QPS service, and found no repeatable buyer demand. The market group split along customer type: buyers who cannot trust a compute host may pay for the trust boundary, while buyers who accept Nitro Enclaves or other confidential computing will choose the faster and simpler option.\n\nThe three groups agree on the technical facts and disagree on what they are worth. Nobody disputes that a shallow, batchable aggregation can run under encryption without bootstrapping. Nobody disputes that the compute host then never sees plaintext. The disagreement is whether any customer has a workload where that property is worth the latency, the ciphertext expansion, and the operational cost. The research group says the honest baseline is two-server secret sharing, not an enclave, and that HE only wins when clients are single-shot and cannot reach a second server. The private equity group says that niche is too narrow to build a product on. The market group says the niche exists but is not the same customer as the one who buys confidential computing today.\n\nThe strongest technical gap is integrity, not confidentiality. A malformed ciphertext from one client can poison an aggregate with no reconstructable redundancy, unlike secret sharing where a corrupted share is detectable. The research group estimated range proofs at 200 to 400 KB and 50 to 150 ms per client, and said they must be part of the data-flow specification rather than treated as optional. The private equity group noted that a proof size of 1 to 2 KB is plausible but that verification time at scale is unestablished.\n\nThe reality check found the idea grounded: homomorphic encryption is a real, published field and the proposal is coherent. That is not the same as investable. The verdict is to stop the product effort and keep the technology as a narrow option, revisited only with a named customer and a specific workload.",
+    "the_idea": "The submission was the bare term homomorphic encryption. The groups converged on evaluating one concrete case: a BFV sum over 100,000 32-bit integers from many clients to a single untrusted cloud node, with clients encrypting under a public key and the decryption key held in an HSM or enclave during rotation.",
+    "case_for": [
+      "The compute host never sees plaintext, which removes the cloud operator from the trust boundary for shallow, batchable aggregation.",
+      "A bare BFV sum needs no bootstrapping, so a prototype is weeks of work, not years: 4 to 6 weeks for one engineer with Microsoft SEAL or Lattigo.",
+      "HE can win on client communication when clients are single-shot and cannot reach a second server: one ciphertext each, versus a share per server per client for secret sharing.",
+      "The niche is real and published: Microsoft SEAL examples, CryptoNets, and the private set intersection literature all show shallow encrypted aggregation working."
+    ],
+    "case_against": [
+      "No product workload or buyer was established. The submission is a research area, not a falsifiable proposal.",
+      "Latency and ciphertext expansion are large: roughly 2 MB per packed batch at N=2^15, and seconds per batch on one CPU node versus sub-millisecond for an enclave.",
+      "Integrity is unsolved: one malformed ciphertext can poison the aggregate, and range proofs add 200 to 400 KB and 50 to 150 ms per client.",
+      "Cost estimates for a 1,000-QPS service ranged from hundreds of thousands to several million dollars a year and were never reconciled.",
+      "The honest baseline for shallow integer aggregation is two-server secret sharing, which HE only beats under narrow client-topology assumptions."
+    ],
+    "plan": [
+      {"step": "1", "title": "Fix the workload and the threat model", "detail": "Write down the query (records, integer width, aggregation type), the client topology, the collusion policy, and the latency budget. Without this, no scheme can be chosen and no result is falsifiable.", "timeframe": "week 1", "cost": "one engineer, about $0", "owner": "the submitter with a security reviewer"},
+      {"step": "2", "title": "Run the parameter feasibility check", "detail": "Use a lattice parameter solver to fix N and Q for the stated security target and confirm the plaintext modulus can hold the maximum sum without silent overflow.", "timeframe": "week 2", "cost": "one engineer, about $0", "owner": "research group"},
+      {"step": "3", "title": "Build the single-node BFV sum prototype", "detail": "Measure end-to-end latency, throughput, ciphertext expansion, and correctness on the stated record count, using Microsoft SEAL or Lattigo.", "timeframe": "weeks 3-6", "cost": "one engineer, about $0 in licences", "owner": "research group"},
+      {"step": "4", "title": "Benchmark against two-server secret sharing", "detail": "Run the same workload against an additive-sharing or SPDZ-style baseline on identical inputs and threat assumptions, measuring client upload bytes and end-to-end latency.", "timeframe": "weeks 7-10", "cost": "one engineer plus a part-time cryptographer", "owner": "research group with the private equity group reviewing the cost model"}
+    ],
+    "kill_criteria": [
+      "The prototype is more than 10x slower end-to-end than the two-server secret-sharing baseline on the same workload.",
+      "Client upload bytes exceed the stated bandwidth budget once ciphertext expansion is measured rather than estimated.",
+      "No named customer will commit to a workload where the compute host cannot be trusted and the latency is acceptable.",
+      "Range-proof verification time at the target record count makes the end-to-end budget unreachable."
+    ],
+    "risks": [
+      {"risk": "The workload is never specified, so the prototype measures nothing that transfers to a real deployment.", "severity": "high", "mitigation": "Do not start step 3 until step 1 is signed off by a named customer."},
+      {"risk": "Silent arithmetic overflow in BFV produces incorrect totals without warning.", "severity": "high", "mitigation": "Fix the plaintext modulus in step 2 and add a correctness test at the maximum possible sum."},
+      {"risk": "A malformed client ciphertext poisons the aggregate.", "severity": "medium", "mitigation": "Bind range proofs to the ciphertext and the query, and handle replay and duplicate submissions separately."},
+      {"risk": "The cost model is wrong by an order of magnitude, as the private equity group's own range suggests.", "severity": "medium", "mitigation": "Reconcile the estimates against measured prototype throughput before any product decision."}
+    ],
+    "open_questions": [
+      "Is there a real workload where the compute host cannot be trusted but seconds of latency are acceptable?",
+      "What is the measured range-proof verification time at the target record count?",
+      "Does HE beat two-server secret sharing on any workload a customer actually has?"
+    ],
+    "what_would_change_the_verdict": "A named customer with a concrete workload where the compute host must not see plaintext, plus a measured prototype within 10x of the secret-sharing baseline, would move this from Hold to Go with changes.",
+    "scores": {"Feasibility": 4, "Technical risk": 7, "Market demand": 3, "Differentiation": 4, "Time to first value": 3, "Cost to build and run": 4, "Adoption likelihood": 3}
   },
   "reality_check": {
     "verdict": "grounded",

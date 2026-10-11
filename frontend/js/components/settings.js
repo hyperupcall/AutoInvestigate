@@ -20,7 +20,8 @@
     ['deliberate', 'Discussion turns'],
     ['evaluate', 'Evaluations'],
     ['summarize', 'Summaries'],
-    ['judge', 'Stop or go and final text'],
+    ['judge', 'Stop or go'],
+    ['final', 'Final report'],
     ['reality_check', 'Reality check'],
   ];
 
@@ -61,7 +62,7 @@
     if (info && info.live && info.settings) {
       const s = info.settings;
       const configured = s.groups.flatMap((g) => g.agents.map((a) => a.model))
-        .concat([s.sources.model, s.stages.summarizer.model, s.stages.judge.model, s.stages.reality_check.model]);
+        .concat([s.sources.model, s.stages.summarizer.model, s.stages.judge.model, s.stages.final.model, s.stages.reality_check.model]);
       return [...new Set([...base, ...configured.filter(Boolean)])];
     }
     return base;
@@ -349,7 +350,8 @@
     ]));
     wrap.appendChild(renderGeneral(S));
     wrap.appendChild(renderStage(S, 'summarizer', 'Summarizer (pros and cons per group)'));
-    wrap.appendChild(renderStage(S, 'judge', 'Stop-or-go judge and final text'));
+    wrap.appendChild(renderStage(S, 'judge', 'Stop-or-go judge'));
+    wrap.appendChild(renderStage(S, 'final', 'Final report writer (the comprehensive verdict)'));
     wrap.appendChild(renderStage(S, 'reality_check', 'Reality check (does the idea make sense, before the groups run)'));
     wrap.appendChild(renderMcp(S));
     wrap.appendChild(section('Group perspectives', [

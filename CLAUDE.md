@@ -129,6 +129,17 @@ The pipeline should be simple and use **models configured by the user**.
    look like LLM text.**
 6. If *continue* → deliberate **one more time**, then **always finish**.
    If *stop* → stop. Give the final text/conclusions for each group.
+7. **Final report** (added): the `final` stage (`prompts/system/final.md`, stage `final` in
+   settings, its own model/key/token budget) writes the comprehensive verdict shown to the
+   submitter. It is fed the **raw material**, not just the twice-squeezed summaries: each
+   group's latest evaluations in full, the latest discussion, the arXiv papers, the
+   stop-or-go decision and the reality check. It returns a structured report — headline,
+   recommendation, a multi-paragraph executive summary, the idea as evaluated, the case for
+   and against, an **ordered action plan** (steps with timeframe/cost/owner), **kill
+   criteria**, risks with mitigations, open questions, and what would change the verdict —
+   plus a richer per-group verdict (headline, conclusion, findings, pros/cons, scores).
+   This is the fix for the old thin verdict: the format was tiny, the writer only saw
+   summaries, and nothing asked for a plan.
 
 **Prompts** must be configurable via a file on the filesystem and selectable in
 settings.
@@ -284,10 +295,11 @@ popup then reflects it (it syncs from the backend).
     summarized turns, evaluations, summaries, cross-group analysis, the stop-or-go
     decision and the verdict, as the backend emits them.
   - **Evaluation** — the finished report, shaped exactly like
-    `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, final
-    verdict, cross-group disagreements/agreements, per-group scores/verdicts/
-    disagreements, AGNTCY transport and the disagreement analysis. Includes a
-    collapsible **Raw JSON** view of the whole report.
+    `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, the **final report**
+    (headline, recommendation, executive summary, case for/against, ordered plan, kill
+    criteria, risks, open questions, scores), cross-group disagreements/agreements, per-group
+    scores/verdicts/findings/disagreements, AGNTCY transport and the disagreement analysis.
+    Includes a collapsible **Raw JSON** view of the whole report.
 
 ### Settings (popup)
 
@@ -295,7 +307,7 @@ One settings surface. When the backend is connected the popup renders the backen
 real settings — the same fields as the backend `/settings` page — and saves them with
 `PUT /api/settings`: mode, arXiv sources, the default OpenRouter key, deliberation
 time, cost cap, web search, the per-stage token/effort table, the summarizer / judge /
-reality-check models and keys, the MCP settings, the MCP server catalog, and the group
+final / reality-check models and keys, the MCP settings, the MCP server catalog, and the group
 perspectives (name, discussion style — **automatic** lets the backend pick per group,
 `converge` or `diverge` — arXiv use, and each agent's model, key, reasoning effort,
 prompt and MCP servers). Without a backend it falls back to the in-memory mock settings
@@ -435,7 +447,15 @@ light/minimal styling.
 `frontend/js/api-backend.js` swaps the mock evaluation for the real one whenever the backend answers (same origin
 on :8090, or `localhost:8090` from `run.sh` on :8000); otherwise the mock still runs. Past runs load into
 "Research runs". Stop-or-go is shown as the deliberation outcome (Stopped / Extra round / Disagreement kept),
-not as a verdict on the idea; the idea's verdict is the "Final verdict" block.
+not as a verdict on the idea; the idea's verdict is the "Final report" block.
+
+**Done (real): Final report** — the `final` stage (`prompts/system/final.md`, stage `final` in settings, its own
+model/key/token budget, default 9000 tokens) writes the comprehensive verdict. It is fed the raw material (each
+group's latest evaluations in full, the latest discussion, the arXiv papers, the stop-or-go decision, the reality
+check), not just the summaries, and returns a structured report: headline, recommendation, a multi-paragraph
+executive summary, the idea as evaluated, the case for and against, an ordered action plan with timeframe/cost/owner,
+kill criteria, risks with mitigations, open questions, and what would change the verdict. Per-group verdicts gained
+`findings` and `scores`. The report schema (`verdict` and group `verdict`) and the mock report mirror it.
 
 **Done (real): Reality check** — a stage before the groups (`prompts/system/reality_check.md`, stage
 `reality_check` in settings) that judges whether the idea makes sense in the real world at all and returns a

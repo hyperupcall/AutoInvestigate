@@ -560,8 +560,8 @@
     // Stop-or-go banner.
     if (report.stop_go) body.appendChild(renderStopGoBanner(report.stop_go));
 
-    // Final verdict.
-    if (report.verdict) body.appendChild(renderVerdictBlock('Final verdict', report.verdict));
+    // Final report (the comprehensive verdict written for the submitter).
+    if (report.verdict) body.appendChild(renderFinalReport(report.verdict));
     if (report.sources && (report.sources.papers || []).length) body.appendChild(renderSources(report.sources));
 
     // Cross-group.
@@ -673,10 +673,66 @@
       el('h4', { text: title }),
       v.headline ? el('p', { class: 'verdict-headline', text: v.headline }) : null,
       v.conclusion ? el('p', { text: v.conclusion }) : null,
+      v.findings && v.findings.length ? el('div', {}, [
+        el('h5', { class: 'sub-head', text: 'Findings' }),
+        el('ul', {}, v.findings.map((f) => el('li', { text: f }))),
+      ]) : null,
       v.pros && v.pros.length ? el('div', { class: 'pros-cons' }, [
         el('div', { class: 'pc-col' }, [el('h5', { text: 'Pros' }), el('ul', {}, v.pros.map((p) => el('li', { text: p })))]),
         el('div', { class: 'pc-col' }, [el('h5', { text: 'Cons' }), el('ul', {}, (v.cons || []).map((c) => el('li', { text: c })))]),
       ]) : null,
+      renderScoreChips(v.scores),
+    ]);
+  }
+
+  /* The final report: the comprehensive verdict written for the person who submitted the idea. It carries the
+   * executive summary, the case for and against, an ordered plan with kill criteria, risks and open questions. */
+  function renderFinalReport(v) {
+    if (!v) return null;
+    const rec = v.recommendation;
+    const recCls = rec === 'Go' ? 'go' : rec === 'No-go' ? 'stop' : rec === 'Hold' ? 'hold' : 'extra';
+    const paras = String(v.summary || '').split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
+    const plan = v.plan || [];
+    const risks = v.risks || [];
+    return el('div', { class: 'final-report' }, [
+      el('div', { class: 'decision-head' }, [
+        el('span', { class: 'decision-label', text: 'Final report' }),
+        rec ? el('span', { class: 'decision-value', text: rec }) : null,
+      ]),
+      v.headline ? el('p', { class: 'verdict-headline', text: v.headline }) : null,
+      v.the_idea ? el('p', { class: 'muted small', text: 'Idea as evaluated: ' + v.the_idea }) : null,
+      ...paras.map((p) => el('p', { class: 'report-para', text: p })),
+      (v.case_for || []).length || (v.case_against || []).length ? el('div', { class: 'pros-cons' }, [
+        el('div', { class: 'pc-col' }, [el('h5', { text: 'Case for' }), el('ul', {}, (v.case_for || []).map((x) => el('li', { text: x })))]),
+        el('div', { class: 'pc-col' }, [el('h5', { text: 'Case against' }), el('ul', {}, (v.case_against || []).map((x) => el('li', { text: x })))]),
+      ]) : null,
+      plan.length ? el('div', {}, [
+        el('h5', { class: 'sub-head', text: 'Plan' }),
+        el('ol', { class: 'plan-list' }, plan.map((s) => el('li', {}, [
+          el('span', { class: 'plan-title', text: s.title || '' }),
+          s.detail ? el('p', { class: 'plan-detail', text: s.detail }) : null,
+          [s.timeframe, s.cost, s.owner].filter(Boolean).length
+            ? el('p', { class: 'muted small', text: [s.timeframe, s.cost, s.owner].filter(Boolean).join(' · ') }) : null,
+        ]))),
+      ]) : null,
+      (v.kill_criteria || []).length ? el('div', {}, [
+        el('h5', { class: 'sub-head', text: 'Kill criteria' }),
+        el('ul', {}, v.kill_criteria.map((x) => el('li', { text: x }))),
+      ]) : null,
+      risks.length ? el('div', {}, [
+        el('h5', { class: 'sub-head', text: 'Risks' }),
+        el('ul', { class: 'risk-list' }, risks.map((r) => el('li', {}, [
+          r.severity ? el('span', { class: 'risk-sev ' + r.severity, text: r.severity.toUpperCase() }) : null,
+          el('span', { text: (r.severity ? ' ' : '') + (r.risk || '') }),
+          r.mitigation ? el('span', { class: 'muted', text: ' Mitigation: ' + r.mitigation }) : null,
+        ]))),
+      ]) : null,
+      (v.open_questions || []).length ? el('div', {}, [
+        el('h5', { class: 'sub-head', text: 'Open questions' }),
+        el('ul', {}, v.open_questions.map((x) => el('li', { text: x }))),
+      ]) : null,
+      v.what_would_change_the_verdict ? el('p', { class: 'muted small', text: 'What would change this verdict: ' + v.what_would_change_the_verdict }) : null,
+      renderScoreChips(v.scores),
     ]);
   }
 

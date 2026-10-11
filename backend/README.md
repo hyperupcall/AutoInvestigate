@@ -88,8 +88,14 @@ per server (✕ to remove) and a dropdown to add another. Save, and the next run
 6. Summaries again.
 7. Stop or go. This decides whether to keep deliberating, not whether the idea is good: stop, or run one
    extra round and then always finish. If a consensus across groups is not feasible, the disagreement is kept.
-8. Final conclusions per group, written for a person. Then a disagreement analysis (quotes are checked word for
-   word) and the JSON report in `results/<run_id>.json` (the reality check lands in its `reality_check` field).
+8. The final report (`prompts/system/final.md`, stage `final`): the comprehensive verdict written for the person
+   who submitted the idea. It is fed the raw material (each group's latest evaluations in full, the latest
+   discussion, the arXiv papers, the stop-or-go decision and the reality check), not just the summaries, and
+   returns a structured report: headline, recommendation, a multi-paragraph executive summary, the idea as
+   evaluated, the case for and against, an ordered action plan (timeframe/cost/owner), kill criteria, risks with
+   mitigations, open questions, and what would change the verdict, plus a per-group verdict with findings and
+   scores. Then a disagreement analysis (quotes are checked word for word) and the JSON report in
+   `results/<run_id>.json` (the reality check lands in its `reality_check` field).
 
 The orchestrator only opens SLIM groups, relays commands and records events; it decides nothing.
 
