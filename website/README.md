@@ -91,9 +91,10 @@ per server (✕ to remove) and a dropdown to add another. Save, and the next run
    who submitted the idea. It is fed the raw material (each group's latest evaluations in full, the latest
    discussion, the arXiv papers, the stop-or-go decision and the reality check), not just the summaries, and
    returns a structured report: headline, recommendation, a multi-paragraph executive summary, the idea as
-   evaluated, the case for and against, an ordered action plan (timeframe/cost/owner), kill criteria, risks with
-   mitigations, open questions, and what would change the verdict, plus a per-group verdict with findings and
-   scores. Then a disagreement analysis (quotes are checked word for word) and the JSON report in
+   evaluated, the case for and against, an ordered action plan (timeframe/cost/owner), implementation options
+   (each with how it would be validated and the result that counts as success) and a validation note, kill
+   criteria, risks with mitigations, open questions, and what would change the verdict, plus a per-group verdict
+   with findings and scores. Then a disagreement analysis (quotes are checked word for word) and the JSON report in
    `council_results/<run_id>.json` (the reality check lands in its `reality_check` field).
 
 The orchestrator only opens SLIM groups, relays commands and records events; it decides nothing.

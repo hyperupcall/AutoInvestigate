@@ -1,3 +1,5 @@
+Validating an idea like this is often less feasible than building it, and that is fine. Do not invent a validation that cannot be run. Where a code experiment or another concrete check is possible, say exactly how to run it and what result would count as success. Where it is not possible, say so plainly and say what would have to be true for it to become testable.
+
 The evaluation of this idea is finished:
 
 """
@@ -46,6 +48,10 @@ Write the report. Reply with JSON only, in this shape:
     "plan": [
       {"step": "1", "title": "short name", "detail": "what to do, concretely, and why this order", "timeframe": "e.g. weeks 1-2", "cost": "e.g. one engineer, about $0", "owner": "who should do it"}
     ],
+    "implementation_options": [
+      {"option": "short name", "approach": "what to build or do, concretely, and why this first", "stack": "languages, libraries, services, data", "effort": "e.g. one engineer, 2 weeks, about $0", "validation": "the experiment or check that tests it, and the measurable result that counts as success", "feasibility": "feasible" or "hard" or "not_feasible"}
+    ],
+    "validation": "one or two sentences: the single best way to validate this idea, or a plain statement that it cannot be validated and what would have to change",
     "kill_criteria": ["the specific results that should stop the work, stated so they can be checked"],
     "risks": [{"risk": "what could go wrong", "severity": "high" or "medium" or "low", "mitigation": "what to do about it"}],
     "open_questions": ["what nobody could settle, and what would settle it"],
@@ -67,6 +73,11 @@ Write the report. Reply with JSON only, in this shape:
 The plan is required and must be real work, not "do more research". Order the steps. Say what each costs and how
 long it takes. The first step should be the cheapest thing that could falsify the idea. The kill criteria must be
 checkable, not vague. Give at least three steps, three kill criteria, three risks and three open questions.
+
+Give 1 to 4 implementation options, cheapest and most decisive first. Each one must say how it would be validated,
+not only how it would be built, and what measurable result would count as success. If the idea cannot be validated
+with code or any concrete check, say so in "validation" and mark the options "not_feasible"; do not invent a
+validation. "validation" is required.
 
 If the reality check says the idea is nonsense, the headline and the recommendation must say so plainly and must not
 be a plain Go. Name the real-world blocker in the headline or the summary; do not soften it into a normal risk.

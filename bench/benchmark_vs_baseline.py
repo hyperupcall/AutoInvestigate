@@ -15,6 +15,7 @@ The deliberation settings are changed for the run and reset to the repo defaults
   python3 bench/benchmark_vs_baseline.py                          # the default ideas, Quick mode
   python3 bench/benchmark_vs_baseline.py "idea one" "idea two"
   MODE=deep PARALLEL=2 python3 bench/benchmark_vs_baseline.py ...  # Deep mode, two deliberations at a time
+  BASE_MODEL=openai/gpt-oss-20b ...  # the model both tracks use (default openai/gpt-oss-120b)
   REUSE_AFTER=<run id> ...       # reuse finished deliberation runs of the same ideas started at or after that run id
   ... --blind                    # no judge: a page with the two reports as "Report A"/"Report B" plus a key file
   python3 bench/benchmark_vs_baseline.py --reformat bench/results/<stamp>-KEY.json
@@ -34,7 +35,7 @@ import urllib.request
 from datetime import datetime
 
 API = os.environ.get("EVAL_API", "http://localhost:8090")
-BASE_MODEL = "openai/gpt-oss-120b"
+BASE_MODEL = os.environ.get("BASE_MODEL", "openai/gpt-oss-120b")
 JUDGE = "deepseek/deepseek-v4-pro"
 OUT = os.path.join(os.path.dirname(__file__), "results")
 IDEAS = [
@@ -146,7 +147,34 @@ def deliberation_text(r: dict) -> str:
     """The deliberation's final report as plain text: what a user reads, without internal ids."""
     out = []
     v = r.get("verdict") or {}
-    out += ["FINAL VERDICT", v.get("headline", ""), v.get("conclusion", ""), ""]
+    out += ["FINAL VERDICT", v.get("headline", ""), v.get("summary", ""), ""]
+    if v.get("the_idea"):
+        out += [f"Idea as evaluated: {v['the_idea']}", ""]
+    if v.get("case_for"):
+        out += ["Case for:"] + [f"- {x}" for x in v["case_for"]]
+    if v.get("case_against"):
+        out += ["Case against:"] + [f"- {x}" for x in v["case_against"]]
+    if v.get("plan"):
+        out.append("Plan:")
+        for s in v["plan"]:
+            bits = " | ".join(str(s.get(k)) for k in ("timeframe", "cost", "owner") if s.get(k))
+            out.append(f"- {s.get('title', '')}: {s.get('detail', '')}" + (f" ({bits})" if bits else ""))
+    if v.get("implementation_options"):
+        out.append("Implementation options:")
+        for o in v["implementation_options"]:
+            out.append(f"- {o.get('option', '')} [{o.get('feasibility', '')}]: {o.get('approach', '')} "
+                       f"Stack: {o.get('stack', '')}. Effort: {o.get('effort', '')}. Validation: {o.get('validation', '')}")
+    if v.get("validation"):
+        out.append(f"Validation: {v['validation']}")
+    if v.get("kill_criteria"):
+        out += ["Kill criteria:"] + [f"- {x}" for x in v["kill_criteria"]]
+    if v.get("risks"):
+        out += ["Risks:"] + [f"- [{x.get('severity', '')}] {x.get('risk', '')} Mitigation: {x.get('mitigation', '')}" for x in v["risks"]]
+    if v.get("open_questions"):
+        out += ["Open questions:"] + [f"- {x}" for x in v["open_questions"]]
+    if v.get("what_would_change_the_verdict"):
+        out.append(f"What would change the verdict: {v['what_would_change_the_verdict']}")
+    out.append("")
     rc = r.get("reality_check") or {}
     if rc:
         out += ["REALITY CHECK", f"Verdict: {rc.get('verdict')}. {rc.get('summary', '')}"]

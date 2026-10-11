@@ -34,7 +34,7 @@ Pages:
 
 | Column | Purpose |
 | --- | --- |
-| **1 · Idea Generation** | The `(A)` seed box + iteration type, and the growing list of idea sections below it. |
+| **1 · Idea Generation** | The `(A)` seed box + the level tree of ideas. |
 | **2 · Idea Evaluation** | Ideas copied over with **Evaluate →**; start deeper research and open runs. |
 | **3 · Idea Execution** | Turn a chosen idea into artifacts via the Artifact Factory. |
 
@@ -70,11 +70,15 @@ live view (`/live`, the **Agent View**) renders the same navbar too — it pulls
   plain list** (no per-generation boxes) — generating twice at the same level adds
   to the same list rather than creating a separate box.
 - The **iteration type is not shown inline**. Each level (and the seed) has a single
-  **Iterate** button; clicking it opens a small **popover** with the iteration type
-  (`Refinement`, `Variation & Generation`, `Consolidation`, `Free-form`) and its
-  matching extra inputs (variation count / free-form instruction).
+  **Iterate** button (and each idea has an **Iterate** mini-button); clicking it opens a
+  small **menu** with just two choices:
+  - **Create variations** — opens a popup (`js/components/variationsModal.js`) that
+    generates variations up front, lists them with a **checkbox** each, offers
+    **Regenerate** (a fresh set) and a variation count, and adds the checked ones to the
+    idea list with **Select ideas**.
+  - **Text input** — a small popover with a free-form instruction applied to the target.
 - Iterating a level uses the **selected** ideas in that level, or the **whole level**
-  when nothing is selected (consolidation requires ≥ 2 ideas).
+  when nothing is selected.
 - Each level also has an **Evaluate** button next to **Iterate**; it uses the same
   selection rule and copies the chosen ideas into the **Idea Evaluation** column (it
   does *not* start the run).

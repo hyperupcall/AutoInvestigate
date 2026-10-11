@@ -314,6 +314,60 @@
             }
           }
         },
+        "implementation_options": {
+          "type": "array",
+          "description": "Ways to implement and validate the idea, cheapest and most decisive first",
+          "items": {
+            "type": "object",
+            "properties": {
+              "option": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "approach": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "stack": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "effort": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "validation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "feasibility": {
+                "enum": [
+                  "feasible",
+                  "hard",
+                  "not_feasible",
+                  null
+                ]
+              }
+            }
+          }
+        },
+        "validation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The best way to validate the idea, or a plain statement that it cannot be validated"
+        },
         "kill_criteria": {
           "type": "array",
           "items": {

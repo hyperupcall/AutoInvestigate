@@ -183,6 +183,26 @@ a.link-btn { text-decoration: none; }
 .iterate-popover-title { font-size: 12px; color: gray; }
 .iterate-popover-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
+/* the two-choice iterate menu */
+.menu-item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; text-align: left; border: 1px solid silver; background: white;
+  padding: 6px 8px; cursor: pointer; font: inherit;
+}
+.menu-item:hover { background: whitesmoke; }
+.menu-item-label { font-size: 13px; font-weight: 600; }
+.menu-item-hint { font-size: 11px; color: gray; }
+
+/* "Create variations" popup */
+.variations-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.variations-head .field.inline { margin-top: 0; }
+.variations-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.variations-list { display: flex; flex-direction: column; gap: 6px; }
+.variation-row { display: flex; align-items: flex-start; gap: 8px; border: 1px solid silver; padding: 8px; cursor: pointer; }
+.variation-row:hover { background: whitesmoke; }
+.variation-row.selected { background: aliceblue; }
+.variation-text { font-size: 13px; }
+
 /* --------------------------- empty states --------------------------- */
 .empty-state { text-align: center; padding: 24px 12px; color: gray; }
 .empty-state.small { padding: 12px; }

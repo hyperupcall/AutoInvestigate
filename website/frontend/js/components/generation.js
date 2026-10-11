@@ -5,9 +5,10 @@
  * same level are bunched into one plain list (no per-generation boxes).
  *
  * The iteration type is NOT shown inline. Each level (and the seed) has a single
- * "Iterate" button; clicking it opens a small popover where the iteration type
- * and its extra inputs are chosen. The level terminology stays in the code but
- * is not surfaced in the interface.
+ * "Iterate" button; clicking it opens a small menu with just two choices:
+ * "Create variations" (a popup that generates variations you can pick from) and
+ * "Text input" (a free-form instruction). The level terminology stays in the
+ * code but is not surfaced in the interface.
  */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
@@ -15,13 +16,6 @@
   const { el, clear, preserveView } = Hack.util;
   const store = Hack.store;
   const actions = Hack.actions;
-
-  const ITERATION_TYPES = [
-    { id: 'refinement', label: 'Refinement', hint: 'Sharpen one or more rough ideas into something specific.' },
-    { id: 'variation', label: 'Variation & Generation', hint: 'Generate multiple variations of the selected ideas.' },
-    { id: 'consolidation', label: 'Consolidation', hint: 'Merge two or more ideas into one.' },
-    { id: 'freeform', label: 'Free-form', hint: 'Apply a custom instruction to the selected ideas.' },
-  ];
 
   let refs = {};
   let lastLevelCount = 0;
@@ -62,7 +56,7 @@
 
     const btn = el('button', {
       class: 'btn primary', type: 'button', id: 'submit-seed',
-      onclick: (e) => openIteratePopover(e.currentTarget, { kind: 'seed' }),
+      onclick: (e) => openIterateMenu(e.currentTarget, { kind: 'seed' }),
     }, [el('span', { class: 'btn-label', text: 'Generate' })]);
 
     const hint = el('div', { class: 'input-hint' });
@@ -142,8 +136,8 @@
         lvl.ideas.length
           ? el('button', {
               class: 'btn small', type: 'button', text: 'Iterate',
-              title: 'Choose an iteration type and generate the next set of ideas',
-              onclick: (e) => openIteratePopover(e.currentTarget, { kind: 'level', level: lvl.level }),
+              title: 'Create variations or apply a text instruction',
+              onclick: (e) => openIterateMenu(e.currentTarget, { kind: 'level', level: lvl.level }),
             })
           : null,
       ]),
@@ -172,6 +166,11 @@
         el('p', { class: 'idea-text', text: idea.text }),
         el('div', { class: 'idea-meta' }, [
           el('button', {
+            class: 'mini-btn', text: 'Iterate',
+            title: 'Create variations of this idea or apply a text instruction',
+            onclick: (e) => { e.stopPropagation(); openIterateMenu(e.currentTarget, { kind: 'idea', ideaId: idea.id }); },
+          }),
+          el('button', {
             class: 'mini-btn', text: 'Evaluate →',
             title: 'Copy this idea to the Idea Evaluation column',
             onclick: (e) => { e.stopPropagation(); actions.queueIdeaForEvaluation(idea.id); },
@@ -181,85 +180,73 @@
     ]);
   }
 
-  /* --------------------------- iterate popover --------------------------- */
-  function iterationFor(target) {
-    if (target.kind === 'seed') return store.state.seed;
+  /* --------------------------- iterate menu --------------------------- */
+  function selectionHint(target) {
+    if (target.kind === 'seed') return 'the seed idea';
+    if (target.kind === 'idea') return 'this idea';
     const lvl = store.state.levels.find((l) => l.level === target.level);
-    return lvl ? lvl.iteration : null;
-  }
-
-  function iterType(iter) {
-    return iter.iterationType != null ? iter.iterationType : iter.type;
-  }
-
-  function setIterType(iter, type) {
-    if (iter.iterationType != null) iter.iterationType = type;
-    else iter.type = type;
-  }
-
-  function selectionHint(level) {
-    const lvl = store.state.levels.find((l) => l.level === level);
     if (!lvl) return '';
     const sel = lvl.ideas.filter((i) => store.state.selectedIdeaIds.includes(i.id)).length;
     if (sel) return sel + ' selected';
     return 'all ' + lvl.ideas.length + (lvl.ideas.length === 1 ? ' idea' : ' ideas');
   }
 
-  function openIteratePopover(anchor, target) {
+  /** The small menu opened by "Iterate"/"Generate": two choices only. */
+  function openIterateMenu(anchor, target) {
     closeIteratePopover();
-    const iter = iterationFor(target);
-    if (!iter) return;
-
-    const typeRow = el('div', { class: 'segmented' });
-    ITERATION_TYPES.forEach((t) => {
-      typeRow.appendChild(el('button', {
-        class: 'seg-btn', type: 'button', dataset: { type: t.id }, title: t.hint, text: t.label,
-        onclick: () => { setIterType(iter, t.id); refresh(); },
-      }));
-    });
-
-    const variationWrap = el('div', { class: 'field inline' }, [
-      el('label', { text: 'Variations' }),
-      el('input', {
-        type: 'number', min: 1, max: 8, class: 'num-input', value: iter.variationCount,
-        oninput: (e) => { iter.variationCount = Math.max(1, Math.min(8, Number(e.target.value) || 1)); },
-      }),
-    ]);
-
-    const freeformWrap = el('div', { class: 'field' }, [
-      el('label', { text: 'Free-form instruction' }),
-      el('textarea', {
-        class: 'input-prompt', rows: 2, value: iter.freeformPrompt,
-        placeholder: 'e.g. "reduce scope to a single deployable component and target the EU market"',
-        oninput: (e) => { iter.freeformPrompt = e.target.value; },
-      }),
-    ]);
-
-    const hint = el('span', { class: 'input-hint' });
 
     const pop = el('div', { class: 'iterate-popover' }, [
-      el('div', { class: 'iterate-popover-title', text: 'Iteration type' }),
-      typeRow,
-      variationWrap,
-      freeformWrap,
+      el('div', { class: 'iterate-popover-title', text: 'Iterate ' + selectionHint(target) }),
+      el('button', {
+        class: 'menu-item', type: 'button',
+        onclick: () => { closeIteratePopover(); actions.openVariations(target); },
+      }, [
+        el('span', { class: 'menu-item-label', text: 'Create variations' }),
+        el('span', { class: 'menu-item-hint', text: 'Generate options and pick the ones to keep.' }),
+      ]),
+      el('button', {
+        class: 'menu-item', type: 'button',
+        onclick: () => { closeIteratePopover(); openTextInput(anchor, target); },
+      }, [
+        el('span', { class: 'menu-item-label', text: 'Text input' }),
+        el('span', { class: 'menu-item-hint', text: 'Apply a free-form instruction.' }),
+      ]),
+    ]);
+
+    showPopover(pop, anchor);
+  }
+
+  /** The "Text input" popover: a free-form instruction applied to the target. */
+  function openTextInput(anchor, target) {
+    closeIteratePopover();
+
+    const textarea = el('textarea', {
+      class: 'input-prompt', rows: 3,
+      placeholder: 'e.g. "reduce scope to a single deployable component and target the EU market"',
+    });
+
+    const pop = el('div', { class: 'iterate-popover' }, [
+      el('div', { class: 'iterate-popover-title', text: 'Text input · ' + selectionHint(target) }),
+      textarea,
       el('div', { class: 'iterate-popover-actions' }, [
-        hint,
+        el('span', { class: 'input-hint' }),
         el('button', {
           class: 'btn primary small', type: 'button', text: 'Generate',
-          onclick: () => { closeIteratePopover(); confirmIterate(target); },
+          onclick: () => {
+            const text = textarea.value;
+            closeIteratePopover();
+            actions.iterateWithText(target, text);
+          },
         }),
       ]),
     ]);
 
-    function refresh() {
-      typeRow.querySelectorAll('.seg-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === iterType(iter)));
-      variationWrap.style.display = iterType(iter) === 'variation' ? '' : 'none';
-      freeformWrap.style.display = iterType(iter) === 'freeform' ? '' : 'none';
-      hint.textContent = target.kind === 'seed' ? '' : selectionHint(target.level);
-    }
+    showPopover(pop, anchor);
+    textarea.focus();
+  }
 
+  function showPopover(pop, anchor) {
     document.body.appendChild(pop);
-    refresh();
 
     const r = anchor.getBoundingClientRect();
     const top = Math.min(r.bottom + 4, window.innerHeight - pop.offsetHeight - 8);
@@ -284,11 +271,6 @@
 
   function onDocKeyDown(e) {
     if (e.key === 'Escape') closeIteratePopover();
-  }
-
-  function confirmIterate(target) {
-    if (target.kind === 'seed') actions.submitSeed();
-    else actions.generateFromLevel(target.level);
   }
 
   Hack.components.generation = { mount, render };

@@ -721,6 +721,18 @@
             ? el('p', { class: 'muted small', text: [s.timeframe, s.cost, s.owner].filter(Boolean).join(' · ') }) : null,
         ]))),
       ]) : null,
+      (v.validation || (v.implementation_options || []).length) ? el('div', {}, [
+        el('h5', { class: 'sub-head', text: 'Implementation and validation' }),
+        v.validation ? el('p', { class: 'plan-detail', text: v.validation }) : null,
+        (v.implementation_options || []).length ? el('ul', { class: 'plan-list' }, v.implementation_options.map((o) => el('li', {}, [
+          el('span', { class: 'plan-title', text: o.option || '' }),
+          o.feasibility ? el('span', { class: 'muted small', text: ' (' + String(o.feasibility).replace('_', ' ') + ')' }) : null,
+          o.approach ? el('p', { class: 'plan-detail', text: o.approach }) : null,
+          [o.stack, o.effort].filter(Boolean).length
+            ? el('p', { class: 'muted small', text: [o.stack, o.effort].filter(Boolean).join(' · ') }) : null,
+          o.validation ? el('p', { class: 'plan-detail', text: 'Validation: ' + o.validation }) : null,
+        ]))) : null,
+      ]) : null,
       (v.kill_criteria || []).length ? el('div', {}, [
         el('h5', { class: 'sub-head', text: 'Kill criteria' }),
         el('ul', {}, v.kill_criteria.map((x) => el('li', { text: x }))),

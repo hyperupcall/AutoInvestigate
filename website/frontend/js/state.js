@@ -62,6 +62,10 @@
       // Per-run group selection, opened from "Start Deeper Research".
       //   { open, queueId, selectedGroupIds: [] }
       runConfig: { open: false, queueId: null, selectedGroupIds: [] },
+      // "Create variations" popup (opened from an idea, a level or the seed).
+      //   { open, target, resolved, count, loading, error,
+      //     items: [{ id, text, selected }], meta, nonce }
+      variations: { open: false, target: null, resolved: null, count: 3, loading: false, error: null, items: [], meta: null, nonce: 0 },
       toast: null,
     },
   };

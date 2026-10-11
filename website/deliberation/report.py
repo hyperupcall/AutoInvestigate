@@ -131,7 +131,8 @@ def _round(stage: str) -> int | None:
 
 
 FINAL_OVERALL_FIELDS = ("headline", "recommendation", "summary", "the_idea", "case_for", "case_against",
-                        "plan", "kill_criteria", "risks", "open_questions", "what_would_change_the_verdict", "scores")
+                        "plan", "implementation_options", "validation", "kill_criteria", "risks",
+                        "open_questions", "what_would_change_the_verdict", "scores")
 
 
 def _final_overall(fin: dict) -> dict:

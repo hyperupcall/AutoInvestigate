@@ -137,9 +137,11 @@ The pipeline should be simple and use **models configured by the user**.
    group's latest evaluations in full, the latest discussion, the arXiv papers, the
    stop-or-go decision and the reality check. It returns a structured report — headline,
    recommendation, a multi-paragraph executive summary, the idea as evaluated, the case for
-   and against, an **ordered action plan** (steps with timeframe/cost/owner), **kill
-   criteria**, risks with mitigations, open questions, and what would change the verdict —
-   plus a richer per-group verdict (headline, conclusion, findings, pros/cons, scores).
+   and against, an **ordered action plan** (steps with timeframe/cost/owner), **implementation
+   options** (each with how it would be validated and the result that counts as success) and a
+   **validation** note, **kill criteria**, risks with mitigations, open questions, and what
+   would change the verdict — plus a richer per-group verdict (headline, conclusion, findings,
+   pros/cons, scores).
    This is the fix for the old thin verdict: the format was tiny, the writer only saw
    summaries, and nothing asked for a plan.
 
@@ -258,11 +260,16 @@ dropdown to add another. Save, and the next run uses it.
   separate boxes per generation**. Generating twice at the same level adds to the
   same list.
 - The **iteration type is not shown inline**. Each level (and the seed) has a single
-  **Iterate** button; clicking it opens a small **popover** with the iteration type
-  (`Refinement`, `Variation & Generation`, `Consolidation`, `Free-form`) and its
-  matching extra inputs (variation count / free-form instruction).
+  **Iterate** button (and each idea has an **Iterate** mini-button); clicking it opens a
+  small **menu** with just two choices:
+  - **Create variations** — opens a popup (`website/frontend/js/components/variationsModal.js`)
+    that generates variations up front, lists them with a **checkbox** each, offers
+    **Regenerate** (a fresh set) and a variation count, and adds the checked ones to the
+    idea list with **Select ideas**.
+  - **Text input** — a small popover with a free-form instruction that is applied to the
+    target.
 - Iterating a level uses the **selected** ideas in that level, or the **whole level**
-  when nothing is selected (consolidation requires ≥ 2 ideas).
+  when nothing is selected.
 - Each level also has an **Evaluate** button next to **Iterate**; it uses the same
   selection rule and copies the chosen ideas into the **Idea Evaluation** column (it
   does *not* start the run).
@@ -359,6 +366,7 @@ website/frontend/
       settingsModal.js    settings popup
       infoModal.js        "Information" popup (about, connections, models, links)
       runConfigModal.js   per-run group picker (Start Deeper Research)
+      variationsModal.js  "Create variations" popup (generate, regenerate, pick)
       modal.js            the two-tab popup (evaluation swarm / evaluation)
       toast.js            notifications
     app.js                bootstrap

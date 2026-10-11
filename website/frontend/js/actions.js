@@ -165,6 +165,158 @@
     });
   }
 
+  /* --------------------------- variations --------------------------- */
+
+  /** Resolve an iteration target (seed / level / single idea) into the inputs a
+   *  generation call needs. */
+  function resolveIterationTarget(target) {
+    if (!target) return null;
+    if (target.kind === 'seed') {
+      return { sourceIdeas: [], targetLevel: 1, parentIdeaIds: [], seedText: state.seed.text.trim() };
+    }
+    if (target.kind === 'idea') {
+      const idea = store.ideaById(target.ideaId);
+      if (!idea) return null;
+      return {
+        sourceIdeas: [{ text: idea.text, lineage: idea.lineage, subject: idea.subject }],
+        targetLevel: idea.level + 1,
+        parentIdeaIds: [idea.id],
+        seedText: '',
+      };
+    }
+    const lvl = state.levels.find((l) => l.level === target.level);
+    if (!lvl) return null;
+    let ids = state.selectedIdeaIds.filter((id) => lvl.ideas.some((i) => i.id === id));
+    if (!ids.length) ids = lvl.ideas.map((i) => i.id);
+    const sourceIdeas = ids
+      .map((id) => lvl.ideas.find((i) => i.id === id))
+      .filter(Boolean)
+      .map((i) => ({ text: i.text, lineage: i.lineage, subject: i.subject }));
+    return { sourceIdeas, targetLevel: lvl.level + 1, parentIdeaIds: ids, seedText: '' };
+  }
+
+  /** Open the "Create variations" popup for a target and generate immediately. */
+  function openVariations(target) {
+    const resolved = resolveIterationTarget(target);
+    if (!resolved) return;
+    if (target.kind !== 'seed' && !resolved.sourceIdeas.length) {
+      showToast('No ideas to vary.', 'warn');
+      return;
+    }
+    state.ui.variations = {
+      open: true,
+      target,
+      resolved,
+      count: state.ui.variations.count || 3,
+      loading: true,
+      error: null,
+      items: [],
+      meta: null,
+      nonce: (state.ui.variations.nonce || 0) + 1,
+    };
+    store.notify();
+    generateVariations();
+  }
+
+  function closeVariations() {
+    state.ui.variations.open = false;
+    store.notify();
+  }
+
+  function setVariationCount(n) {
+    state.ui.variations.count = Math.max(1, Math.min(8, n || 1));
+    store.notify();
+  }
+
+  async function generateVariations() {
+    const v = state.ui.variations;
+    if (!v.open || !v.resolved) return;
+    v.loading = true;
+    v.error = null;
+    store.notify();
+    try {
+      const res = await backend.generateIdeas({
+        sourceIdeas: v.resolved.sourceIdeas,
+        iterationType: 'variation',
+        variationCount: v.count,
+        freeformPrompt: '',
+        model: state.settings.generationModel,
+        seedText: v.resolved.seedText,
+        nonce: v.nonce,
+      });
+      v.items = res.ideas.map((idea) => ({ id: uid('var'), text: idea.text, selected: true }));
+      v.meta = { label: res.label, lineage: res.lineage, subject: res.subject };
+    } catch (err) {
+      v.error = String((err && err.message) || err);
+    } finally {
+      v.loading = false;
+      store.notify();
+    }
+  }
+
+  function regenerateVariations() {
+    const v = state.ui.variations;
+    if (!v.open || v.loading) return;
+    v.nonce += 1;
+    generateVariations();
+  }
+
+  function toggleVariation(id) {
+    const item = state.ui.variations.items.find((i) => i.id === id);
+    if (!item) return;
+    item.selected = !item.selected;
+    store.notify();
+  }
+
+  function setAllVariations(selected) {
+    state.ui.variations.items.forEach((i) => { i.selected = selected; });
+    store.notify();
+  }
+
+  /** Add the checked variations to the target level's list. */
+  function confirmVariations() {
+    const v = state.ui.variations;
+    const chosen = v.items.filter((i) => i.selected);
+    if (!chosen.length) {
+      showToast('Select at least one variation.', 'warn');
+      return;
+    }
+    const lvl = ensureLevel(v.resolved.targetLevel);
+    chosen.forEach((item, index) => {
+      lvl.ideas.push({
+        id: uid('idea'),
+        text: item.text,
+        subject: v.meta ? v.meta.subject : undefined,
+        lineage: v.meta ? v.meta.lineage : [],
+        label: v.meta ? v.meta.label : '',
+        level: v.resolved.targetLevel,
+        parentIdeaIds: v.resolved.parentIdeaIds || [],
+        index,
+      });
+    });
+    v.open = false;
+    store.notify();
+    showToast(chosen.length === 1 ? 'Added 1 idea.' : `Added ${chosen.length} ideas.`, 'ok');
+  }
+
+  /** "Text input" — apply a free-form instruction to the target. */
+  async function iterateWithText(target, text) {
+    const resolved = resolveIterationTarget(target);
+    if (!resolved) return;
+    const prompt = String(text || '').trim();
+    if (!prompt) {
+      showToast('Enter an instruction first.', 'warn');
+      return;
+    }
+    await runGeneration({
+      sourceIdeas: resolved.sourceIdeas,
+      targetLevel: resolved.targetLevel,
+      iteration: { type: 'freeform', variationCount: 1, freeformPrompt: prompt },
+      seedText: resolved.seedText,
+      parentIdeaIds: resolved.parentIdeaIds,
+    });
+  }
+
   /* --------------------------- evaluation --------------------------- */
 
   /** Add one idea to the evaluation queue. Returns false if it is already there. */
@@ -550,6 +702,15 @@
     selectLevelIdeas,
     submitSeed,
     generateFromLevel,
+    resolveIterationTarget,
+    openVariations,
+    closeVariations,
+    setVariationCount,
+    regenerateVariations,
+    toggleVariation,
+    setAllVariations,
+    confirmVariations,
+    iterateWithText,
     queueIdeaForEvaluation,
     queueLevelForEvaluation,
     removeQueuedIdea,

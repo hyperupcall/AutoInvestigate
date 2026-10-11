@@ -124,14 +124,15 @@
   /* ================================================================== *
    * Part 1 — Idea generation
    * ================================================================== */
-  async function generateIdeas({ sourceIdeas = [], iterationType = 'refinement', variationCount = 2, freeformPrompt = '', model, seedText = '' }) {
+  async function generateIdeas({ sourceIdeas = [], iterationType = 'refinement', variationCount = 2, freeformPrompt = '', model, seedText = '', nonce = 0 }) {
     // Simulated network + model latency.
     await sleep(900 + Math.random() * 900);
 
     const seed = seedText || sourceIdeas.map((i) => i.text).join('|') || 'seed';
     const baseLineage = pickBaseLineage(sourceIdeas.map((i) => i.lineage || []));
     const depth = baseLineage.length;
-    const rng = makeRng(seed + '|' + iterationType + '|' + variationCount + '|' + depth);
+    // `nonce` lets "Regenerate" produce a fresh set instead of the same one.
+    const rng = makeRng(seed + '|' + iterationType + '|' + variationCount + '|' + depth + '|' + nonce);
     const op = makeOp(iterationType, sourceIdeas, variationCount);
     const lineage = [...baseLineage, op];
 
