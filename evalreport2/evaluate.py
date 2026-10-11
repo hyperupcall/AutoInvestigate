@@ -432,13 +432,6 @@ def _decision_class(decision: str) -> str:
     return "hold"
 
 
-def _score_bar(score: float, maximum: float = 10.0) -> str:
-    pct = max(0.0, min(100.0, 100.0 * score / maximum))
-    return (
-        f'<div class="score-bar"><div class="score-fill" style="width:{pct:.1f}%"></div></div>'
-    )
-
-
 def _list(items: list) -> str:
     if not items:
         return '<p class="muted small">None reported.</p>'

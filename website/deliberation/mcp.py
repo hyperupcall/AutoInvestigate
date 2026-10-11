@@ -7,6 +7,7 @@ error is raised, and the caller falls back to a plain model call without tools.
 import asyncio
 import json
 import re
+from urllib.parse import quote
 
 import httpx
 
@@ -61,8 +62,17 @@ class MCPSession:
             h["Mcp-Session-Id"] = self._session
         return h
 
+    def _request_url(self) -> str:
+        """Smithery's hosted endpoints authenticate with an `?api_key=` query parameter and
+        reject a Bearer header with 401, so append the key to the URL. The Bearer header is
+        kept for servers that use it; both together are accepted."""
+        if not self.api_key or "api_key=" in self.url:
+            return self.url
+        sep = "&" if "?" in self.url else "?"
+        return f"{self.url}{sep}api_key={quote(self.api_key, safe='')}"
+
     async def _post(self, body: dict) -> httpx.Response:
-        r = await self._client.post(self.url, json=body, headers=self._headers())
+        r = await self._client.post(self._request_url(), json=body, headers=self._headers())
         sid = r.headers.get("mcp-session-id")
         if sid:
             self._session = sid
