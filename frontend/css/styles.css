@@ -128,6 +128,7 @@ a { color: blue; }
 .level-group { padding: 8px 0; border-top: 1px solid silver; }
 .level-group:first-child { border-top: none; padding-top: 0; }
 .level-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.level-head-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .level-badge { font-size: 11px; font-weight: 600; color: gray; border: 1px solid silver; padding: 0 4px; white-space: nowrap; }
 .input-card.level-0 { border-color: gray; }
 
@@ -149,6 +150,15 @@ a { color: blue; }
 .level-iteration .field:first-child { margin-top: 0; }
 .level-loading { display: flex; align-items: center; gap: 8px; padding: 8px 4px; color: gray; }
 .section-error { padding: 8px 4px; color: red; }
+
+/* iterate popover (tooltip-style) */
+.iterate-popover {
+  position: fixed; z-index: 60; width: 320px;
+  background: white; border: 1px solid gray; padding: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.iterate-popover-title { font-size: 12px; color: gray; }
+.iterate-popover-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
 /* --------------------------- empty states --------------------------- */
 .empty-state { text-align: center; padding: 24px 12px; color: gray; }

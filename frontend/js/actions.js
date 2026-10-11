@@ -37,11 +37,6 @@
     store.notify();
   }
 
-  function selectOnly(id) {
-    state.selectedIdeaIds = [id];
-    store.notify();
-  }
-
   function selectLevelIdeas(level) {
     const lvl = state.levels.find((l) => l.level === level);
     if (!lvl) return;
@@ -70,12 +65,6 @@
       state.levels.sort((a, b) => a.level - b.level);
     }
     return lvl;
-  }
-
-  function setLevelIteration(level, patch) {
-    const lvl = ensureLevel(level);
-    Object.assign(lvl.iteration, patch);
-    store.notify();
   }
 
   /** Shared generation routine. Appends results to the target level's list. */
@@ -144,14 +133,15 @@
     }
   }
 
-  /** Level N → level N+1, from the selected (or given) ideas in a level. */
+  /** Level N → level N+1, from the selected ideas in a level (or the whole level). */
   async function generateFromLevel(level, ideaIds) {
     const lvl = state.levels.find((l) => l.level === level);
     if (!lvl) return;
 
-    const ids = ideaIds || state.selectedIdeaIds.filter((id) => lvl.ideas.some((i) => i.id === id));
+    let ids = ideaIds || state.selectedIdeaIds.filter((id) => lvl.ideas.some((i) => i.id === id));
+    if (!ids.length) ids = lvl.ideas.map((i) => i.id); // no selection → iterate the whole level
     if (!ids.length) {
-      showToast('Select at least one idea in this level.', 'warn');
+      showToast('No ideas in this level.', 'warn');
       return;
     }
     if (lvl.iteration.type === 'consolidation' && ids.length < 2) {
@@ -171,17 +161,6 @@
       seedText: '',
       parentIdeaIds: ids,
     });
-  }
-
-  /** Iterate a single idea on its own, using the level's iteration type. */
-  async function iterateIdea(level, ideaId) {
-    const lvl = state.levels.find((l) => l.level === level);
-    if (!lvl) return;
-    if (lvl.iteration.type === 'consolidation') {
-      showToast('Consolidation needs multiple ideas — select them and use Generate.', 'warn');
-      return;
-    }
-    await generateFromLevel(level, [ideaId]);
   }
 
   /* --------------------------- evaluation --------------------------- */
@@ -368,12 +347,9 @@
     setSeed,
     toggleIdeaSelection,
     clearSelection,
-    selectOnly,
     selectLevelIdeas,
-    setLevelIteration,
     submitSeed,
     generateFromLevel,
-    iterateIdea,
     queueIdeaForEvaluation,
     removeQueuedIdea,
     clearEvaluationQueue,

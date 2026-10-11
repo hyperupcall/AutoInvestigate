@@ -33,23 +33,24 @@ Pages:
 
 ### Column 1 — Idea Generation (a level tree)
 
-- **Level 0** is the seed box `(A)`. Type an idea and press **Generate Level 1**.
+- **Level 0** is the seed box `(A)`. Type an idea and press **Generate**.
 - Generating from level 0 appends to the **level 1** list; generating from level N
   appends to the **level N+1** list. Ideas at the same level are **bunched into one
   plain list** (no per-generation boxes) — generating twice at the same level adds
   to the same list rather than creating a separate box.
-- Every level has its **own iteration-type control** at the bottom
-  (`Refinement`, `Variation & Generation`, `Consolidation`, `Free-form`), plus the
+- The **iteration type is not shown inline**. Each level (and the seed) has a single
+  **Iterate** button; clicking it opens a small **popover** with the iteration type
+  (`Refinement`, `Variation & Generation`, `Consolidation`, `Free-form`) and its
   matching extra inputs (variation count / free-form instruction).
-- **Each idea can be iterated on its own** via its **Iterate →** button (uses the
-  level's iteration type on that single idea). To combine several ideas, select
-  them and press **Generate Level N+1** in the level's iteration bar
-  (consolidation requires ≥ 2 selected ideas).
+- Iterating a level uses the **selected** ideas in that level, or the **whole level**
+  when nothing is selected (consolidation requires ≥ 2 ideas).
 - **Evaluate →** copies the idea into the **Idea Evaluation** column (it does *not*
-  start the run). Selection is only used for combining ideas.
+  start the run). Selection is only used for iterating.
 - Each idea shows the label derived from its lineage, e.g. `Idea after 1 refinement`,
   `Idea after 3 variations`, `Idea after combining 2 ideas`,
   `Idea after 2 variations and 1 combination`.
+- The **level terminology lives in the code** (`state.levels`, `level` numbers) but
+  is **not shown in the interface** — no "Level N" labels.
 - The column scrolls independently and auto-scrolls to the newest level.
 
 ### Column 2 — Idea Evaluation
