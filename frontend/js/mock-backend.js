@@ -7,11 +7,12 @@
  * UI expects.
  *
  *   generateIdeas(...)   -> Part 1: Idea generation
- *   startEvaluation(...) -> Part 2: Idea evaluation (streams events, then results)
+ *   buildReport(...)     -> Part 2: the evaluation report (evaluation-report.schema.json)
+ *   startEvaluation(...) -> Part 2: streams cluster events, then delivers the report
  */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
-  const { sleep, truncate, makeRng } = Hack.util;
+  const { sleep, truncate, makeRng, uid } = Hack.util;
   const D = Hack.mockData;
 
   /* ================================================================== *
@@ -133,165 +134,110 @@
   }
 
   /* ================================================================== *
-   * Part 2 — Idea evaluation (streaming)
+   * Part 2 — Idea evaluation
+   *
+   * The report shape is exactly evaluation-report.schema.json. The sample
+   * report (js/mock-report.js) is used as the fixture; only the run header is
+   * adapted to the idea being evaluated.
    * ================================================================== */
 
-  const REACTIONS = [
-    'Reacting to the other groups: I still hold my position, but the market objection is fair.',
-    'The research group is being too generous. My concern stands.',
-    'I am updating slightly — the strategic-fit argument is stronger than I first credited.',
-    'I disagree with the consensus framing. This should stay unresolved.',
-    'I can live with a bounded pilot, but only with the guardrails I named.',
-    'New information changes things: if the trust boundary is fixed, my objection mostly dissolves.',
-  ];
-
-  function pickThought(lens, rng) {
-    const pool = D.THOUGHTS[lens];
-    return pool ? rng.pick(pool) : 'Considering the idea against my group’s criteria.';
+  function cloneReport() {
+    return JSON.parse(JSON.stringify(Hack.mockReport));
   }
 
-  function buildScript(ideaText, settings) {
-    const groups = settings.groupPerspectives;
-    const rng = makeRng(ideaText + '|eval');
+  /** Build the full evaluation report for an idea. Synchronous so the UI can
+   *  show the agent cluster immediately, before any events stream in. */
+  function buildReport(ideaText) {
+    const report = cloneReport();
+    report.generated_at = new Date().toISOString();
+    report.run = Object.assign({}, report.run, {
+      id: uid('run'),
+      idea: ideaText,
+      status: 'done',
+      started_at: new Date().toISOString(),
+      finished_at: new Date().toISOString(),
+    });
+    return report;
+  }
+
+  /** Flatten the report into the ordered stream of cluster events the UI shows. */
+  function buildScript(report) {
     const events = [];
-    const push = (e) => events.push(Object.assign({ gap: 450 }, e));
+    const push = (e, gap) => events.push(Object.assign({ gap: gap || 320 }, e));
 
-    push({ phase: 'Round 1 · Deliberation', kind: 'phase', text: 'Each group forms an independent position. No cross-talk yet.' });
-    for (const g of groups) {
-      push({ phase: 'Round 1 · Deliberation', kind: 'group-start', group: g.name, text: `${g.name} enters deliberation.` });
-      for (const a of g.agents) {
-        push({ phase: 'Round 1 · Deliberation', kind: 'thought', group: g.name, agent: a.name, role: a.role, text: pickThought(a.lens, rng), gap: 520 });
+    push({ phase: 'Setup', kind: 'phase', text: 'Opening SLIM groups and registering agents over A2A.' }, 500);
+    push({
+      phase: 'Setup',
+      kind: 'cluster',
+      text: `${report.agntcy.slim_groups_opened} SLIM groups opened · transport ${report.agntcy.transport} · protocol ${report.agntcy.protocol}`,
+      groups: report.groups.map((g) => ({
+        id: g.id, name: g.name, style: g.style,
+        agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question, who_they_are: a.who_they_are })),
+      })),
+    }, 700);
+
+    for (const g of report.groups) {
+      push({
+        phase: 'Deliberation',
+        kind: 'group-start',
+        group: g.name,
+        groupId: g.id,
+        style: g.style,
+        text: `${g.name} enters deliberation (${g.style}).`,
+      }, 420);
+
+      for (const r of g.rounds) {
+        const phase = `Round ${r.round}`;
+        push({
+          phase, kind: 'round-start', group: g.name, groupId: g.id, round: r.round,
+          label: r.label, shared_summaries_before: r.shared_summaries_before,
+          text: `${r.label}${r.shared_summaries_before ? ' · all group summaries were shared first' : ''}`,
+        }, 360);
+
+        for (const t of r.discussion) {
+          push({
+            phase, kind: 'turn', group: g.name, groupId: g.id, round: r.round,
+            agent_id: t.agent_id, model: t.model, text: t.text,
+            turn: t.turn, elapsed_seconds: t.elapsed_seconds,
+          }, 380);
+        }
+        for (const t of r.missed_turns || []) {
+          push({ phase, kind: 'missed', group: g.name, groupId: g.id, round: r.round, agent_id: t.agent_id, reason: t.reason }, 220);
+        }
+        for (const ev of r.evaluations) {
+          push({
+            phase, kind: 'evaluation', group: g.name, groupId: g.id, round: r.round,
+            agent_id: ev.agent_id, model: ev.model, text: ev.text,
+            role_verdict: ev.role_verdict, role_scores: ev.role_scores,
+            template_verdict: ev.template_verdict, template_scores: ev.template_scores,
+            complete: ev.complete,
+          }, 420);
+        }
+        for (const f of r.failed_evaluations || []) {
+          push({ phase, kind: 'failed', group: g.name, groupId: g.id, round: r.round, agent_id: f.agent_id, reason: f.reason }, 220);
+        }
+        if (r.summary) {
+          push({ phase, kind: 'summary', group: g.name, groupId: g.id, round: r.round, summary: r.summary }, 560);
+        }
       }
     }
 
-    push({ phase: 'Summarization · Pass 1', kind: 'phase', text: 'Condensing each group into pros, cons and scores.' });
-    for (const g of groups) {
-      push({ phase: 'Summarization · Pass 1', kind: 'summary', group: g.name, text: D.SUMMARIES[g.id] || 'Summary generated.', gap: 600 });
-    }
-
-    push({ phase: 'Round 2 · Deliberation', kind: 'phase', text: 'Groups now see each other’s summaries and react.' });
-    for (const g of groups) {
-      for (const a of g.agents) {
-        push({ phase: 'Round 2 · Deliberation', kind: 'thought', group: g.name, agent: a.name, role: a.role, text: rng.pick(REACTIONS), gap: 420 });
-      }
-    }
-
-    push({ phase: 'Summarization · Pass 2', kind: 'phase', text: 'Second-pass summaries, now informed by cross-group reaction.' });
-    for (const g of groups) {
-      push({ phase: 'Summarization · Pass 2', kind: 'summary', group: g.name, text: 'Revised — ' + (D.SUMMARIES[g.id] || 'Summary generated.'), gap: 550 });
-    }
-
-    push({ phase: 'Stop-or-Go Decision', kind: 'decision', text: 'Deciding whether consensus is even the right outcome.', gap: 900 });
-    push({ phase: 'Final Conclusions', kind: 'conclusion', text: 'Writing the final conclusions for each group.', gap: 900 });
+    push({ phase: 'Cross-group', kind: 'phase', text: 'Comparing positions across groups.' }, 520);
+    push({ phase: 'Cross-group', kind: 'cross-group', cross_group: report.cross_group }, 560);
+    push({ phase: 'Stop-or-Go', kind: 'stop-go', stop_go: report.stop_go }, 760);
+    push({ phase: 'Verdict', kind: 'verdict', verdict: report.verdict }, 760);
     return events;
   }
 
-  const GROUP_METRICS = {
-    research: ['Feasibility', 'Scalability', 'Evidence', 'Horizon'],
-    pe: ['Tech risk', 'Market', 'Strategic fit', 'Horizon'],
-    market: ['Enthusiasm', 'Willingness to pay', 'Trust', 'Adoption'],
-  };
-
-  const PROS = {
-    research: [
-      'Core mechanism is grounded in existing literature',
-      'Clear path to a prototype within a quarter',
-      'Evaluation harness is buildable with current tooling',
-    ],
-    pe: [
-      'Strong strategic fit with the existing agent runtime',
-      'Identifiable enterprise buyer with budget authority',
-      'Defensible if the data plane becomes the moat',
-    ],
-    market: [
-      'Power users would adopt it immediately',
-      'Founders see it as a viable wedge',
-      'Low switching cost for early adopters',
-    ],
-  };
-
-  const CONS = {
-    research: [
-      'Evaluation story is thin; claims are hard to falsify',
-      'Scale-up cost curve is unfavourable past pilot size',
-      'Timeline assumes clean data that does not exist yet',
-    ],
-    pe: [
-      'No clear budget holder identified',
-      'Market demand is latent, not urgent',
-      'Moat is thin without distribution',
-    ],
-    market: [
-      'Security sign-off blocked by an unclear trust boundary',
-      'Procurement cannot forecast the bill',
-      'Enterprise needs SSO, audit logs and data residency',
-    ],
-  };
-
-  function pickN(rng, arr, n) {
-    const copy = arr.slice();
-    const out = [];
-    while (out.length < n && copy.length) out.push(copy.splice(rng.int(0, copy.length - 1), 1)[0]);
-    return out;
-  }
-
-  function buildResults(ideaText, settings) {
-    const rng = makeRng(ideaText + '|results');
-    const groups = settings.groupPerspectives.map((g) => {
-      const metricKeys = GROUP_METRICS[g.id] || ['Feasibility', 'Market', 'Fit', 'Horizon'];
-      const scores = {};
-      metricKeys.forEach((k) => { scores[k] = rng.int(3, 9); });
-      return {
-        id: g.id,
-        name: g.name,
-        summary: D.SUMMARIES[g.id] || 'Summary generated.',
-        pros: pickN(rng, PROS[g.id] || PROS.research, 2 + rng.int(0, 1)),
-        cons: pickN(rng, CONS[g.id] || CONS.research, 2 + rng.int(0, 1)),
-        scores,
-        agents: g.agents.map((a) => ({
-          name: a.name,
-          role: a.role,
-          verdict: rng.pick(['support', 'conditional', 'oppose']),
-          quote: pickThought(a.lens, rng),
-        })),
-      };
-    });
-
-    const decision = rng.pick(D.DECISIONS);
-    const stopOrGo = {
-      decision: decision.decision,
-      confidence: rng.int(45, 88) / 100,
-      rationale: decision.rationale,
-      pros: pickN(rng, [
-        'The objections are addressable with scope changes',
-        'At least one group sees a credible path to value',
-        'The disagreement itself is informative, not noise',
-      ], 2),
-      cons: pickN(rng, [
-        'Groups do not converge on a single recommendation',
-        'Key risks remain unresolved without more information',
-        'A human decision is required before committing budget',
-      ], 2),
-    };
-
-    const conclusion =
-      `Across ${groups.length} group perspectives the idea "${truncate(ideaText, 70)}" drew a ` +
-      `${stopOrGo.decision.toLowerCase()} verdict at ${Math.round(stopOrGo.confidence * 100)}% confidence. ` +
-      'The strongest support came from the research and business perspectives; the sharpest resistance came from ' +
-      'the market perspective, where security and procurement concerns were not fully answered. ' +
-      'Recommended next step: a bounded pilot with the guardrails named during deliberation.';
-
-    return { groups, stopOrGo, conclusion, generatedAt: Date.now() };
-  }
-
   /**
-   * startEvaluation — streams agent activity, then delivers final results.
+   * startEvaluation — streams cluster activity, then delivers the final report.
    * Returns a handle with `cancel()` and `durationMs`.
    */
   function startEvaluation({ ideaText, settings, onEvent, onDone }) {
-    const events = buildScript(ideaText, settings);
+    const report = buildReport(ideaText);
+    const events = buildScript(report);
     const totalGap = events.reduce((sum, e) => sum + e.gap, 0);
-    const targetMs = Math.min(Math.max(settings.deliberationSeconds || 15, 6), 60) * 1000;
+    const targetMs = Math.min(Math.max((settings && settings.deliberationSeconds) || 15, 6), 60) * 1000;
     const scale = targetMs / totalGap;
 
     const timers = [];
@@ -306,7 +252,7 @@
     }
     const doneDelay = t + 700;
     timers.push(setTimeout(() => {
-      if (!cancelled) onDone(buildResults(ideaText, settings));
+      if (!cancelled) onDone(report);
     }, doneDelay));
 
     return {
@@ -317,9 +263,9 @@
 
   Hack.mockBackend = {
     generateIdeas,
+    buildReport,
     startEvaluation,
     describeLineage,
     describeOp,
-    buildResults,
   };
 })();

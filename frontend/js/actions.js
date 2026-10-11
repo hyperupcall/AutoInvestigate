@@ -189,6 +189,10 @@
     const idea = store.ideaById(ideaId);
     if (!idea) return;
 
+    // Build the report up front so the agent cluster is visible immediately;
+    // the events then stream in and the report is delivered again on done.
+    const report = backend.buildReport(idea.text);
+
     const run = {
       id: uid('run'),
       ideaId,
@@ -196,7 +200,11 @@
       model: state.settings.evaluationModel,
       status: 'running',
       events: [],
-      results: null,
+      report,
+      cluster: report.groups.map((g) => ({
+        id: g.id, name: g.name, style: g.style,
+        agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question, who_they_are: a.who_they_are })),
+      })),
       startedAt: Date.now(),
       finishedAt: null,
       currentPhase: 'Starting…',
@@ -213,12 +221,12 @@
       onEvent(ev) {
         run.events.push(ev);
         run.currentPhase = ev.phase;
-        run.currentAgent = ev.agent || '';
+        run.currentAgent = ev.agent_id || '';
         store.notify();
       },
-      onDone(results) {
+      onDone(finalReport) {
         run.status = 'done';
-        run.results = results;
+        run.report = finalReport;
         run.finishedAt = Date.now();
         run.currentPhase = 'Complete';
         run.currentAgent = '';
@@ -227,7 +235,7 @@
       },
     });
 
-    openModal(run.id, 'thinking');
+    openModal(run.id, 'cluster');
   }
 
   function cancelEvaluation(runId) {
@@ -241,7 +249,7 @@
 
   /* ------------------------------ modal ------------------------------ */
   function openModal(runId, tab) {
-    state.ui.modal = { open: true, runId, tab: tab || 'thinking' };
+    state.ui.modal = { open: true, runId, tab: tab || 'cluster' };
     store.notify();
   }
 

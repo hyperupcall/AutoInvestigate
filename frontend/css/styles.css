@@ -281,6 +281,74 @@ a { color: blue; }
 .conclusion { border: 1px solid gray; padding: 10px; }
 .conclusion h4 { font-size: 12px; color: gray; margin-bottom: 4px; }
 .conclusion p { font-size: 13px; }
+.verdict-headline { font-weight: 600; margin-bottom: 4px; }
+
+/* ---------------------- report modal (cluster + evaluation) ---------------------- */
+.report-modal { width: min(1100px, 100%); height: min(88vh, 860px); }
+
+.cluster-body { display: flex; flex-direction: column; gap: 10px; }
+.cluster-status-bar { display: flex; align-items: center; justify-content: space-between; }
+
+.cluster-roster { border: 1px solid silver; padding: 8px; }
+.cluster-roster-title { font-size: 12px; color: gray; margin-bottom: 6px; }
+.cluster-group { border-top: 1px solid gainsboro; padding-top: 6px; margin-top: 6px; }
+.cluster-group:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.cluster-group-head { display: flex; align-items: baseline; gap: 8px; }
+.cluster-group-name { font-weight: 600; font-size: 13px; }
+.cluster-style { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 4px; }
+.cluster-agents { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.cluster-agent { border: 1px solid gainsboro; padding: 6px; }
+.cluster-agent-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.cluster-agent-name { font-size: 12.5px; font-weight: 600; }
+.cluster-agent-model { font-size: 11px; color: gray; font-family: monospace; }
+.cluster-agent-q { font-size: 12px; margin-top: 2px; }
+.cluster-agent-who { margin-top: 2px; }
+
+.round-divider { margin: 8px 0 4px; font-size: 12px; color: gray; border-bottom: 1px dotted gainsboro; }
+.kind-evaluation { background: whitesmoke; }
+.kind-muted { color: gray; font-style: italic; }
+.event-role.warn { color: darkorange; }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.chip { font-size: 11px; border: 1px solid silver; padding: 0 5px; background: white; }
+.chip-key { color: gray; }
+
+.summary-block { margin-top: 4px; }
+
+.meta-table { border: 1px solid silver; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.meta-row { display: flex; gap: 8px; font-size: 12.5px; }
+.meta-key { flex: 0 0 130px; color: gray; }
+.meta-val { flex: 1; min-width: 0; word-break: break-word; }
+
+.sub-head { font-size: 12px; color: gray; margin: 10px 0 4px; }
+
+.verdict-counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.verdict-count { font-size: 12px; border: 1px solid silver; padding: 1px 6px; }
+.verdict-count-tag { color: gray; margin-right: 4px; }
+
+.disagreement { border-left: 3px solid silver; padding-left: 8px; margin: 6px 0; }
+.disagreement-topic { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12.5px; font-weight: 600; }
+.disagreement-status { font-size: 11px; font-weight: 400; color: gray; }
+.disagreement-status.open { color: darkorange; }
+.disagreement-status.resolved { color: green; }
+.disagreement-sides { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.disagreement-side { display: flex; gap: 6px; font-size: 12px; }
+.disagreement-who { flex: 0 0 auto; color: gray; }
+.disagreement-pos { flex: 1; min-width: 0; }
+.disagreement-evidence { margin-top: 4px; }
+.evidence-quote { font-size: 12px; color: gray; font-style: italic; }
+.disagreement-resolution { font-size: 12px; margin-top: 4px; }
+
+.endpoint-list { margin: 4px 0 0; padding-left: 18px; }
+.endpoint-list li { font-size: 12px; font-family: monospace; }
+
+.raw-json { border: 1px solid silver; padding: 8px; }
+.raw-json summary { font-size: 12px; color: gray; cursor: pointer; }
+.raw-json-pre { margin: 8px 0 0; max-height: 320px; overflow: auto; font-size: 11px; background: whitesmoke; padding: 8px; }
+
+.run-decision { font-size: 11px; color: gray; border: 1px solid silver; padding: 0 4px; }
+.run-decision.go { color: green; border-color: green; }
+.run-decision.stop { color: red; border-color: red; }
 
 /* --------------------------- spinner + toast --------------------------- */
 .spinner {

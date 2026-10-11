@@ -18,11 +18,13 @@
 
     /* Middle column */
     evaluation: {
+      // run: { id, ideaId, ideaText, model, status, events, report, cluster,
+      //        startedAt, finishedAt, currentPhase, currentAgent }
       runs: [],
       activeRunId: null,
     },
 
-    /* Right column (settings) */
+    /* Settings (popup) */
     settings: {
       generationModel: 'openai/gpt-4o-mini',
       evaluationModel: 'anthropic/claude-3.5-sonnet',
@@ -34,7 +36,7 @@
 
     /* Transient UI */
     ui: {
-      modal: { open: false, runId: null, tab: 'thinking' },
+      modal: { open: false, runId: null, tab: 'cluster' },
       settingsOpen: false,
       toast: null,
     },

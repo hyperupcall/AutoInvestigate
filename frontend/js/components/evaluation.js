@@ -71,10 +71,13 @@
   function renderRun(run) {
     const statusText = run.status === 'running' ? 'Running' : run.status === 'done' ? 'Complete' : 'Cancelled';
     const progress = run.status === 'running' ? Math.min(95, 6 + run.events.length * 3) : 100;
+    const report = run.report;
+    const agentCount = (run.cluster || []).reduce((n, g) => n + g.agents.length, 0);
+    const decision = report && report.stop_go ? report.stop_go.decision : null;
 
     return el('div', {
       class: 'run-card ' + run.status,
-      onclick: () => actions.openModal(run.id, run.status === 'done' ? 'results' : 'thinking'),
+      onclick: () => actions.openModal(run.id, run.status === 'done' ? 'evaluation' : 'cluster'),
     }, [
       el('div', { class: 'run-head' }, [
         el('span', { class: 'run-status ' + run.status }, [
@@ -88,7 +91,8 @@
         ? el('div', { class: 'run-progress' }, [el('div', { class: 'run-progress-bar', style: { width: progress + '%' } })])
         : null,
       el('div', { class: 'run-foot' }, [
-        el('span', { class: 'muted small', text: run.status === 'running' ? (run.currentPhase || '') : `${run.events.length} events` }),
+        el('span', { class: 'muted small', text: run.status === 'running' ? (run.currentPhase || '') : `${run.cluster ? run.cluster.length : 0} groups · ${agentCount} agents` }),
+        decision ? el('span', { class: 'run-decision ' + decision, text: decision.toUpperCase() }) : null,
         el('span', { class: 'link-btn', text: 'Open →' }),
       ]),
     ]);
