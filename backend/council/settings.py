@@ -22,9 +22,9 @@ def load() -> dict:
     except FileNotFoundError:
         return s
     for k, v in stored.items():
-        if k in ("max_tokens", "reasoning_effort", "stages") and isinstance(v, dict):
+        if k in ("max_tokens", "reasoning_effort", "stages", "sources") and isinstance(v, dict):
             for kk, vv in v.items():
-                s[k][kk] = {**s[k].get(kk, {}), **vv} if isinstance(vv, dict) else vv
+                s[k][kk] = {**(s[k].get(kk) or {}), **vv} if isinstance(vv, dict) else vv
         else:
             s[k] = v
     return s
@@ -32,6 +32,11 @@ def load() -> dict:
 
 def validate(s: dict) -> list[str]:
     errs = []
+    if s.get("mode") not in ("quick", "deep"):
+        errs.append("mode must be quick or deep")
+    src = s.get("sources") or {}
+    if not isinstance(src.get("enabled"), bool) or not 1 <= int(src.get("max_papers") or 0) <= 15 or not str(src.get("model", "")).strip():
+        errs.append("sources needs enabled (true/false), max_papers 1-15 and a model")
     if not 5 <= s.get("deliberation_seconds", 0) <= 900:
         errs.append("deliberation_seconds must be between 5 and 900")
     if not 0.05 <= s.get("max_cost_usd", 0) <= 50:

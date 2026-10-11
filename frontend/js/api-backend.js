@@ -63,7 +63,7 @@
       },
     };
     const fail = (msg) => { onEvent({ phase: 'Error', kind: 'phase', text: msg, ts: Date.now() }); onDone(buildReport(ideaText)); };
-    const overrides = { deliberation_seconds: settings && settings.deliberationSeconds };
+    const overrides = { deliberation_seconds: settings && settings.deliberationSeconds, mode: (settings && settings.mode) || 'quick' };
     const serverSummarizer = info.settings && info.settings.stages.summarizer.model;
     if (settings && settings.summarizerModel && settings.summarizerModel !== serverSummarizer) overrides.summarizer_model = settings.summarizerModel;
 
@@ -123,6 +123,7 @@
     s.summarizerModel = server.stages.summarizer.model;
     s.evaluationModel = 'per agent (see backend /settings)';
     s.deliberationSeconds = Math.max(6, Math.min(60, server.deliberation_seconds));
+    s.mode = s.mode || server.mode || 'quick';
     s.groupPerspectives = server.groups.map((g) => ({
       id: g.id, name: g.name, blurb: g.description || '',
       agents: g.agents.map((a) => ({ id: a.id, name: a.name, role: a.question || '', lens: a.id, model: a.model })),

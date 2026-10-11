@@ -1,4 +1,5 @@
 """One evaluation run: the settings snapshot, the cost budget, the event log, and per-group stages."""
+import asyncio
 import json
 import os
 import random
@@ -23,6 +24,11 @@ class Run:
         self.idea = idea.strip()
         self.s = s or settings.load()
         self.budget = RunBudget(self.s["max_cost_usd"])
+        self.quick = self.s.get("mode", "quick") == "quick"
+        self.sources: dict = {}
+        self.sources_text = ""
+        self._sources_task = None
+        self.transcripts: dict[str, list] = {}  # each group's latest discussion (shown to it in the next round)
         if bus is None:
             from orchestrator.bus import Bus  # imported lazily so the pipeline logic is testable without SLIM
             bus = Bus()
@@ -39,10 +45,30 @@ class Run:
     async def start(self) -> None:
         if self.bus.client is None:
             await self.bus.connect(self.s["groups"][0]["agents"][0]["id"])
-        self.log("run_start", run=self.id, idea=self.idea, max_cost=self.budget.max_usd,
-                 groups=[{"id": g["id"], "name": g["name"], "consensus": g["consensus"],
+        self.log("run_start", run=self.id, idea=self.idea, max_cost=self.budget.max_usd, mode="quick" if self.quick else "deep",
+                 groups=[{"id": g["id"], "name": g["name"], "consensus": g["consensus"], "use_sources": bool(g.get("use_sources")),
                           "agents": [{"id": a["id"], "name": a["name"], "model": a["model"], "prompt": a["prompt"]} for a in g["agents"]]}
                          for g in self.s["groups"]])
+
+    async def ensure_sources(self, max_wait: float = 12) -> None:
+        """Fetch the arXiv papers once per run. Groups that use them wait up to max_wait seconds, then go ahead
+        without (the fetch keeps going, and later stages use the papers once they are in). Others never wait."""
+        if self._sources_task is None:
+            self._sources_task = asyncio.ensure_future(self._fetch_sources())
+        try:
+            await asyncio.wait_for(asyncio.shield(self._sources_task), max_wait)
+        except (asyncio.TimeoutError, TimeoutError):
+            pass
+
+    async def _fetch_sources(self) -> None:
+        from orchestrator.sources import as_prompt, find_safely
+        self.log("stage_start", stage="sources")
+        self.sources = await find_safely(self.idea, self.s, self.budget)
+        self.sources_text = as_prompt(self.sources.get("papers", []))
+        self.log("sources", **self.sources)
+
+    def _src(self, group: dict) -> str:
+        return self.sources_text if group.get("use_sources") else ""
 
     def charge(self, reply: dict) -> None:
         if reply.get("cost"):
@@ -59,6 +85,8 @@ class Run:
     async def deliberate(self, group: dict, seconds: float, prior_context: str = "", stage: str = "deliberation_1") -> list[dict]:
         """Round-robin discussion: agents speak one at a time in a shuffled order, each hearing everything said
         so far. Runs for `seconds`, but every agent speaks at least once."""
+        if self.quick:
+            return await self._deliberate_together(group, prior_context, stage)
         agents = list(group["agents"])
         random.shuffle(agents)
         names = {a["id"]: a["name"] for a in agents}
@@ -67,16 +95,17 @@ class Run:
         t0, turn = time.monotonic(), 0
         self.log("stage_start", stage=stage, group=group["id"], seconds=seconds, order=members)
         while turn < MAX_TURNS_PER_GROUP:
-            if turn >= len(agents) and time.monotonic() - t0 >= seconds:
-                break
+            if turn >= len(agents) and (self.quick or time.monotonic() - t0 >= seconds):
+                break  # quick: one pass, every member speaks once; deep: keep going until the time is up
             self.budget.check()
             speaker = agents[turn % len(agents)]
             self.log("turn_start", stage=stage, group=group["id"], agent=speaker["id"])
             replies = await self.bus.ask(members, {
                 "kind": "turn", "group_name": group["name"], "consensus": group["consensus"], "idea": self.idea,
                 "colleagues": [names[m] for m in members if m != speaker["id"]], "agents": self._agents_cfg(group),
-                "transcript": transcript_text(transcript, names), "prior_context": prior_context},
-                expect=[speaker["id"]], timeout=min(max(seconds, 20), 45),  # a slow call is skipped, not waited on
+                "transcript": transcript_text(transcript, names), "prior_context": prior_context,
+                "quick": self.quick, "sources": self._src(group)},
+                expect=[speaker["id"]], timeout=20 if self.quick else min(max(seconds, 20), 45),  # slow calls are skipped
                 on_open=self._on_open(group, stage))
             reply = replies.get(speaker["id"])
             if not reply or reply.get("error"):
@@ -93,6 +122,35 @@ class Run:
         self.log("stage_end", stage=stage, group=group["id"], turns=len(transcript), elapsed=round(time.monotonic() - t0, 1))
         return transcript
 
+    async def _deliberate_together(self, group: dict, prior_context: str, stage: str) -> list[dict]:
+        """Quick mode: every member speaks at once (one SLIM group, one command) and each reply is logged the
+        moment it arrives. In later rounds they answer each other, because the previous round is in the context."""
+        self.budget.check()
+        names = {a["id"]: a["name"] for a in group["agents"]}
+        members = list(names)
+        transcript: list[dict] = []
+        t0 = time.monotonic()
+        self.log("stage_start", stage=stage, group=group["id"], seconds=0, order=members)
+
+        def on_reply(r):
+            if r.get("error"):
+                return
+            self.charge(r)
+            transcript.append({"agent": r["agent"], "text": r["text"]})
+            self.log("turn", stage=stage, group=group["id"], agent=r["agent"], name=names[r["agent"]], model=r["model"],
+                     text=r["text"], cost=r.get("cost", 0), elapsed=round(time.monotonic() - t0, 1))
+        replies = await self.bus.ask(members, {
+            "kind": "turn", "group_name": group["name"], "consensus": group["consensus"], "idea": self.idea,
+            "colleagues": list(names.values()), "agents": self._agents_cfg(group), "transcript": "",
+            "prior_context": prior_context, "quick": True, "sources": self._src(group)},
+            expect=members, timeout=18, on_open=self._on_open(group, stage), on_reply=on_reply)
+        for a in members:
+            if a not in replies or replies[a].get("error"):
+                self.log("turn_failed", stage=stage, group=group["id"], agent=a,
+                         error=(replies.get(a) or {}).get("error", "no reply in time"))
+        self.log("stage_end", stage=stage, group=group["id"], turns=len(transcript), elapsed=round(time.monotonic() - t0, 1))
+        return transcript
+
     async def evaluate(self, group: dict, stage: str, kind: str, transcript: list[dict],
                        summaries: str = "", prior_context: str = "") -> dict[str, str]:
         """Every agent in the group writes its evaluation at the same time (one SLIM group, one command)."""
@@ -100,26 +158,28 @@ class Run:
         names = {a["id"]: a["name"] for a in group["agents"]}
         members = list(names)
         self.log("stage_start", stage=stage, group=group["id"], order=members)
-        replies = await self.bus.ask(members, {
-            "kind": kind, "group_name": group["name"], "idea": self.idea, "agents": self._agents_cfg(group),
-            "transcript": transcript_text(transcript, names), "summaries": summaries, "prior_context": prior_context},
-            expect=members, timeout=240, on_open=self._on_open(group, stage))
-        missing = [a for a in members if a not in replies or replies[a].get("error")]
-        if missing:  # ask the missing members once more, in a fresh SLIM group
-            self.log("eval_retry", stage=stage, group=group["id"], agents=missing)
-            replies.update(await self.bus.ask(members, {
-                "kind": kind, "group_name": group["name"], "idea": self.idea, "agents": self._agents_cfg(group),
-                "transcript": transcript_text(transcript, names), "summaries": summaries, "prior_context": prior_context},
-                expect=missing, timeout=240, on_open=self._on_open(group, stage)))
-        out = {}
-        for a in members:
-            r = replies.get(a)
-            if not r or r.get("error"):
-                self.log("eval_failed", stage=stage, group=group["id"], agent=a, error=(r or {}).get("error", "no reply in time"))
-                continue
+        cmd = {"kind": kind, "group_name": group["name"], "idea": self.idea, "agents": self._agents_cfg(group),
+               "transcript": transcript_text(transcript, names), "summaries": summaries, "prior_context": prior_context,
+               "quick": self.quick, "sources": self._src(group)}
+        out: dict[str, str] = {}
+
+        def on_reply(r):  # log each evaluation the moment it arrives
+            if r.get("error") or r["agent"] in out:
+                return
             self.charge(r)
-            out[a] = r["text"]
-            self.log("eval", stage=stage, group=group["id"], agent=a, name=names[a], model=r["model"],
+            out[r["agent"]] = r["text"]
+            self.log("eval", stage=stage, group=group["id"], agent=r["agent"], name=names[r["agent"]], model=r["model"],
                      text=r["text"], cost=r.get("cost", 0), truncated=bool(r.get("truncated")))
+        replies = await self.bus.ask(members, cmd, expect=members, timeout=20 if self.quick else 240,
+                                     on_open=self._on_open(group, stage), on_reply=on_reply)
+        missing = [a for a in members if a not in replies or replies[a].get("error")]
+        if missing and not self.quick:  # deep mode: ask the missing members once more, in a fresh SLIM group
+            self.log("eval_retry", stage=stage, group=group["id"], agents=missing)
+            replies.update(await self.bus.ask(members, cmd, expect=missing, timeout=240, on_open=self._on_open(group, stage),
+                                              on_reply=on_reply))
+        for a in members:
+            if a not in out:
+                self.log("eval_failed", stage=stage, group=group["id"], agent=a,
+                         error=(replies.get(a) or {}).get("error", "no reply in time"))
         self.log("stage_end", stage=stage, group=group["id"], evaluations=len(out))
         return out

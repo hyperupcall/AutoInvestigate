@@ -187,6 +187,26 @@ def build(events: list[dict]) -> dict:
             "stop_go": (sg or {}).get("groups", {}).get(gid),
             "verdict": {"headline": fg.get("headline"), "conclusion": fg.get("conclusion"),
                         "pros": fg.get("pros", []), "cons": fg.get("cons", [])} if fg else None})
+    src_ev = next((e for e in events if e["kind"] == "sources"), None)
+    sources = None
+    if src_ev:
+        from orchestrator.sources import citations
+        known = {p["id"] for p in src_ev.get("papers", [])}
+        cited_by: dict[str, set] = {}
+        unknown = []
+        for e in events:
+            if e["kind"] in ("turn", "eval"):
+                for cid in citations(e.get("text", "")):
+                    if cid in known:
+                        cited_by.setdefault(cid, set()).add(e["agent"])
+                    elif {"agent_id": e["agent"], "id": cid} not in unknown:
+                        unknown.append({"agent_id": e["agent"], "id": cid})
+        sources = {"provider": "arXiv", "queries": src_ev.get("queries", []), "candidates": src_ev.get("candidates", 0),
+                   "used_by_groups": [g["id"] for g in groups_meta if g.get("use_sources")],
+                   "papers": [{**{k: p[k] for k in ("id", "title", "authors", "year", "url", "category")},
+                               "abstract": p.get("abstract", "")[:600], "cited_by": sorted(cited_by.get(p["id"], []))}
+                              for p in src_ev.get("papers", [])],
+                   "unknown_citations": unknown, "error": src_ev.get("error")}
     t0 = datetime.fromisoformat(start["t"])
     t1 = datetime.fromisoformat((end or events[-1])["t"])
     slim = [e for e in events if e["kind"] == "slim_group"]
@@ -196,7 +216,7 @@ def build(events: list[dict]) -> dict:
         "run": {"id": start["run"], "idea": start["idea"], "status": (end or {}).get("status", "incomplete"),
                 "started_at": start["t"], "finished_at": (end or {}).get("t"),
                 "duration_seconds": round((t1 - t0).total_seconds()), "cost_usd": round(events[-1].get("spent", 0), 5),
-                "llm_calls": (end or {}).get("calls"), "max_cost_usd": start.get("max_cost")},
+                "llm_calls": (end or {}).get("calls"), "max_cost_usd": start.get("max_cost"), "mode": start.get("mode", "deep")},
         "pipeline": {"rounds": len(rounds_seen), "extra_round": 3 in rounds_seen,
                      "stop_go_decision": (sg or {}).get("decision")},
         "groups": groups,
@@ -209,4 +229,5 @@ def build(events: list[dict]) -> dict:
         "agntcy": {"transport": "SLIM", "protocol": "A2A", "slim_groups_opened": sum(1 for _ in slim),
                    "endpoints": [f"council/agents/{a['id']}" for g in groups_meta for a in g["agents"]]},
         "analysis": {k: analysis.get(k) for k in ("model", "verified_quotes", "dropped_quotes", "dropped_items")} if analysis else None,
+        "sources": sources,
     }

@@ -11,3 +11,4 @@ logs/
 results/
 data/settings.json
 data/settings.json.tmp
+data/sources_cache.json

@@ -17,6 +17,8 @@ class FakeRun:
         self.calls, self.events = [], []
         self.idea = "idea"
         self.budget = types.SimpleNamespace(calls=0)
+        self.transcripts = {}
+        self.quick = False
 
     def log(self, kind, **f):
         self.events.append(kind)
@@ -42,9 +44,9 @@ def fake_stage(decision, seen):
         seen.append("stop_go")
         return {"decision": decision, "overall": {"rationale": "x"}, "if_go_resolve": "pricing"}
 
-    async def conclude(run, groups, summaries, sg):
+    async def conclude(run, groups, summaries, sg, log=True):
         seen.append(("final", sorted(summaries)))
-        return {}
+        return {"overall": {"headline": "h"}, "groups": {}, "_model": "m", "_cost": 0}
     return summarize, stop_or_go, conclude
 
 
@@ -74,3 +76,17 @@ def test_budget_stop_ends_cleanly(monkeypatch):
     monkeypatch.setattr(run, "deliberate", broke)
     assert asyncio.run(P.pipeline(run)) == "budget_stopped"
     assert "run_end" in run.events and set(run.events[run.events.index("run_end") + 1:]) <= {"report", "note"}
+
+
+def test_quick_mode_uses_the_early_verdict_when_stop(monkeypatch):
+    seen = []
+    s, sg, c = fake_stage("stop", seen)
+    monkeypatch.setattr(P, "summarize", s)
+    monkeypatch.setattr(P, "stop_or_go", sg)
+    monkeypatch.setattr(P, "conclude", c)
+    run = FakeRun()
+    run.quick = True
+    assert asyncio.run(P.pipeline(run)) == "done"
+    assert seen.count("stop_go") == 1 and seen.count(("final", ["market", "research"])) == 1
+    ev = run.events
+    assert ev.index("final") > ev.index("run_end") - 3 and "final" in ev   # verdict logged after the decision, before the end

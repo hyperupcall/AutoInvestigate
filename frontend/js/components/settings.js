@@ -92,12 +92,22 @@
       ]));
     }
 
+    wrap.appendChild(section('Mode', [
+      el('div', { class: 'field' }, [
+        el('label', { text: 'Evaluation mode' }),
+        el('select', { class: 'select', onchange: (e) => { s.mode = e.target.value; } }, [
+          el('option', { value: 'quick', text: 'Quick: about a minute', selected: (s.mode || 'quick') === 'quick' }),
+          el('option', { value: 'deep', text: 'Deep: about 7 minutes, full write-ups', selected: s.mode === 'deep' }),
+        ]),
+      ]),
+    ]));
+
     wrap.appendChild(section('Models', [
       modelField('Generation model', 'generationModel', s.generationModel),
       modelField('Evaluation model', 'evaluationModel', s.evaluationModel),
       modelField('Summarizer model', 'summarizerModel', s.summarizerModel),
       el('div', { class: 'field inline' }, [
-        el('label', { text: 'Deliberation (seconds)' }),
+        el('label', { text: 'Deliberation (seconds, deep mode)' }),
         el('input', {
           type: 'number', min: 6, max: 60, class: 'num-input', value: s.deliberationSeconds,
           oninput: (e) => { s.deliberationSeconds = Math.max(6, Math.min(60, Number(e.target.value) || 15)); },

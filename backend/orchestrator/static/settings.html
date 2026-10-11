@@ -9,8 +9,12 @@
 <form id="form">
 <fieldset>
 <legend>General</legend>
+<p><label>Mode <select id="mode"><option value="quick">Quick: about a minute (one pass per round, short write-ups)</option><option value="deep">Deep: about 7 minutes (timed discussions, full write-ups)</option></select></label></p>
+<p><label><input type="checkbox" id="src_enabled"> Give arXiv papers to the groups marked below</label>
+<label>at most <input type="number" id="src_max" min="1" max="15" style="width:4em"> papers</label>
+<label>chosen by model <input id="src_model" list="models" size="30"></label></p>
 <p><label>Default OpenRouter API key <input type="password" id="openrouter_api_key" size="50" autocomplete="off"></label></p>
-<p><label>Deliberation time per round, seconds <input type="number" id="deliberation_seconds" min="5" max="900"></label></p>
+<p><label>Deliberation time per round in deep mode, seconds <input type="number" id="deliberation_seconds" min="5" max="900"></label></p>
 <p><label>Maximum cost per evaluation, US dollars <input type="number" id="max_cost_usd" min="0.05" max="50" step="0.05"></label></p>
 <p><label>Web search results per search (for models ending in :online) <input type="number" id="web_search_results" min="0" max="10"></label></p>
 <table border="1" cellpadding="4">
@@ -48,6 +52,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&
 const effortSelect = (v, blankLabel) => '<select>' + EFFORTS.map(e => `<option value="${e}" ${e === (v || '') ? 'selected' : ''}>${e || blankLabel}</option>`).join('') + '</select>';
 
 function render() {
+  $('mode').value = S.mode; $('src_enabled').checked = S.sources.enabled; $('src_max').value = S.sources.max_papers; $('src_model').value = S.sources.model;
   $('openrouter_api_key').value = S.openrouter_api_key;
   $('openrouter_api_key').placeholder = S.openrouter_api_key ? 'saved (type to replace)' : 'sk-or-...';
   ['deliberation_seconds', 'max_cost_usd', 'web_search_results'].forEach(k => $(k).value = S[k]);
@@ -61,7 +66,8 @@ function render() {
     <p><label>Name <input class="gname" value="${esc(g.name)}" size="40"></label>
     <label>Discussion style <select class="gmode">
       <option value="converge" ${g.consensus === 'converge' ? 'selected' : ''}>aim for a shared view</option>
-      <option value="diverge" ${g.consensus === 'diverge' ? 'selected' : ''}>members are not expected to agree</option></select></label></p>
+      <option value="diverge" ${g.consensus === 'diverge' ? 'selected' : ''}>members are not expected to agree</option></select></label>
+    <label><input type="checkbox" class="gsrc" ${g.use_sources ? 'checked' : ''}> uses arXiv papers</label></p>
     <table border="1" cellpadding="4">
       <tr><th>Agent</th><th>Model</th><th>API key</th><th>Reasoning effort</th><th>Prompt</th><th></th></tr>
       ${g.agents.map((a, ai) => `<tr data-a="${ai}">
@@ -79,6 +85,8 @@ function render() {
 }
 
 function collect() {
+  S.mode = $('mode').value;
+  S.sources = {enabled: $('src_enabled').checked, max_papers: Number($('src_max').value), model: $('src_model').value.trim()};
   S.openrouter_api_key = $('openrouter_api_key').value;
   ['deliberation_seconds', 'max_cost_usd', 'web_search_results'].forEach(k => S[k] = Number($(k).value));
   document.querySelectorAll('#stages tr').forEach(tr => {
@@ -92,6 +100,7 @@ function collect() {
     const g = S.groups[fs.dataset.g];
     g.name = fs.querySelector('.gname').value.trim() || g.name;
     g.consensus = fs.querySelector('.gmode').value;
+    g.use_sources = fs.querySelector('.gsrc').checked;
     fs.querySelectorAll('tr[data-a]').forEach(tr => {
       const a = g.agents[tr.dataset.a];
       a.model = tr.querySelector('.amodel').value.trim();

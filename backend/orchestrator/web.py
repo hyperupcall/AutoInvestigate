@@ -51,6 +51,10 @@ def apply_overrides(s: dict, o: dict) -> tuple[dict, str | None]:
     """Per-run tweaks from the frontend; the saved settings are untouched."""
     if not isinstance(o, dict):
         return s, None
+    if o.get("mode") is not None:
+        if o["mode"] not in ("quick", "deep"):
+            return s, "mode must be quick or deep"
+        s["mode"] = o["mode"]
     if "deliberation_seconds" in o:
         try:
             secs = int(o["deliberation_seconds"])

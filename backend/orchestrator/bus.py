@@ -25,7 +25,7 @@ class Bus:
         self.client = await A2AClientFactory(cfg).create(agent_card(any_agent_id))
 
     async def ask(self, members: list[str], cmd: dict, expect: list[str], timeout: float = 120,
-                  on_open=None) -> dict[str, dict]:
+                  on_open=None, on_reply=None) -> dict[str, dict]:
         """Post `cmd` to a SLIM group of `members`; return {agent_id: reply} for the agents in `expect`."""
         cmd = {**cmd, "cmd": uuid4().hex, "to": expect}
         request = SendMessageRequest(id=str(uuid4()), params=MessageSendParams(
@@ -37,7 +37,7 @@ class Bus:
         # The SDK arms an asyncio.timeout inside an async generator; if it fires between iterations it cancels the
         # task instead of raising TimeoutError. Running the exchange in its own task contains that: a cancel coming
         # from inside the SDK only ends this exchange, while a real Stop (our own task cancelled) still propagates.
-        inner = asyncio.create_task(self._collect(request, channel, members, cmd["cmd"], expect, timeout, got))
+        inner = asyncio.create_task(self._collect(request, channel, members, cmd["cmd"], expect, timeout, got, on_reply))
         try:
             await inner
         except asyncio.CancelledError:
@@ -49,7 +49,7 @@ class Bus:
             logger.warning("timed out waiting for %s", sorted(set(expect) - set(got)))
         return got
 
-    async def _collect(self, request, channel, members, cmd_id, expect, timeout, got) -> None:
+    async def _collect(self, request, channel, members, cmd_id, expect, timeout, got, on_reply=None) -> None:
         stream = self.client.start_streaming_groupchat(
             init_message=request, group_channel=channel, participants=[identifier(m) for m in members],
             end_message="__never__", timeout=timeout)
@@ -64,8 +64,11 @@ class Bus:
                         r = json.loads(getattr(p.root, "text", ""))
                     except Exception:
                         continue
-                    if isinstance(r, dict) and r.get("kind") == "reply" and r.get("cmd") == cmd_id and r.get("agent") in expect:
-                        got.setdefault(r["agent"], r)
+                    if isinstance(r, dict) and r.get("kind") == "reply" and r.get("cmd") == cmd_id and r.get("agent") in expect \
+                            and r["agent"] not in got:
+                        got[r["agent"]] = r
+                        if on_reply:  # let the caller log each reply the moment it arrives
+                            on_reply(r)
                 if len(got) == len(expect):
                     break
         finally:

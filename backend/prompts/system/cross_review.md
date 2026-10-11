@@ -12,6 +12,8 @@ Every group has now discussed this idea. Here are the summaries from all groups,
 
 <<SUMMARIES>>
 
+<<SOURCES>>
+
 <<PRIOR_CONTEXT>>
 
 Re-evaluate the idea in light of what the other groups found. Be willing to change your position, and say

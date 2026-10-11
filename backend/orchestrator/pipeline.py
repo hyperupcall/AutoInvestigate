@@ -22,7 +22,9 @@ async def stage_call(run: Run, stage_cfg: str, budget_key: str, prompt: str, val
     """Summarizer or judge call made directly by the orchestrator (these are not deliberating agents)."""
     s = run.s
     cfg = s["stages"][stage_cfg]
-    kw = dict(max_tokens=s["max_tokens"][budget_key], reasoning_effort=s["reasoning_effort"][budget_key],
+    quick_tokens = {"summarize": 900, "judge": 2400}
+    kw = dict(max_tokens=quick_tokens[budget_key] if run.quick else s["max_tokens"][budget_key],
+              reasoning_effort="none" if run.quick else s["reasoning_effort"][budget_key],
               budget=run.budget, web_results=s["web_search_results"])
     key = settings.resolve_key(cfg.get("api_key", ""), s)
     if validate is None:
@@ -34,7 +36,7 @@ async def stage_call(run: Run, stage_cfg: str, budget_key: str, prompt: str, val
 async def summarize(run: Run, group: dict, stage: str, transcript: list[dict], evals: dict[str, str]) -> str:
     names = {a["id"]: a["name"] for a in group["agents"]}
     run.log("stage_start", stage=stage, group=group["id"])
-    prompt = prompts.system("summarize", GROUP_NAME=group["name"], IDEA=run.idea,
+    prompt = prompts.system("summarize_quick" if run.quick else "summarize", GROUP_NAME=group["name"], IDEA=run.idea,
                             TRANSCRIPT=transcript_text(transcript, names) or "(no discussion)",
                             EVALUATIONS="\n\n".join(f"--- {names[a]} ---\n{t}" for a, t in evals.items()) or "(none)")
     text, res = await stage_call(run, "summarizer", "summarize", prompt)
@@ -72,11 +74,12 @@ async def stop_or_go(run: Run, groups: list[dict], summaries: dict[str, str]) ->
     return obj
 
 
-async def conclude(run: Run, groups: list[dict], summaries: dict[str, str], sg: dict) -> dict:
+async def conclude(run: Run, groups: list[dict], summaries: dict[str, str], sg: dict | None, log: bool = True) -> dict:
     ids = [g["id"] for g in groups]
-    run.log("stage_start", stage="final")
+    if log:
+        run.log("stage_start", stage="final")
     sg_text = (f"Decision: {sg['decision']}. Consensus feasible: {sg.get('consensus_feasible')}. "
-               f"{sg['overall'].get('rationale', '')}")
+               f"{sg['overall'].get('rationale', '')}") if sg else "The groups' latest positions above are final."
     prompt = prompts.system("final", IDEA=run.idea, SUMMARIES=summaries_block(groups, summaries),
                             STOP_GO=sg_text, GROUP_IDS='", "'.join(ids))
 
@@ -85,14 +88,25 @@ async def conclude(run: Run, groups: list[dict], summaries: dict[str, str], sg: 
             return "overall.headline is required"
         return _check_groups(o, ids, ("headline", "conclusion"))
     obj, res = await stage_call(run, "judge", "judge", prompt, validate)
-    run.log("final", overall=obj["overall"], groups=obj["groups"], model=res.model, cost=res.cost)
-    return obj
+    if log:
+        run.log("final", overall=obj["overall"], groups=obj["groups"], model=res.model, cost=res.cost)
+    return {**obj, "_model": res.model, "_cost": res.cost}
 
 
 async def round_(run: Run, groups: list[dict], n: int, prior: str, summaries_text: str) -> dict[str, str]:
     """One discuss -> evaluate -> summarize pass for every group (groups run concurrently)."""
     secs = run.s["deliberation_seconds"]
-    ts = await asyncio.gather(*[run.deliberate(g, secs, prior, f"deliberation_{n}") for g in groups])
+
+    async def discuss(g):
+        if g.get("use_sources") and run.s["sources"]["enabled"]:
+            await run.ensure_sources()  # groups without sources start right away
+        before = run.transcripts.get(g["id"])
+        p = prior + (f"\n\nYour group's previous discussion:\n{transcript_text(before, {a['id']: a['name'] for a in g['agents']})}"
+                     if before else "")
+        t = await run.deliberate(g, secs, p, f"deliberation_{n}")
+        run.transcripts[g["id"]] = t
+        return t
+    ts = await asyncio.gather(*[discuss(g) for g in groups])
     if n == 1:
         es = await asyncio.gather(*[run.evaluate(g, "evaluation_1", "evaluate", t) for g, t in zip(groups, ts)])
     else:  # later rounds: re-evaluate with every group's summaries and the evaluation template
@@ -116,20 +130,31 @@ async def pipeline(run: Run) -> str:
                   "\n\nDiscuss again in light of these. Respond to the other groups' points where they bear on your role.")
         s2 = await round_(run, groups, 2, prior2, shared1)
         latest = s2
+        early = None
+        if run.quick:  # write the verdict and the analysis while stop-or-go is decided; used only if it says stop
+            early = (asyncio.ensure_future(conclude(run, groups, s2, None, log=False)),
+                     asyncio.ensure_future(_analysis(run, log=False)))
         sg = await stop_or_go(run, groups, s2)
+        if early and sg["decision"] == "stop":
+            fin, an = await asyncio.gather(*early, return_exceptions=True)
+            if isinstance(fin, BaseException):
+                raise fin
+            run.log("stage_start", stage="final")
+            run.log("final", overall=fin["overall"], groups=fin["groups"], model=fin["_model"], cost=fin["_cost"])
+            if isinstance(an, dict):
+                run.log("analysis", **an)
+            return await _finish(run, "done")
+        for t in early or ():
+            t.cancel()
         if sg["decision"] == "go":
             shared2 = summaries_block(groups, s2)
             prior3 = ("This is the final discussion round. The latest summaries from every group:\n\n" + shared2 +
                       "\n\nQuestions to settle in this round: " + (sg.get("if_go_resolve") or "the open disagreements above"))
             latest = await round_(run, groups, 3, prior3, shared2)
-        await conclude(run, groups, latest, sg)
-        try:  # who disagreed with whom, with quotes checked against the transcript (for the JSON report)
-            from orchestrator.analysis import analyze
-            run.log("analysis", **(await analyze(_events(run), run.s, run.budget)))
-        except BudgetExceeded:
-            raise
-        except Exception as e:
-            run.log("note", text=f"Disagreement analysis skipped: {type(e).__name__}: {e}"[:300])
+        # The verdict and the disagreement analysis (for the JSON report) run at the same time.
+        done = await asyncio.gather(conclude(run, groups, latest, sg), _analysis(run), return_exceptions=True)
+        if isinstance(done[0], BaseException):
+            raise done[0]
     except BudgetExceeded as e:
         status = "budget_stopped"
         run.log("note", text=str(e))
@@ -141,6 +166,25 @@ async def pipeline(run: Run) -> str:
     except Exception as e:  # keep a readable record of what failed
         status = "error"
         run.log("note", text=f"Run failed: {type(e).__name__}: {e}"[:400])
+    run.log("run_end", status=status, calls=run.budget.calls)
+    _export(run)
+    return status
+
+
+async def _analysis(run: Run, log: bool = True):
+    """Who disagreed with whom, with quotes checked against the transcript."""
+    try:
+        from orchestrator.analysis import analyze
+        result = await analyze(_events(run), run.s, run.budget)
+        if log:
+            run.log("analysis", **result)
+        return result
+    except Exception as e:
+        run.log("note", text=f"Disagreement analysis skipped: {type(e).__name__}: {e}"[:300])
+        return None
+
+
+async def _finish(run: Run, status: str) -> str:
     run.log("run_end", status=status, calls=run.budget.calls)
     _export(run)
     return status
