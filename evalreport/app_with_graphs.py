@@ -148,7 +148,7 @@ with st.sidebar:
     )
     goal = st.text_input("What do you want to decide?", value="Find a differentiated opportunity and define a prototype experiment.")
     rounds = st.slider("Debate rounds", min_value=1, max_value=4, value=2)
-    model = st.text_input("Model", value=os.getenv("EVALREPORT_MODEL", "openai/gpt-4.1-mini"))
+    model = st.text_input("Model", value=os.getenv("EVALREPORT_MODEL", "openai/gpt-oss-120b"))
     api_key = st.text_input(
         "OpenRouter API key",
         value=os.getenv("OPENROUTER_API_KEY", ""),

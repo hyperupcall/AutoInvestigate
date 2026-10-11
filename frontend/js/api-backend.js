@@ -141,6 +141,8 @@
       } catch (e) { /* try the next one */ }
     }
     if (!info.live) { info.base = ''; return; }
+    const fullView = document.getElementById('full-view');
+    if (fullView) fullView.href = (info.base || '') + '/live';
     try {
       const [server, models] = await Promise.all([getJSON('/api/settings'), getJSON('/api/models').catch(() => [])]);
       syncSettings(server, models);

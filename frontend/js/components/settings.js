@@ -9,24 +9,51 @@
   const actions = Hack.actions;
   const D = Hack.mockData;
 
+  // Only these models may be used (see CHEAP_MODELS.md). OpenRouter ids.
   const MODELS = [
-    'openai/gpt-4o',
-    'openai/gpt-4o-mini',
-    'anthropic/claude-3.5-sonnet',
-    'google/gemini-2.0-flash',
-    'meta-llama/llama-3.1-70b-instruct',
-    'jev/typesafe-eval',
-    'openrouter/auto',
+    'meta-llama/llama-3.1-8b-instruct',
+    'google/gemma-3-4b-it',
+    'openai/gpt-oss-120b',
   ];
 
-  /** Real model list when the backend is connected: the configured models, the Jev router, then the cheapest. */
+  /** Only the cheap models are offered; a configured backend model is folded in when it is one of them. */
   function modelOptions() {
     const info = Hack.backendInfo;
     if (!info || !info.live || !info.settings) return MODELS.slice();
     const s = info.settings;
     const configured = s.groups.flatMap((g) => g.agents.map((a) => a.model)).concat([s.stages.summarizer.model, s.stages.judge.model]);
-    const cheap = (info.models || []).filter((m) => !m.variable_price && !m.expires).slice(0, 40).map((m) => m.id);
-    return [...new Set([...configured, 'typesafe/jev-router', ...cheap])];
+    const allowed = (m) => MODELS.includes(m.replace(/:online$/, ''));
+    return [...new Set([...MODELS, ...configured.filter(allowed)])];
+  }
+
+  /** Provider is the part before the slash in an OpenRouter id (e.g. "google" in google/gemma-3-4b-it). */
+  function providerOf(model) {
+    const id = String(model || '').replace(/:online$/, '');
+    const slash = id.indexOf('/');
+    return slash > 0 ? id.slice(0, slash) : 'other';
+  }
+
+  /** Sort by provider, then by model id, so long lists are easy to scan. */
+  function sortModelsByProvider(models) {
+    return models.slice().sort((a, b) => {
+      const pa = providerOf(a);
+      const pb = providerOf(b);
+      if (pa !== pb) return pa.localeCompare(pb);
+      return a.localeCompare(b);
+    });
+  }
+
+  /** <option>s grouped into <optgroup>s by provider, so a large list stays parseable. */
+  function modelOptionNodes(models, selected) {
+    const groups = new Map();
+    sortModelsByProvider(models).forEach((m) => {
+      const p = providerOf(m);
+      if (!groups.has(p)) groups.set(p, []);
+      groups.get(p).push(m);
+    });
+    return [...groups.entries()].map(([provider, list]) =>
+      el('optgroup', { label: provider }, list.map((m) =>
+        el('option', { value: m, text: m, selected: m === selected }))));
   }
 
   function section(title, children) {
@@ -44,7 +71,7 @@
       el('select', {
         class: 'select',
         onchange: (e) => { store.state.settings[key] = e.target.value; },
-      }, options.map((m) => el('option', { value: m, text: m, selected: m === value }))),
+      }, modelOptionNodes(options, value)),
     ]);
   }
 
@@ -74,7 +101,7 @@
       el('input', { class: 'text-input', value: agent.name, placeholder: 'Name', oninput: (e) => { agent.name = e.target.value; } }),
       el('input', { class: 'text-input', value: agent.role, placeholder: 'Role', oninput: (e) => { agent.role = e.target.value; } }),
       el('select', { class: 'select small', onchange: (e) => { agent.model = e.target.value; } },
-        modelOptions().map((m) => el('option', { value: m, text: m, selected: m === agent.model }))),
+        modelOptionNodes(modelOptions(), agent.model)),
       el('button', { class: 'icon-btn danger', title: 'Remove agent', text: '✕', onclick: () => actions.removeAgent(group.id, agent.id) }),
     ]);
   }

@@ -275,7 +275,7 @@ st.caption("Specialist emerging-technology evaluation · Business + VC + Technic
 with st.sidebar:
     st.header("Model configuration")
     api_key = st.text_input("OpenRouter API key", type="password", value=os.getenv("OPENROUTER_API_KEY", ""))
-    model_name = st.text_input("Model", value=os.getenv("EVALREPORT_MODEL", "openai/gpt-4.1-mini"))
+    model_name = st.text_input("Model", value=os.getenv("EVALREPORT_MODEL", "openai/gpt-oss-120b"))
     st.caption("The API key is used only by this running app process. Do not commit it to source control.")
     st.divider()
     st.markdown("**Perspective weights**")

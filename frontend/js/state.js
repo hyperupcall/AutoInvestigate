@@ -45,9 +45,9 @@
 
     /* Settings (popup) */
     settings: {
-      generationModel: 'openai/gpt-4o-mini',
-      evaluationModel: 'anthropic/claude-3.5-sonnet',
-      summarizerModel: 'google/gemini-2.0-flash',
+      generationModel: 'meta-llama/llama-3.1-8b-instruct',
+      evaluationModel: 'openai/gpt-oss-120b',
+      summarizerModel: 'google/gemma-3-4b-it',
       deliberationSeconds: 15,
       mode: 'quick', // 'quick' (about a minute) | 'deep' (about 7 minutes)
       promptSet: 'default',

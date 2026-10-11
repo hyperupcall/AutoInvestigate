@@ -13,10 +13,10 @@
       name: 'Professional Research Group',
       blurb: 'Research professionals assessing stage, feasibility and scale-up path.',
       agents: [
-        { id: 'r1', name: 'Dr. Ada Reyes', role: 'Research Stage Analyst', lens: 'stage', model: 'anthropic/claude-3.5-sonnet' },
-        { id: 'r2', name: 'Prof. Kenji Nakamura', role: 'Scalability Assessor', lens: 'scale', model: 'anthropic/claude-3.5-sonnet' },
-        { id: 'r3', name: 'Dr. Priya Anand', role: 'Feasibility & Timeline Lead', lens: 'feasibility', model: 'openai/gpt-4o' },
-        { id: 'r4', name: 'Dr. Marcus Webb', role: 'Long-horizon Impact Analyst', lens: 'horizon', model: 'openai/gpt-4o' },
+        { id: 'r1', name: 'Dr. Ada Reyes', role: 'Research Stage Analyst', lens: 'stage', model: 'meta-llama/llama-3.1-8b-instruct' },
+        { id: 'r2', name: 'Prof. Kenji Nakamura', role: 'Scalability Assessor', lens: 'scale', model: 'google/gemma-3-4b-it' },
+        { id: 'r3', name: 'Dr. Priya Anand', role: 'Feasibility & Timeline Lead', lens: 'feasibility', model: 'openai/gpt-oss-120b' },
+        { id: 'r4', name: 'Dr. Marcus Webb', role: 'Long-horizon Impact Analyst', lens: 'horizon', model: 'meta-llama/llama-3.1-8b-instruct' },
       ],
     },
     {
@@ -24,10 +24,10 @@
       name: 'Private Equity / Business',
       blurb: 'Partners positioning the idea to maximise returns.',
       agents: [
-        { id: 'p1', name: 'Elena Voss', role: 'Tech Risk Partner', lens: 'techRisk', model: 'anthropic/claude-3.5-sonnet' },
-        { id: 'p2', name: 'David Okafor', role: 'Market Partner', lens: 'market', model: 'openai/gpt-4o' },
-        { id: 'p3', name: 'Sofia Marchetti', role: 'Strategic Fit Partner', lens: 'strategicFit', model: 'openai/gpt-4o' },
-        { id: 'p4', name: 'James Whitfield', role: 'Horizon Partner', lens: 'horizon', model: 'anthropic/claude-3.5-sonnet' },
+        { id: 'p1', name: 'Elena Voss', role: 'Tech Risk Partner', lens: 'techRisk', model: 'openai/gpt-oss-120b' },
+        { id: 'p2', name: 'David Okafor', role: 'Market Partner', lens: 'market', model: 'google/gemma-3-4b-it' },
+        { id: 'p3', name: 'Sofia Marchetti', role: 'Strategic Fit Partner', lens: 'strategicFit', model: 'meta-llama/llama-3.1-8b-instruct' },
+        { id: 'p4', name: 'James Whitfield', role: 'Horizon Partner', lens: 'horizon', model: 'openai/gpt-oss-120b' },
       ],
     },
     {
@@ -35,11 +35,11 @@
       name: 'Market Reaction',
       blurb: 'The people you are trying to serve. They rarely agree.',
       agents: [
-        { id: 'm1', name: 'Priya · Power User', role: 'Senior SRE', lens: 'powerUser', model: 'openai/gpt-4o-mini' },
-        { id: 'm2', name: 'Tom · Free-tier', role: 'Hobbyist Developer', lens: 'freeTier', model: 'openai/gpt-4o-mini' },
-        { id: 'm3', name: 'Karen · Enterprise Buyer', role: 'VP Engineering', lens: 'enterprise', model: 'openai/gpt-4o' },
-        { id: 'm4', name: 'Ahmed · Security Lead', role: 'CISO Office', lens: 'security', model: 'anthropic/claude-3.5-sonnet' },
-        { id: 'm5', name: 'Lena · Founder', role: 'Seed-stage Founder', lens: 'founder', model: 'openai/gpt-4o-mini' },
+        { id: 'm1', name: 'Priya · Power User', role: 'Senior SRE', lens: 'powerUser', model: 'meta-llama/llama-3.1-8b-instruct' },
+        { id: 'm2', name: 'Tom · Free-tier', role: 'Hobbyist Developer', lens: 'freeTier', model: 'google/gemma-3-4b-it' },
+        { id: 'm3', name: 'Karen · Enterprise Buyer', role: 'VP Engineering', lens: 'enterprise', model: 'openai/gpt-oss-120b' },
+        { id: 'm4', name: 'Ahmed · Security Lead', role: 'CISO Office', lens: 'security', model: 'meta-llama/llama-3.1-8b-instruct' },
+        { id: 'm5', name: 'Lena · Founder', role: 'Seed-stage Founder', lens: 'founder', model: 'google/gemma-3-4b-it' },
       ],
     },
   ];

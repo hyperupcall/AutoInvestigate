@@ -5,7 +5,7 @@ import re
 
 import litellm
 
-MODEL = os.getenv("LLM_MODEL", "openrouter/anthropic/claude-sonnet-5-5")
+MODEL = os.getenv("LLM_MODEL", "openrouter/openai/gpt-oss-120b")
 # Routed through OpenRouter (the `openrouter/` prefix), so the single
 # OPENROUTER_API_KEY in the root .env is all that is needed.
 # Current Claude models only accept temperature=1, so it is optional: set

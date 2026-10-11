@@ -9,13 +9,54 @@
 (function () {
   const Hack = (window.Hack = window.Hack || {});
   Hack.components = Hack.components || {};
-  const { el, svgEl, clear, truncate, formatTime, wrapText } = Hack.util;
+  const { el, clear, truncate, formatTime } = Hack.util;
   const store = Hack.store;
   const actions = Hack.actions;
 
   let root = null;
-  let stickToBottom = true;
-  let savedScrollTop = 0;
+  const selectedAgentByGroup = {}; // groupId -> agentId whose stream is open
+  const stickByKey = {};           // scrollKey -> follow the tail? (default true for streams)
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  // Caps so a long run cannot grow the DOM without bound (and lag the page).
+  const LOG_MAX_EVENTS = 200;      // cluster log: newest N events
+  const STREAM_MAX_ITEMS = 40;     // per-agent stream: newest N outputs
+  const STREAM_MAX_CHARS = 24000;  // per-agent stream: newest N characters
+
+  const isTailKey = (key) => key === 'cluster-log' || key.startsWith('agent-stream:');
+
+  function formatCount(n) {
+    if (n < 1000) return String(n);
+    if (n < 1000000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds) return '0s';
+    if (seconds < 60) return seconds.toFixed(1).replace(/\.0$/, '') + 's';
+    return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+  }
+
+  /** el() for SVG nodes (document.createElement won't build SVG). */
+  function svg(tag, attrs, children) {
+    const node = document.createElementNS(SVG_NS, tag);
+    if (attrs) {
+      for (const key of Object.keys(attrs)) {
+        const value = attrs[key];
+        if (value == null || value === false) continue;
+        if (key === 'text') node.textContent = value;
+        else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value);
+        else node.setAttribute(key, value);
+      }
+    }
+    if (children) {
+      (Array.isArray(children) ? children : [children]).forEach((child) => {
+        if (child == null || child === false) return;
+        node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+      });
+    }
+    return node;
+  }
 
   function mount(container) {
     root = container;
@@ -35,24 +76,30 @@
     const dialog = el('div', { class: 'modal report-modal', onclick: (e) => e.stopPropagation() }, [
       renderHead(run),
       renderTabs(modal.tab),
-      modal.tab === 'cluster' ? renderCluster(run) : renderEvaluation(run),
+      modal.tab === 'cluster' ? renderCluster(run, modal.tab) : renderEvaluation(run, modal.tab),
     ]);
+
+    // Remember where each scrollable pane was before we rebuild the DOM.
+    const scrolls = {};
+    root.querySelectorAll('[data-scroll-key]').forEach((node) => {
+      scrolls[node.dataset.scrollKey] = node.scrollTop;
+    });
 
     const overlay = el('div', { class: 'modal-overlay', onclick: () => actions.closeModal() }, [dialog]);
     clear(root);
     root.appendChild(overlay);
 
-    // Restore / advance the cluster log scroll after it is in the DOM.
-    const log = dialog.querySelector('[data-scroll-key="cluster-log"]');
-    if (log) {
-      log.addEventListener('scroll', () => {
-        stickToBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 48;
-        savedScrollTop = log.scrollTop;
+    // Restore scroll synchronously (reading scrollHeight forces layout) so panes
+    // never flash back to the top while events keep streaming in. Tail panes
+    // follow the newest output until the user scrolls up; the rest stay pinned.
+    dialog.querySelectorAll('[data-scroll-key]').forEach((node) => {
+      const key = node.dataset.scrollKey;
+      const stick = isTailKey(key) && stickByKey[key] !== false;
+      node.scrollTop = stick ? node.scrollHeight : (scrolls[key] || 0);
+      node.addEventListener('scroll', () => {
+        stickByKey[key] = (node.scrollHeight - node.scrollTop - node.clientHeight) < 48;
       });
-      requestAnimationFrame(() => {
-        log.scrollTop = stickToBottom ? log.scrollHeight : savedScrollTop;
-      });
-    }
+    });
   }
 
   /* ------------------------------- head ------------------------------- */
@@ -101,32 +148,35 @@
   }
 
   /* ============================ Cluster Status ============================ */
-  function renderCluster(run) {
-    const body = el('div', { class: 'modal-body cluster-body' });
+  function renderCluster(run, tab) {
+    const body = el('div', { class: 'modal-body cluster-body', 'data-scroll-key': 'modal-body:' + tab });
 
+    const chars = run.events.reduce((n, ev) => n + ((ev.text || '').length), 0);
+    const elapsed = ((run.finishedAt || Date.now()) - run.startedAt) / 1000;
     body.appendChild(el('div', { class: 'cluster-status-bar' }, [
       el('span', { class: 'muted small', text: run.status === 'running' ? 'Live backend activity' : 'Run finished' }),
-      el('span', { class: 'muted small', text: `${run.events.length} events` }),
+      el('span', { class: 'muted small', text: 'Click an agent to read its reasoning' }),
+      el('span', { class: 'muted small', text: `${run.events.length} events · ${formatCount(chars)} chars · ${formatDuration(elapsed)}` }),
     ]));
 
-    // Per-group graphs: agents as circles, click one to see its output.
-    const groups = run.cluster || [];
-    if (!groups.length) {
-      body.appendChild(el('div', { class: 'empty-state small' }, [el('p', { class: 'muted', text: 'No cluster yet.' })]));
-    } else {
-      groups.forEach((g) => body.appendChild(renderGroupGraph(run, g)));
-    }
+    // The agent cluster as a graph — one circle per agent, click to read its stream.
+    body.appendChild(renderClusterGraph(run));
 
-    // The streamed activity log.
+    // The streamed activity log (newest events only, so it cannot grow forever).
     const log = el('div', { class: 'thinking-log', 'data-scroll-key': 'cluster-log' });
+    const start = Math.max(0, run.events.length - LOG_MAX_EVENTS);
+    if (start > 0) {
+      log.appendChild(el('div', { class: 'event-row kind-muted', text: `${start} earlier events trimmed to keep this panel fast.` }));
+    }
     let lastPhase = null;
-    run.events.forEach((ev) => {
+    for (let i = start; i < run.events.length; i += 1) {
+      const ev = run.events[i];
       if (ev.phase !== lastPhase) {
         lastPhase = ev.phase;
         log.appendChild(el('div', { class: 'phase-divider' }, [el('span', { text: ev.phase })]));
       }
       log.appendChild(renderEvent(run, ev));
-    });
+    }
 
     if (run.status === 'running') {
       log.appendChild(el('div', { class: 'event-row kind-live' }, [
@@ -139,133 +189,224 @@
     return body;
   }
 
-  /* --------------------------- cluster graph --------------------------- */
-  function renderGroupGraph(run, group) {
-    const selectedId = (store.state.ui.modal.agentSelection || {})[group.id] || null;
-    const activeId = activeAgentId(run);
+  /* ------------------------- cluster graph + stream ------------------------- */
 
-    return el('div', { class: 'cluster-graph-group' }, [
+  /** Index the streamed events by group and by agent so the graph can look them up. */
+  function indexEvents(run) {
+    const idx = {};
+    const idByName = {};
+    for (const g of run.cluster || []) {
+      idx[g.id] = { events: [], byAgent: {} };
+      idByName[g.name] = g.id;
+    }
+    for (const ev of run.events) {
+      const gid = ev.groupId || idByName[ev.group];
+      const bucket = gid && idx[gid];
+      if (!bucket) continue;
+      bucket.events.push(ev);
+      if (ev.agent_id) (bucket.byAgent[ev.agent_id] = bucket.byAgent[ev.agent_id] || []).push(ev);
+    }
+    return idx;
+  }
+
+  function renderClusterGraph(run) {
+    const groups = run.cluster || [];
+    if (!groups.length) {
+      return el('div', { class: 'empty-state small' }, [el('p', { class: 'muted', text: 'No cluster yet.' })]);
+    }
+    const idx = indexEvents(run);
+    const empty = { events: [], byAgent: {} };
+    return el('div', { class: 'cluster-graph' }, groups.map((g) => renderGroupBlock(run, g, idx[g.id] || empty)));
+  }
+
+  function renderGroupBlock(run, group, bucket) {
+    const agents = group.agents || [];
+    const selectedId = selectedAgentByGroup[group.id] || (agents[0] && agents[0].id);
+    const selected = agents.find((a) => a.id === selectedId) || agents[0] || null;
+    const agentEvents = selected ? (bucket.byAgent[selected.id] || []) : [];
+
+    return el('div', { class: 'cluster-group-block' }, [
       el('div', { class: 'cluster-group-head' }, [
         el('span', { class: 'cluster-group-name', text: group.name }),
         el('span', { class: 'cluster-style', text: group.style }),
-        el('span', { class: 'muted small', text: `${group.agents.length} agents` }),
+        el('span', { class: 'muted small', text: `${agents.length} agents` }),
       ]),
-      renderGraphSvg(group, selectedId, activeId),
-      renderAgentOutput(run, group, selectedId),
+      el('div', { class: 'cluster-graph-wrap' }, [
+        renderGroupGraph(run, group, bucket, selectedId),
+        renderAgentStream(run, group, selected, agentEvents),
+      ]),
     ]);
   }
 
-  function renderGraphSvg(group, selectedId, activeId) {
-    const W = 520;
-    const H = 300;
-    const cx = W / 2;
-    const cy = H / 2;
-    const n = group.agents.length;
-    const R = Math.min(W, H) / 2 - 62;
-
-    const nodes = group.agents.map((a, i) => {
-      const angle = -Math.PI / 2 + (i * 2 * Math.PI / Math.max(1, n));
-      return { a, angle, x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) };
+  /** One circle per agent, arranged on a ring, with names beside them and
+   *  edges between everyone. Clicking a circle opens that agent's stream. */
+  function renderGroupGraph(run, group, bucket, selectedId) {
+    const agents = group.agents || [];
+    const n = agents.length;
+    const W = 580, H = 300, cx = W / 2, cy = H / 2, R = 84, r = 22;
+    const nodes = agents.map((a, i) => {
+      const ang = (-90 + (360 / Math.max(n, 1)) * i) * (Math.PI / 180);
+      return { agent: a, ang, x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
     });
+    const spoken = (id) => (bucket.byAgent[id] || []).some((ev) => ev.kind === 'turn' || ev.kind === 'evaluation');
 
-    const children = [];
-
-    // Edges: every pair, so the group reads as one communicating cluster.
+    // Edges: everyone can hear everyone. Solid once both ends have spoken.
+    const edges = [];
     for (let i = 0; i < nodes.length; i += 1) {
       for (let j = i + 1; j < nodes.length; j += 1) {
-        const a = nodes[i];
-        const b = nodes[j];
-        const hot = [a.a.id, b.a.id].some((id) => id === selectedId || id === activeId);
-        children.push(svgEl('line', { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: 'graph-edge' + (hot ? ' hot' : '') }));
+        const a = nodes[i], b = nodes[j];
+        const touchesSelected = a.agent.id === selectedId || b.agent.id === selectedId;
+        const bothSpoken = spoken(a.agent.id) && spoken(b.agent.id);
+        const cls = 'graph-edge' + (touchesSelected ? ' selected' : bothSpoken ? ' spoken' : '');
+        edges.push(svg('line', { class: cls, x1: a.x, y1: a.y, x2: b.x, y2: b.y }));
       }
     }
 
-    nodes.forEach((node) => {
-      const isSel = node.a.id === selectedId;
-      const isActive = node.a.id === activeId;
-      const g = svgEl('g', {
-        class: 'graph-node' + (isSel ? ' selected' : '') + (isActive ? ' active' : ''),
-        onclick: () => actions.selectModalAgent(group.id, node.a.id),
-      }, [
-        svgEl('title', { text: node.a.name }),
-        svgEl('circle', { cx: node.x, cy: node.y, r: 24, class: 'graph-circle' }),
-        svgEl('text', { x: node.x, y: node.y + 4, class: 'graph-initials', 'text-anchor': 'middle', text: initials(node.a.name) }),
+    const nodeEls = nodes.map((node) => {
+      const a = node.agent;
+      const isSelected = a.id === selectedId;
+      const isLive = run.status === 'running' && run.currentAgent === a.id;
+      const cls = 'graph-node' + (isSelected ? ' selected' : '') + (isLive ? ' live' : '') + (spoken(a.id) ? ' spoken' : '');
+      const label = labelPlacement(node, r, a.name);
+      return svg('g', { class: cls, onclick: () => selectAgent(group.id, a.id) }, [
+        isLive ? svg('circle', { class: 'node-ring', cx: node.x, cy: node.y, r: r + 5 }) : null,
+        svg('circle', { class: 'node-circle', cx: node.x, cy: node.y, r }),
+        svg('text', { class: 'node-initials', x: node.x, y: node.y + 4, 'text-anchor': 'middle', text: initials(a.name) }),
+        ...label.lines.map((line, i) => svg('text', {
+          class: 'node-label', x: label.x, y: label.y + i * label.lineHeight, 'text-anchor': label.anchor, text: line,
+        })),
       ]);
-
-      const lines = wrapText(node.a.name, 16);
-      const right = Math.cos(node.angle) >= 0;
-      const lx = node.x + (right ? 32 : -32);
-      const anchor = right ? 'start' : 'end';
-      const startY = node.y - (lines.length - 1) * 6 + 4;
-      lines.forEach((ln, k) => {
-        g.appendChild(svgEl('text', { x: lx, y: startY + k * 12, class: 'graph-label', 'text-anchor': anchor, text: ln }));
-      });
-      children.push(g);
     });
 
-    return svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'cluster-graph-svg', preserveAspectRatio: 'xMidYMid meet' }, children);
+    return el('div', { class: 'cluster-graph-canvas' }, [
+      svg('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet', role: 'img' }, [
+        svg('g', { class: 'graph-edges' }, edges),
+        svg('g', { class: 'graph-nodes' }, nodeEls),
+      ]),
+    ]);
   }
 
-  function renderAgentOutput(run, group, selectedId) {
-    if (!selectedId) {
-      return el('div', { class: 'agent-output empty' }, [
-        el('p', { class: 'muted small', text: 'Click an agent above to see its output.' }),
-      ]);
+  /** Wrap a name to at most two short lines so it stays beside its circle. */
+  function labelLines(name, maxChars) {
+    const words = String(name || '').split(/\s+/).filter(Boolean);
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      if (!cur) cur = w;
+      else if ((cur + ' ' + w).length <= maxChars) cur += ' ' + w;
+      else { lines.push(cur); cur = w; }
     }
-    const agent = group.agents.find((a) => a.id === selectedId);
-    if (!agent) return el('div', { class: 'agent-output empty' });
+    if (cur) lines.push(cur);
+    if (lines.length > 2) {
+      const rest = lines.slice(1).join(' ');
+      lines.length = 1;
+      lines.push(rest.length > maxChars ? rest.slice(0, maxChars - 1).trimEnd() + '…' : rest);
+    }
+    return lines.length ? lines : [''];
+  }
 
-    const events = run.events.filter((ev) =>
-      ev.groupId === group.id && ev.agent_id === selectedId && (ev.kind === 'turn' || ev.kind === 'evaluation')
-    );
+  /** Put the name label outside the ring, on the side the node sits. */
+  function labelPlacement(node, r, name) {
+    const cos = Math.cos(node.ang), sin = Math.sin(node.ang);
+    const lines = labelLines(name, 22);
+    const lineHeight = 13;
+    const span = (lines.length - 1) * lineHeight;
+    if (cos > 0.35) return { x: node.x + r + 8, y: node.y + 4 - span / 2, anchor: 'start', lines, lineHeight };
+    if (cos < -0.35) return { x: node.x - r - 8, y: node.y + 4 - span / 2, anchor: 'end', lines, lineHeight };
+    return sin < 0
+      ? { x: node.x, y: node.y - r - 8 - span, anchor: 'middle', lines, lineHeight }
+      : { x: node.x, y: node.y + r + 16, anchor: 'middle', lines, lineHeight };
+  }
 
-    return el('div', { class: 'agent-output' }, [
-      el('div', { class: 'agent-output-head' }, [
-        el('span', { class: 'agent-output-name', text: agent.name }),
-        el('span', { class: 'cluster-agent-model', text: agent.model }),
-      ]),
-      el('div', { class: 'agent-output-meta' }, [
-        agent.question ? el('p', { class: 'muted small', text: agent.question }) : null,
-        agent.who_they_are ? el('p', { class: 'muted small', text: agent.who_they_are }) : null,
-      ]),
-      el('div', { class: 'agent-output-items' }, events.length
-        ? events.map((ev) => renderAgentEvent(ev))
-        : [el('p', { class: 'muted small', text: 'No output yet.' })]),
+  function initials(name) {
+    const words = String(name || '').split(/\s+/).filter(Boolean);
+    if (!words.length) return '?';
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+
+  function selectAgent(groupId, agentId) {
+    selectedAgentByGroup[groupId] = agentId;
+    store.notify();
+  }
+
+  /** The selected agent's full reasoning, streamed to the right of the graph. */
+  function renderAgentStream(run, group, agent, agentEvents) {
+    if (!agent) {
+      return el('div', { class: 'agent-stream empty-state small' }, [el('p', { class: 'muted', text: 'No agents in this group.' })]);
+    }
+
+    const items = agentEvents.filter((ev) => ev.kind === 'turn' || ev.kind === 'evaluation' || ev.kind === 'missed' || ev.kind === 'failed');
+    const chars = items.reduce((n, ev) => n + ((ev.text || '').length), 0);
+    const seconds = items.reduce((n, ev) => n + (ev.elapsed_seconds || 0), 0);
+
+    const head = el('div', { class: 'agent-stream-head' }, [
+      el('div', { class: 'agent-stream-name', text: agent.name }),
+      el('div', { class: 'agent-stream-model', text: agent.model || '' }),
+      el('div', { class: 'agent-stream-stats muted small', text: `${items.length} outputs · ${formatCount(chars)} chars · ${formatDuration(seconds)}` }),
     ]);
+    const about = el('div', { class: 'agent-stream-about' }, [
+      agent.question ? el('p', { class: 'cluster-agent-q', text: agent.question }) : null,
+      agent.who_they_are ? el('p', { class: 'cluster-agent-who muted small', text: agent.who_they_are }) : null,
+    ]);
+
+    const body = el('div', { class: 'agent-stream-body', 'data-scroll-key': 'agent-stream:' + group.id });
+    if (!items.length) {
+      body.appendChild(el('p', { class: 'muted small', text: run.status === 'running' ? 'Nothing yet — this agent has not spoken.' : 'This agent produced no output.' }));
+    } else {
+      const { kept, trimmed } = windowItems(items);
+      if (trimmed) {
+        body.appendChild(el('p', { class: 'muted small', text: `${trimmed} older output${trimmed === 1 ? '' : 's'} trimmed to keep this panel fast.` }));
+      }
+      kept.forEach((ev) => body.appendChild(renderAgentEvent(ev)));
+    }
+
+    return el('div', { class: 'agent-stream' }, [head, about, body]);
+  }
+
+  /** Keep only the newest outputs that fit the caps, so the panel stays bounded. */
+  function windowItems(items) {
+    const kept = [];
+    let chars = 0;
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const len = (items[i].text || '').length;
+      if (kept.length >= STREAM_MAX_ITEMS || (kept.length && chars + len > STREAM_MAX_CHARS)) break;
+      kept.push(items[i]);
+      chars += len;
+    }
+    kept.reverse();
+    return { kept, trimmed: items.length - kept.length };
   }
 
   function renderAgentEvent(ev) {
     if (ev.kind === 'turn') {
-      return el('div', { class: 'agent-output-item' }, [
-        el('div', { class: 'agent-output-item-head' }, [
-          el('span', { class: 'event-kind', text: `turn ${ev.turn}` }),
+      return el('div', { class: 'stream-item kind-thought' }, [
+        el('div', { class: 'event-meta' }, [
+          el('span', { class: 'event-role', text: `Round ${ev.round}` }),
+          el('span', { class: 'event-role', text: `turn ${ev.turn}` }),
+          ev.elapsed_seconds != null ? el('span', { class: 'event-role', text: `${ev.elapsed_seconds}s` }) : null,
           el('span', { class: 'event-time', text: formatTime(ev.ts) }),
         ]),
         el('p', { class: 'event-text', text: ev.text }),
       ]);
     }
-    return el('div', { class: 'agent-output-item' }, [
-      el('div', { class: 'agent-output-item-head' }, [
-        el('span', { class: 'event-kind', text: `evaluation · round ${ev.round}` }),
-        el('span', { class: 'event-time', text: formatTime(ev.ts) }),
-      ]),
-      renderVerdictLine(ev),
-      renderScoreChips(ev.template_scores),
-      renderRoleScores(ev.role_scores),
-      el('p', { class: 'event-text', text: ev.text }),
-    ]);
-  }
-
-  function activeAgentId(run) {
-    for (let i = run.events.length - 1; i >= 0; i -= 1) {
-      if (run.events[i].agent_id) return run.events[i].agent_id;
+    if (ev.kind === 'evaluation') {
+      return el('div', { class: 'stream-item kind-evaluation' }, [
+        el('div', { class: 'event-meta' }, [
+          el('span', { class: 'event-role', text: `Round ${ev.round}` }),
+          el('span', { class: 'event-kind', text: 'evaluation' }),
+          ev.complete === false ? el('span', { class: 'event-role warn', text: 'incomplete' }) : null,
+          el('span', { class: 'event-time', text: formatTime(ev.ts) }),
+        ]),
+        renderVerdictLine(ev),
+        renderScoreChips(ev.template_scores),
+        renderRoleScores(ev.role_scores),
+        el('p', { class: 'event-text', text: ev.text }),
+      ]);
     }
-    return null;
-  }
-
-  function initials(name) {
-    const parts = String(name || '').split(/\s+/).filter(Boolean);
-    return parts.slice(0, 2).map((p) => p[0].toUpperCase()).join('');
+    return el('div', { class: 'stream-item kind-muted' }, [
+      el('p', { class: 'event-text', text: `${ev.kind === 'missed' ? 'Missed this turn' : 'Evaluation failed'}${ev.reason ? ' — ' + ev.reason : ''}` }),
+    ]);
   }
 
   function renderEvent(run, ev) {
@@ -339,8 +480,8 @@
   }
 
   /* ============================== Evaluation ============================== */
-  function renderEvaluation(run) {
-    const body = el('div', { class: 'modal-body results' });
+  function renderEvaluation(run, tab) {
+    const body = el('div', { class: 'modal-body results', 'data-scroll-key': 'modal-body:' + tab });
     const report = run.report;
 
     if (!report) {

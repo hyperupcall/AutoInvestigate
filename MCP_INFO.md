@@ -44,7 +44,7 @@ Install the Python packages:
 Create a file named .env:
 
     OPENAI_API_KEY=your_api_key_here
-    SPECIALIST_MODEL=gpt-4.1
+    SPECIALIST_MODEL=openai/gpt-oss-120b
 
 Replace the placeholder with your own API key.
 Never upload .env to GitHub.
