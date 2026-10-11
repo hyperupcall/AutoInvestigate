@@ -77,10 +77,12 @@
       } catch (e) { /* try the next one */ }
     }
     if (!info.live) { info.base = ''; return; }
-    const factoryView = document.getElementById('artifact-factory-view');
-    if (factoryView) factoryView.href = (info.base || '') + '/';
+    // The Artifact Factory dashboard is a frontend page (artifactfactory.html);
+    // it discovers the factory API itself, so the header link stays relative.
     Hack.store.notify();
-    if (Hack.actions) Hack.actions.showToast('Artifact Factory connected: execution is real.', 'ok');
+    if (Hack.actions && document.getElementById('col-execution')) {
+      Hack.actions.showToast('Artifact Factory connected: execution is real.', 'ok');
+    }
   }
 
   mock.createIdea = createIdea;

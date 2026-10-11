@@ -3,7 +3,7 @@ import copy
 import json
 import os
 
-from council.defaults import archetype_library, default_settings
+from council.defaults import MCP_CATALOG, MCP_CATEGORIES, archetype_library, default_settings
 from council.prompts import ROOT
 
 MASK = "********"
@@ -16,6 +16,7 @@ def path() -> str:
 
 def load() -> dict:
     s = default_settings()
+    defaults = {(g["id"], a["id"]): a.get("mcp_servers", []) for g in s["groups"] for a in g["agents"]}
     try:
         with open(path()) as f:
             stored = json.load(f)
@@ -27,6 +28,10 @@ def load() -> dict:
                 s[k][kk] = {**(s[k].get(kk) or {}), **vv} if isinstance(vv, dict) else vv
         else:
             s[k] = v
+    # Backfill MCP servers for agents saved before the catalog existed.
+    for g in s.get("groups", []):
+        for a in g.get("agents", []):
+            a.setdefault("mcp_servers", defaults.get((g["id"], a["id"]), []))
     return s
 
 
@@ -49,6 +54,14 @@ def validate(s: dict) -> list[str]:
     for k, v in s.get("reasoning_effort", {}).items():
         if v not in EFFORTS:
             errs.append(f"reasoning_effort.{k} must be one of none/minimal/low/medium/high")
+    mcp = s.get("mcp") or {}
+    if not isinstance(mcp.get("enabled"), bool):
+        errs.append("mcp.enabled must be true/false")
+    if not 1 <= int(mcp.get("timeout_seconds") or 0) <= 120:
+        errs.append("mcp.timeout_seconds must be between 1 and 120")
+    if not 0 <= int(mcp.get("max_tool_calls") or 0) <= 8:
+        errs.append("mcp.max_tool_calls must be between 0 and 8")
+    known_mcp = {m["id"] for m in MCP_CATALOG}
     ids = set()
     if not s.get("groups"):
         errs.append("at least one group is required")
@@ -56,8 +69,8 @@ def validate(s: dict) -> list[str]:
         if g["id"] in ids:
             errs.append(f"duplicate group id {g['id']}")
         ids.add(g["id"])
-        if g.get("consensus") not in ("converge", "diverge"):
-            errs.append(f"group {g['id']}: consensus must be converge or diverge")
+        if g.get("consensus") not in ("converge", "diverge", "auto"):
+            errs.append(f"group {g['id']}: consensus must be converge, diverge or auto")
         if not 1 <= len(g.get("agents", [])) <= 12:
             errs.append(f"group {g['id']}: needs 1 to 12 agents")
         aids = set()
@@ -71,6 +84,9 @@ def validate(s: dict) -> list[str]:
                 errs.append(f"{g['id']}/{a['id']}: invalid reasoning_effort")
             if not os.path.isfile(os.path.join(ROOT, a.get("prompt", ""))):
                 errs.append(f"{g['id']}/{a['id']}: prompt file not found")
+            for mid in a.get("mcp_servers", []):
+                if mid not in known_mcp:
+                    errs.append(f"{g['id']}/{a['id']}: unknown mcp server {mid}")
     return errs
 
 
@@ -84,8 +100,12 @@ def save(new: dict) -> list[str]:
     """Validate and store. Returns a list of errors (nothing is written if non-empty)."""
     old = load()
     new = copy.deepcopy(new)
+    for derived in ("archetype_library", "mcp_catalog", "mcp_categories"):  # display-only, not stored
+        new.pop(derived, None)
     if new.get("openrouter_api_key") == MASK:
         new["openrouter_api_key"] = old.get("openrouter_api_key", "")
+    if (new.get("mcp") or {}).get("api_key") == MASK:
+        new.setdefault("mcp", {})["api_key"] = old.get("mcp", {}).get("api_key", "")
     for stage, cfg in new.get("stages", {}).items():
         _keep_masked(cfg, old.get("stages", {}).get(stage, {}))
     old_agents = {(g["id"], a["id"]): a for g in old["groups"] for a in g["agents"]}
@@ -112,6 +132,7 @@ def public_view(s: dict) -> dict:
     """Settings safe to send to a browser: keys replaced by a mask, plus the archetype library."""
     v = copy.deepcopy(s)
     v["openrouter_api_key"] = _mask(v.get("openrouter_api_key") or os.getenv("OPENROUTER_API_KEY", ""))
+    v.setdefault("mcp", {})["api_key"] = _mask((v.get("mcp") or {}).get("api_key", ""))
     for cfg in v["stages"].values():
         cfg["api_key"] = _mask(cfg.get("api_key", ""))
     for g in v["groups"]:
@@ -123,6 +144,8 @@ def public_view(s: dict) -> dict:
             a["question"] = _prompt_info(a).get("question")
     v["archetype_library"] = [{"id": a["id"], "name": a["name"], "prompt": a["prompt"], "model": a["model"]}
                               for a in archetype_library()]
+    v["mcp_catalog"] = copy.deepcopy(MCP_CATALOG)
+    v["mcp_categories"] = copy.deepcopy(MCP_CATEGORIES)
     return v
 
 

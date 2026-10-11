@@ -1,4 +1,6 @@
-/* components/settingsModal.js — settings as a POPUP (not a sidebar). */
+/* components/settingsModal.js — settings as a POPUP (not a sidebar).
+ * The content is the full settings form (components/settings.js): the backend's
+ * real settings when connected, the in-memory mock settings otherwise. */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
   Hack.components = Hack.components || {};
@@ -10,11 +12,7 @@
   let overlay = null;
   let bodyEl = null;
   let lastSignature = null;
-
-  function signature() {
-    const g = store.state.settings.groupPerspectives;
-    return g.map((x) => x.id + ':' + x.agents.map((a) => a.id).join(',')).join('|');
-  }
+  let wasOpen = false;
 
   function mount(container) {
     root = container;
@@ -24,7 +22,7 @@
       el('div', { class: 'modal-head' }, [
         el('div', { class: 'modal-head-main' }, [
           el('h3', { class: 'modal-title', text: 'Settings' }),
-          el('p', { class: 'muted small', text: 'Models, prompts and group perspectives. API keys always live on the backend.' }),
+          el('p', { class: 'muted small', text: 'Models, keys, groups and MCP servers. Saved on the backend.' }),
         ]),
         el('button', { class: 'icon-btn', title: 'Close', text: '✕', onclick: () => actions.closeSettings() }),
       ]),
@@ -48,11 +46,14 @@
     if (!overlay) return;
     const open = store.state.ui.settingsOpen;
     overlay.style.display = open ? '' : 'none';
-    if (!open) return;
+    if (!open) { wasOpen = false; return; }
 
-    // Rebuild only when the group/agent structure changes, so live evaluation
-    // events never steal focus from a settings input mid-typing.
-    const sig = signature();
+    // A fresh open starts from a clean draft and clears the last save message.
+    if (!wasOpen) { wasOpen = true; Hack.components.settings.onOpen(); }
+
+    // Rebuild only when the structure (groups/agents/MCP) or the message changes,
+    // so live evaluation events never steal focus from an input mid-typing.
+    const sig = Hack.components.settings.signature();
     if (sig === lastSignature && bodyEl.childElementCount) return;
     lastSignature = sig;
     clear(bodyEl);

@@ -64,7 +64,7 @@
       el('div', { class: 'eval-target-foot' }, [
         el('div', { class: 'eval-target-actions' }, [
           el('button', { class: 'mini-btn', title: 'Remove from queue', text: '✕', onclick: () => actions.removeQueuedIdea(item.id) }),
-          el('button', { class: 'btn small primary', text: 'Start Deeper Research', onclick: () => actions.startQueuedEvaluation(item.id) }),
+          el('button', { class: 'btn small primary', text: 'Start Deeper Research', onclick: () => actions.openRunConfig(item.id) }),
         ]),
       ]),
     ]);

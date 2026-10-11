@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Settings</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
 /* AutoInvestigate base + settings page (see documentation/FRONTEND_STYLE.md) */
 *{box-sizing:border-box}
@@ -32,10 +33,15 @@ button:hover{background:gainsboro}
 button[type=submit]{font-weight:600}
 table{border:1px solid silver}
 pre#msg{font-family:monospace;font-size:12px;color:gray;white-space:pre-wrap;margin-top:8px}
+/* MCP servers per agent */
+.mcprow td{background:whitesmoke}
+.chip{display:inline-block;border:1px solid silver;background:white;padding:1px 2px 1px 6px;margin:1px;font-size:12px}
+.chip button{border:none;background:none;padding:0 3px;cursor:pointer;color:gray;font-size:12px}
+.chip button:hover{color:red}
 </style>
 </head>
 <body>
-<header><h1>Settings</h1> <span class="muted small">AutoInvestiage — models, keys and group perspectives</span></header>
+<header><img src="/favicon.svg" alt="" width="20" height="20"> <h1>Settings</h1> <span class="muted small">AutoInvestiage — models, keys and group perspectives</span></header>
 <main>
 <p><a href="/">Back to the evaluation</a></p>
 <p class="muted small">All models run through OpenRouter. Leave an agent's key blank to use the default key. Keys are stored only on this machine and are never shown again after saving.</p>
@@ -75,6 +81,14 @@ pre#msg{font-family:monospace;font-size:12px;color:gray;white-space:pre-wrap;mar
 <label>API key <input type="password" id="reality_check_key" size="30" autocomplete="off" placeholder="default key"></label></p>
 </fieldset>
 
+<fieldset>
+<legend>MCP servers (agents can use tools in deep mode)</legend>
+<p><label><input type="checkbox" id="mcp_enabled"> Let agents use their MCP servers</label>
+<label>Smithery API key <input type="password" id="mcp_key" size="30" autocomplete="off" placeholder="optional"></label></p>
+<p><label>Timeout, seconds <input type="number" id="mcp_timeout" min="1" max="120"></label>
+<label>Max tool calls per agent <input type="number" id="mcp_max" min="0" max="8"></label></p>
+</fieldset>
+
 <div id="groups"></div>
 
 <p><button type="submit">Save settings</button> <button type="button" id="reset">Reset everything to defaults</button></p>
@@ -91,6 +105,21 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const effortSelect = (v, blankLabel) => '<select>' + EFFORTS.map(e => `<option value="${e}" ${e === (v || '') ? 'selected' : ''}>${e || blankLabel}</option>`).join('') + '</select>';
 
+/* One row per agent: the MCP servers it can use, with a control to add another. */
+const mcpRow = (a, ai) => {
+  const catalog = S.mcp_catalog || [];
+  const have = a.mcp_servers || [];
+  const chips = have.length ? have.map(id => {
+    const s = catalog.find(x => x.id === id) || {name: id};
+    return `<span class="chip">${esc(s.name)} <button type="button" class="mcp-rm" data-mcp="${esc(id)}" title="Remove this server">✕</button></span>`;
+  }).join(' ') : '<span class="muted small">none</span>';
+  const opts = catalog.filter(x => !have.includes(x.id)).map(x => `<option value="${esc(x.id)}">${esc(x.name)} — ${esc(x.category)}</option>`).join('');
+  return `<tr class="mcprow" data-mcp-a="${ai}"><td colspan="6">
+    <span class="muted small">MCP servers</span> ${chips}
+    <select class="mcpadd">${opts}</select> <button type="button" class="mcp-add">Add server</button>
+  </td></tr>`;
+};
+
 function render() {
   $('mode').value = S.mode; $('src_enabled').checked = S.sources.enabled; $('src_max').value = S.sources.max_papers; $('src_model').value = S.sources.model;
   $('openrouter_api_key').value = S.openrouter_api_key;
@@ -102,10 +131,13 @@ function render() {
   $('summarizer_model').value = S.stages.summarizer.model; $('summarizer_key').value = S.stages.summarizer.api_key;
   $('judge_model').value = S.stages.judge.model; $('judge_key').value = S.stages.judge.api_key;
   $('reality_check_model').value = S.stages.reality_check.model; $('reality_check_key').value = S.stages.reality_check.api_key;
+  $('mcp_enabled').checked = S.mcp.enabled; $('mcp_key').value = S.mcp.api_key;
+  $('mcp_timeout').value = S.mcp.timeout_seconds; $('mcp_max').value = S.mcp.max_tool_calls;
   $('groups').innerHTML = S.groups.map((g, gi) => `<fieldset data-g="${gi}">
     <legend>Group perspective: ${esc(g.name)}</legend>
     <p><label>Name <input class="gname" value="${esc(g.name)}" size="40"></label>
     <label>Discussion style <select class="gmode">
+      <option value="auto" ${g.consensus === 'auto' ? 'selected' : ''}>automatic (the backend decides per group)</option>
       <option value="converge" ${g.consensus === 'converge' ? 'selected' : ''}>aim for a shared view</option>
       <option value="diverge" ${g.consensus === 'diverge' ? 'selected' : ''}>members are not expected to agree</option></select></label>
     <label><input type="checkbox" class="gsrc" ${g.use_sources ? 'checked' : ''}> uses arXiv papers</label></p>
@@ -117,7 +149,7 @@ function render() {
         <td><input class="akey" type="password" value="${esc(a.api_key)}" placeholder="default key" size="18" autocomplete="off"></td>
         <td>${effortSelect(a.reasoning_effort, 'stage default')}</td>
         <td><a href="/api/prompt?path=${encodeURIComponent(a.prompt)}" target="_blank">${esc(a.prompt.split('/').pop())}</a></td>
-        <td><button type="button" class="rm">Remove</button></td></tr>`).join('')}
+        <td><button type="button" class="rm">Remove</button></td></tr>` + mcpRow(a, ai)).join('')}
     </table>
     <p><label>Add an agent from the archetype library <select class="lib">
       ${S.archetype_library.filter(l => !S.groups.some(gg => gg.agents.some(a => a.id === l.id))).map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('')}
@@ -138,6 +170,8 @@ function collect() {
   S.stages.summarizer = {model: $('summarizer_model').value.trim(), api_key: $('summarizer_key').value};
   S.stages.judge = {model: $('judge_model').value.trim(), api_key: $('judge_key').value};
   S.stages.reality_check = {model: $('reality_check_model').value.trim(), api_key: $('reality_check_key').value};
+  S.mcp = {enabled: $('mcp_enabled').checked, api_key: $('mcp_key').value,
+          timeout_seconds: Number($('mcp_timeout').value), max_tool_calls: Number($('mcp_max').value)};
   document.querySelectorAll('#groups > fieldset').forEach(fs => {
     const g = S.groups[fs.dataset.g];
     g.name = fs.querySelector('.gname').value.trim() || g.name;
@@ -166,8 +200,22 @@ document.addEventListener('click', e => {
     const id = fs.querySelector('.lib').value;
     const lib = S.archetype_library.find(l => l.id === id);
     if (!lib) return;
-    g.agents.push({id: lib.id, name: lib.name, prompt: lib.prompt, model: lib.model, api_key: '', reasoning_effort: null});
+    g.agents.push({id: lib.id, name: lib.name, prompt: lib.prompt, model: lib.model, api_key: '', reasoning_effort: null, mcp_servers: []});
     render(); $('msg').textContent = `Added ${lib.name}. Press "Save settings" to keep it.`;
+  }
+  if (e.target.classList.contains('mcp-add')) {
+    collect();
+    const a = g.agents[e.target.closest('tr.mcprow').dataset.mcpA];
+    const id = e.target.closest('tr.mcprow').querySelector('.mcpadd').value;
+    if (!id || (a.mcp_servers || []).includes(id)) return;
+    a.mcp_servers = [...(a.mcp_servers || []), id];
+    render(); $('msg').textContent = 'Added MCP server. Press "Save settings" to keep it.';
+  }
+  if (e.target.classList.contains('mcp-rm')) {
+    collect();
+    const a = g.agents[e.target.closest('tr.mcprow').dataset.mcpA];
+    a.mcp_servers = (a.mcp_servers || []).filter(x => x !== e.target.dataset.mcp);
+    render(); $('msg').textContent = 'Removed MCP server. Press "Save settings" to keep it.';
   }
 });
 

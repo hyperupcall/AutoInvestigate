@@ -81,13 +81,40 @@ class AgentWorker(AgentExecutor):
         # Web search only when evaluating in deep mode (quick mode relies on the arXiv list: faster, cheaper).
         model = agent["model"].removesuffix(":online") if (cmd["kind"] == "turn" or quick) else agent["model"]
         QUICK_TOKENS = {"deliberate": 350, "evaluate": 800}
-        res = await orr.chat(
-            model, [{"role": "user", "content": prompt}], settings.resolve_key(agent["api_key"], s),
+        kw = dict(
             max_tokens=QUICK_TOKENS[stage] if quick else s["max_tokens"][stage],
             reasoning_effort="none" if quick else (agent.get("reasoning_effort") or s["reasoning_effort"][stage]),
             web_results=s["web_search_results"], on_length="trim" if cmd["kind"] == "turn" else "retry")
+        res = await self._answer(agent, s, cmd, model, [{"role": "user", "content": prompt}],
+                                 settings.resolve_key(agent["api_key"], s), kw)
         text = trim_to_sentence(res.text) if res.finish_reason == "length" else res.text
         return {"text": text, "cost": res.cost, "model": model, "truncated": res.finish_reason == "length"}
+
+    async def _answer(self, agent: dict, s: dict, cmd: dict, model: str, messages: list[dict], key: str, kw: dict):
+        """Plain model call, or a tool-using call when the agent has MCP servers and this is a deep-mode
+        evaluation stage. MCP is fail-safe: any error (server down, bad reply) falls back to the plain call."""
+        mcp_cfg = s.get("mcp") or {}
+        ids = agent.get("mcp_servers") or []
+        use_mcp = (ids and mcp_cfg.get("enabled", True) and not cmd.get("quick")
+                   and cmd["kind"] in ("evaluate", "cross_review"))
+        if not use_mcp:
+            return await orr.chat(model, messages, key, **kw)
+        from council.defaults import MCP_CATALOG
+        from council.mcp import MCPToolbox
+        catalog = {m["id"]: m for m in MCP_CATALOG}
+        servers = [catalog[i] for i in ids if i in catalog]
+        if not servers:
+            return await orr.chat(model, messages, key, **kw)
+        try:
+            async with MCPToolbox(servers, mcp_cfg.get("api_key") or "", mcp_cfg.get("timeout_seconds", 20)) as box:
+                if not box.tools:
+                    return await orr.chat(model, messages, key, **kw)
+                logger.info("%s: %d MCP tools from %d servers", self.id, len(box.tools), len(box.servers))
+                return await orr.chat_with_tools(model, messages, key, box.tools, box.call,
+                                                 max_tool_calls=int(mcp_cfg.get("max_tool_calls", 2)), **kw)
+        except Exception as e:  # never let MCP break an evaluation
+            logger.warning("%s: MCP unavailable (%s); answering without tools", self.id, e)
+            return await orr.chat(model, messages, key, **kw)
 
     async def cancel(self, request, event_queue):
         raise NotImplementedError

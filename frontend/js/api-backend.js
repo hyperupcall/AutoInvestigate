@@ -28,31 +28,35 @@
     return body;
   }
   const post = (path, body) => getJSON(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const put = (path, body) => getJSON(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
-  /* The agent cluster, before any event arrives (same report shape, nothing filled in yet). */
-  function buildReport(ideaText) {
-    if (!info.live || !info.settings) return fallback.buildReport(ideaText);
+  /* The agent cluster, before any event arrives (same report shape, nothing filled in yet).
+   * `groupIds` (optional) keeps only those agent groups. */
+  function buildReport(ideaText, groupIds) {
+    if (!info.live || !info.settings) return fallback.buildReport(ideaText, groupIds);
     const s = info.settings;
+    const keep = Array.isArray(groupIds) && groupIds.length ? new Set(groupIds) : null;
+    const groups = keep ? s.groups.filter((g) => keep.has(g.id)) : s.groups;
     const now = new Date().toISOString();
     return {
       schema_version: '1.0', generated_at: now,
       run: { id: null, idea: ideaText, status: 'running', started_at: now, finished_at: null, duration_seconds: 0,
              cost_usd: 0, llm_calls: null, max_cost_usd: s.max_cost_usd },
       pipeline: { rounds: 0, extra_round: false, stop_go_decision: null },
-      groups: s.groups.map((g) => ({
+      groups: groups.map((g) => ({
         id: g.id, name: g.name, style: g.consensus,
         agents: g.agents.map((a) => ({ id: a.id, name: a.name, model: a.model, question: a.question || null, who_they_are: null })),
         rounds: [], scores: {}, verdict_counts: {}, disagreements: [], stop_go: null, verdict: null,
       })),
       cross_group: { disagreements: [], agreements: [] }, stop_go: null, verdict: null,
       agntcy: { transport: 'SLIM', protocol: 'A2A', slim_groups_opened: 0,
-                endpoints: s.groups.flatMap((g) => g.agents.map((a) => `council/agents/${a.id}`)) },
+                endpoints: groups.flatMap((g) => g.agents.map((a) => `council/agents/${a.id}`)) },
       analysis: null,
     };
   }
 
-  function startEvaluation({ ideaText, settings, onEvent, onDone }) {
-    if (!info.live) return fallback.startEvaluation({ ideaText, settings, onEvent, onDone });
+  function startEvaluation({ ideaText, settings, groupIds, onEvent, onDone }) {
+    if (!info.live) return fallback.startEvaluation({ ideaText, settings, groupIds, onEvent, onDone });
     let cancelled = false, timer = null, since = 0;
     const handle = {
       runId: null, durationMs: null,
@@ -62,8 +66,9 @@
         if (handle.runId) post('/api/stop', { run_id: handle.runId }).catch(() => {});
       },
     };
-    const fail = (msg) => { onEvent({ phase: 'Error', kind: 'phase', text: msg, ts: Date.now() }); onDone(buildReport(ideaText)); };
+    const fail = (msg) => { onEvent({ phase: 'Error', kind: 'phase', text: msg, ts: Date.now() }); onDone(buildReport(ideaText, groupIds)); };
     const overrides = { deliberation_seconds: settings && settings.deliberationSeconds, mode: (settings && settings.mode) || 'quick' };
+    if (Array.isArray(groupIds) && groupIds.length) overrides.group_ids = groupIds;
     const serverSummarizer = info.settings && info.settings.stages.summarizer.model;
     if (settings && settings.summarizerModel && settings.summarizerModel !== serverSummarizer) overrides.summarizer_model = settings.summarizerModel;
 
@@ -83,7 +88,7 @@
           if (run && r.current) { run.currentPhase = r.current.phase; run.currentAgent = r.current.agent_id; run.backendRunId = handle.runId; Hack.store.notify(); }
           if (!r.running) {
             const report = await getJSON(`/api/runs/${handle.runId}/report`).catch(() => null);
-            return onDone(report || buildReport(ideaText));
+            return onDone(report || buildReport(ideaText, groupIds));
           }
         } catch (e) { /* transient: keep polling */ }
         timer = setTimeout(poll, POLL_MS);
@@ -126,9 +131,21 @@
     s.mode = s.mode || server.mode || 'quick';
     s.groupPerspectives = server.groups.map((g) => ({
       id: g.id, name: g.name, blurb: g.description || '',
-      agents: g.agents.map((a) => ({ id: a.id, name: a.name, role: a.question || '', lens: a.id, model: a.model })),
+      agents: g.agents.map((a) => ({ id: a.id, name: a.name, role: a.question || '', lens: a.id, model: a.model, mcp_servers: a.mcp_servers || [] })),
     }));
+    if (Hack.mcpServers && server.mcp_catalog) Hack.mcpServers.setCatalog(server.mcp_catalog);
   }
+
+  /* Re-fetch the backend settings (used when the Settings popup opens and after a save). */
+  async function refreshSettings() {
+    if (!info.live) return;
+    const [server, models] = await Promise.all([getJSON('/api/settings'), getJSON('/api/models').catch(() => [])]);
+    syncSettings(server, models);
+    Hack.store.notify();
+  }
+
+  const saveSettings = (s) => put('/api/settings', s);
+  const resetSettings = () => post('/api/settings/reset', {});
 
   async function detect() {
     const candidates = window.EVAL_API !== undefined ? [window.EVAL_API] : ['', 'http://localhost:8090'];
@@ -141,21 +158,20 @@
       } catch (e) { /* try the next one */ }
     }
     if (!info.live) { info.base = ''; return; }
-    const fullView = document.getElementById('full-view');
-    if (fullView) fullView.href = (info.base || '') + '/live';
     try {
       const [server, models] = await Promise.all([getJSON('/api/settings'), getJSON('/api/models').catch(() => [])]);
       syncSettings(server, models);
     } catch (e) { /* settings are optional for running */ }
-    const badge = document.querySelector('.mock-badge');
-    if (badge) { badge.textContent = 'LIVE BACKEND'; badge.title = 'Evaluations run on the real backend (generation is still mocked)'; }
+    // The navbar reads Hack.backendInfo for the badge and the Agent View link.
     Hack.store.notify();
     loadPastRuns().catch(() => {});
-    if (Hack.actions) Hack.actions.showToast('Connected to the backend: evaluations are real.', 'ok');
+    if (Hack.actions && document.getElementById('col-evaluation')) {
+      Hack.actions.showToast('Connected to the backend: evaluations are real.', 'ok');
+    }
   }
 
   mock.buildReport = buildReport;
   mock.startEvaluation = startEvaluation;
-  Hack.apiBackend = { detect, loadPastRuns, info };
+  Hack.apiBackend = { detect, loadPastRuns, refreshSettings, saveSettings, resetSettings, info };
   window.addEventListener('load', detect);
 })();

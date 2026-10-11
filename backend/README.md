@@ -56,6 +56,24 @@ them as `[arXiv:ID]`. A cheap model writes 3 keyword queries, the papers come fr
 relevant, and results are cached per idea in `data/sources_cache.json`. The report's `sources` section lists the
 papers, who cited each, and any citation of an id that was not in the list. Toggle per group in /settings.
 
+## MCP servers (agents can use tools)
+
+Each agent carries `mcp_servers`: ids from `MCP_CATALOG` in `council/defaults.py`, curated from
+[Smithery](https://smithery.ai/servers) across three categories — Academic Research, Finance and Reasoning. The
+mapping is by role: researchers get arXiv / Semantic Scholar / Crossref / citation checkers; the private-equity
+partners get finance data and reasoning servers; the market archetypes get calculators and decision servers.
+
+During the `evaluate` / `cross_review` stages (deep mode) the agent host connects to the agent's servers over
+Streamable HTTP (`council/mcp.py`), lists their tools and offers them to the model via OpenRouter tool-calling
+(`council/openrouter.py`, `chat_with_tools`). Tool names are prefixed with the server id (`arxiv__search`) so two
+servers can expose the same name. It is bounded by `mcp.max_tool_calls` and **fail-safe**: if a server is down or a
+call fails, the agent answers without tools. Settings: `mcp.enabled`, `mcp.api_key` (Smithery key, masked in the
+public view), `mcp.timeout_seconds`, `mcp.max_tool_calls`. The frontend shows the same catalog in the
+Settings popup.
+
+Add or remove a server for any agent on the `/settings` page: each agent row has an "MCP servers" line with a chip
+per server (✕ to remove) and a dropdown to add another. Save, and the next run uses it.
+
 ## What happens in an evaluation
 
 0. A reality check runs first: one outside call (`prompts/system/reality_check.md`, stage `reality_check`) judges
@@ -79,7 +97,7 @@ The orchestrator only opens SLIM groups, relays commands and records events; it 
 
 | Route | |
 |---|---|
-| `POST /api/evaluate` `{"idea": "...", "overrides": {"deliberation_seconds": 20, "summarizer_model": "..."}}` | start (up to 3 at once) |
+| `POST /api/evaluate` `{"idea": "...", "overrides": {"deliberation_seconds": 20, "summarizer_model": "...", "group_ids": ["research"]}}` | start (up to 3 at once) |
 | `POST /api/stop` `{"run_id": "..."}` | cancel |
 | `GET /api/status`, `GET /api/runs` | what is running, past runs |
 | `GET /api/ui/runs/<id>/events?since=N` | live events in the frontend's shape (`orchestrator/compat.py`) |
@@ -95,7 +113,7 @@ Examples of finished reports: `examples/`.
 
 ```
 setup.sh, Dockerfile, Makefile   (the services are defined in the root ../docker-compose.yml)
-council/        settings, prompts loader, OpenRouter client, report builder, SLIM glue
+council/        settings, prompts loader, OpenRouter client, MCP client, report builder, SLIM glue
 agent_host/     one process per agent (each a SLIM endpoint)
 orchestrator/   pipeline, run, SLIM bus client, web routes, frontend compatibility, live view (static/)
 prompts/        every agent's role and the system prompts (markdown, editable, mounted live)

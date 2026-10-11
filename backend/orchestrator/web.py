@@ -69,6 +69,16 @@ def apply_overrides(s: dict, o: dict) -> tuple[dict, str | None]:
         if known and m not in known:
             return s, f"summarizer model {m} is not available on OpenRouter"
         s["stages"]["summarizer"]["model"] = m
+    ids = o.get("group_ids")
+    if ids is not None:
+        if not isinstance(ids, list) or not ids:
+            return s, "group_ids must be a non-empty list"
+        known = {g["id"] for g in s["groups"]}
+        unknown = [i for i in ids if i not in known]
+        if unknown:
+            return s, f"unknown group ids: {', '.join(map(str, unknown))}"
+        keep = set(ids)
+        s["groups"] = [g for g in s["groups"] if g["id"] in keep]
     return s, None
 
 

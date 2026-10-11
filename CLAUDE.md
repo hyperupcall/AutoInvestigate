@@ -150,25 +150,87 @@ single `window.Hack` namespace. Open `frontend/index.html` directly, or serve it
 | **3 · Idea Execution** | **Blank for now** — reserved for turning a chosen idea into an artifact. |
 
 **Settings is a popup**, opened from the **Settings** button in the header (not a
-sidebar). The same content is also available as a standalone `frontend/settings.html`.
+sidebar). It is the one settings surface: when the backend is connected it renders
+the backend's real settings and saves them (`PUT /api/settings`); without a backend
+it falls back to the in-memory mock settings.
 
-A **Full view** link sits next to Settings in the header. It opens the site rendered
-by the backend server (the `web` service, `http://localhost:8090/live` — the live
-view) in a new tab, so it is easy to reach after `docker compose up`. Its `href`
-defaults to `http://localhost:8090/live` and is repointed by `api-backend.js` to the
-detected backend (`window.EVAL_API`, same origin, or `localhost:8090`).
+The header is a **navbar**: the brand on the left, the primary links (**Agent View**,
+**Artifact Factory**) in the middle, and the actions (**MOCK BACKEND** badge,
+**Information**, **Settings**) on the right. It is **one
+shared component** (`frontend/js/components/navbar.js`) mounted on every page, so it
+looks and behaves the same on all routes — the workspace mounts it from `app.js`, the
+other pages from `frontend/js/shell.js` (which also mounts the popups it opens). The
+links open in the **same tab**.
 
-An **Artifact Factory** link sits next to Full view. It opens the Artifact Factory
-daemon's own web page (`http://localhost:8080/` by default) in a new tab — a plain
-HTML dashboard listing every evaluation (idea) the factory has been given, with its
-plan and artifact status. Its `href` is repointed by `api-execution.js` to the
-detected factory (`window.AF_API`, same origin, or `localhost:8080`). The daemon's
-JSON service info moved from `GET /` to `GET /info`; all other routes are unchanged.
+An **Agent View** link opens the site rendered by the backend server (the `web`
+service, `http://localhost:8090/live` — the live view). Its `href` defaults to
+`http://localhost:8090/live` and follows the detected backend (`window.EVAL_API`, same
+origin, or `localhost:8090`) via `Hack.backendInfo`, which `api-backend.js` fills in.
+The live view itself now renders **the same shared navbar**: it loads
+`frontend/css/styles.css` and the shell scripts from the frontend directory (the
+backend serves them), and its own controls (past runs, replay speed, Replay, backend
+Settings) sit in a `.live-toolbar` below the navbar.
 
-A **Model info** button sits next to Settings in the header. It opens a popup listing
-the models the app uses, each linked to its OpenRouter page with its input/output
-price per 1M tokens. The list lives in `frontend/js/model-info.js` (the single source
-of truth for the settings dropdown too).
+An **Artifact Factory** link opens the Artifact Factory dashboard — now a frontend
+page (`frontend/artifactfactory.html`, script `frontend/js/artifactfactory.js`) that
+lists every evaluation (idea) the factory has been given, with its plan and artifact
+status. The page discovers the factory API itself (`window.AF_API`, same origin, or
+`localhost:8080`), so the link stays relative. The daemon serves the same page at
+`GET /` (and its assets from the frontend directory); its JSON service info lives at
+`GET /info`.
+
+An **Information** button opens a popup with everything about the app: what it does,
+which backends are connected, the models it uses (each linked to its OpenRouter page
+with its input/output price per 1M tokens) and useful links. The model list lives in
+`frontend/js/model-info.js` (the single source of truth for the settings dropdown too).
+
+The **MCP server catalog** (the servers agents can use, grouped by category) lives in the
+**Settings** popup, under the group perspectives: each agent shows the servers it can
+reach, and the full catalog is listed below. (The old **Configure Agent Groups** popup
+was removed and its information moved here.) The same list is what a run is given;
+which of the groups take part is chosen per run (see Column 2).
+
+### MCP servers (agents can use tools)
+
+Agents can be given MCP servers to use. The catalog is curated from
+[Smithery](https://smithery.ai/servers) across three categories — **Academic
+Research**, **Finance** and **Reasoning** — and lives in `frontend/js/mcp-servers.js`
+(display) and `backend/council/defaults.py` (`MCP_CATALOG`, the access source of
+truth; the backend serves it in `/api/settings` as `mcp_catalog`, and the frontend
+prefers it when live).
+
+Each agent carries `mcp_servers` (catalog ids), correlated with its role:
+
+| Agent | MCP servers |
+| --- | --- |
+| Research · Feasibility Scientist | arXiv, Semantic Scholar, Thoughtbox |
+| Research · Systems Architect | arXiv, Crossref, Math & Logic |
+| Research · AI Systems Researcher | arXiv, Paper Search, Scholar Feed, Thoughtbox |
+| Research · Critical Reviewer | Citation Checker, CiteMe, Crossref, Logic Verifier, Invinoveritas |
+| PE · Technical Risk Partner | arXiv, Crossref, Logic Verifier, Invinoveritas |
+| PE · Market and Revenue Partner | Finance MCP, Flatland, PreReason, OpenAlex |
+| PE · Competitive Strategy Partner | Finance MCP, Flatland, Semantic Scholar |
+| PE · Horizon and Returns Partner | Finance MCP, PreReason, Quorum |
+| Market · Power User | Thoughtbox, Clear Thought |
+| Market · Enterprise Decision-Maker | Invinoveritas, Decide Runtime, SecureLend |
+| Market · Skeptical Technical Critic | Citation Checker, Crossref, Logic Verifier |
+| Market · Startup Builder | Finance MCP, EveryCalc, Thoughtbox |
+| Market · Free-Tier Maximizer | EveryCalc, MonsiTools, Clear Thought |
+
+**Access:** the agent host (`backend/agent_host/executor.py`) connects to the agent's
+servers over Streamable HTTP (`backend/council/mcp.py`), lists their tools, and offers
+them to the model via OpenRouter tool-calling (`council/openrouter.py`
+`chat_with_tools`). Tool names are prefixed with the server id (`arxiv__search`) so
+two servers can expose the same name. It runs for the `evaluate` / `cross_review`
+stages only (deep mode), bounded by `mcp.max_tool_calls`, and is **fail-safe**: if a
+server is down or the call fails, the agent answers without tools. Settings:
+`mcp.enabled`, `mcp.api_key` (Smithery key, masked in the public view),
+`mcp.timeout_seconds`, `mcp.max_tool_calls`.
+
+**Editing:** add or remove a server for any agent on the backend `/settings` page —
+each agent row has an "MCP servers" line with a chip per server (✕ to remove) and a
+dropdown to add another. Save, and the next run uses it. The frontend's Settings
+popup then reflects it (it syncs from the backend).
 
 ### Column 1 — Idea Generation (a level tree)
 
@@ -202,18 +264,24 @@ of truth for the settings dropdown too).
 - **Evaluate →** in column 1 copies an idea into this column's **single list**
   (duplicates are blocked; each queued item can be removed with ✕ or cleared with
   **Clear queued**).
-- Each queued idea has its own **Start Deeper Research** button, which starts the run
-  and turns the entry into a run card in the same list.
+- Each queued idea has its own **Start Deeper Research** button. It opens a popup
+  (`frontend/js/components/runConfigModal.js`) that lists the agent groups with
+  checkboxes (all selected by default) so you can include or exclude groups for that
+  run; **Start research** then starts the run and turns the entry into a run card in
+  the same list. The chosen group ids are passed to the run (`startEvaluation({ …,
+  groupIds })`): the mock filters the report (`Hack.util.filterReportGroups`), and the
+  real backend receives `overrides.group_ids` and keeps only those groups.
 - Queued ideas and runs share **one regular list** (no separate "Queued" / "Research
   runs" sections). A running run can be **cancelled** (from its card or the popup
   header); any run can be **hidden** with ✕, and **Hide finished** clears all
   completed/cancelled runs. Clicking a run opens a large popup with **two tabs**:
-  - **Cluster Status** — each group is drawn as a **graph**: one circle per agent
+  - **Evaluation Swarm** — each group is drawn as a **graph**: one circle per agent
     with the agent's name beside it (the agent currently speaking is highlighted).
-    Clicking a circle shows that agent's output — its discussion turns and
-    evaluations — in a panel under the graph. Below the graphs is the live stream
-    of the whole run: discussion turns, evaluations, summaries, cross-group
-    analysis, the stop-or-go decision and the verdict, as the backend emits them.
+    Clicking a circle shows that agent's stream — a **summary** of each of its
+    discussion turns and evaluations (the full output is one click away) — in a
+    panel under the graph. Below the graphs is the live stream of the whole run:
+    summarized turns, evaluations, summaries, cross-group analysis, the stop-or-go
+    decision and the verdict, as the backend emits them.
   - **Evaluation** — the finished report, shaped exactly like
     `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, final
     verdict, cross-group disagreements/agreements, per-group scores/verdicts/
@@ -222,9 +290,16 @@ of truth for the settings dropdown too).
 
 ### Settings (popup)
 
-Models (generation / evaluation / summarizer), deliberation seconds, prompt set,
-and editable group perspectives (defaults: Research ×4, Private Equity ×4, Market
-Reaction ×5). **API keys are intentionally not here** — they live on the backend.
+One settings surface. When the backend is connected the popup renders the backend's
+real settings — the same fields as the backend `/settings` page — and saves them with
+`PUT /api/settings`: mode, arXiv sources, the default OpenRouter key, deliberation
+time, cost cap, web search, the per-stage token/effort table, the summarizer / judge /
+reality-check models and keys, the MCP settings, the MCP server catalog, and the group
+perspectives (name, discussion style — **automatic** lets the backend pick per group,
+`converge` or `diverge` — arXiv use, and each agent's model, key, reasoning effort,
+prompt and MCP servers). Without a backend it falls back to the in-memory mock settings
+(models, prompts, group perspectives). **API keys live on the backend** and are masked in
+the public view.
 
 ### Design principles
 
@@ -246,26 +321,32 @@ implementation is `frontend/css/styles.css`. Summary:
 ```
 frontend/
   index.html              three-column workspace
-  settings.html           standalone settings page
+  artifactfactory.html    Artifact Factory dashboard (also served by the factory)
   css/styles.css          all styling (light, minimal)
   js/
     util.js               DOM + misc helpers (el, preserveView, seeded RNG, …)
     model-info.js         the models used, with OpenRouter links + prices
+    mcp-servers.js        the MCP servers agents can use, and which agent gets which
     mock-data.js          fixtures: groups, archetypes, prompts, text templates
     mock-report.js        sample evaluation report (evaluation-report.schema.json)
     mock-backend.js       ← the MOCKED backend (swap for real calls)
     state.js              single source of truth + pub/sub + selectors
     actions.js            mutations + orchestration
+    shell.js              shared chrome (navbar + popups) for non-workspace pages
     components/
+      navbar.js           the shared app header (navbar)
       generation.js       column 1 (level tree)
       evaluation.js       column 2
       execution.js        column 3 (blank)
-      settings.js         settings content (shared by popup + page)
+      settings.js         the settings form (backend settings when live, mock otherwise)
       settingsModal.js    settings popup
-      modelInfoModal.js   "Model info" popup (models, links, prices)
-      modal.js            the two-tab popup (cluster status / evaluation)
+      infoModal.js        "Information" popup (about, connections, models, links)
+      runConfigModal.js   per-run group picker (Start Deeper Research)
+      modal.js            the two-tab popup (evaluation swarm / evaluation)
       toast.js            notifications
     app.js                bootstrap
+  artifactfactory.html    Artifact Factory dashboard (served by the factory at GET /)
+  js/artifactfactory.js   the dashboard's data loading + rendering
 ```
 
 **State shape (key parts):**
@@ -335,7 +416,7 @@ handle.cancel();
 
 Event kinds streamed to `onEvent`: `phase`, `cluster`, `reality-check`,
 `group-start`, `round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
-`cross-group`, `stop-go`, `verdict`. The **Cluster Status** tab renders these live;
+`cross-group`, `stop-go`, `verdict`. The **Evaluation Swarm** tab renders these live;
 the **Evaluation** tab renders the final `report`.
 
 The report fixture (`js/mock-report.js`) is generated from
@@ -346,7 +427,7 @@ The report fixture (`js/mock-report.js`) is generated from
 ## 7. Status & next steps
 
 **Done (mocked):** three-column UI, level tree with per-level/per-idea iteration,
-lineage labels, evaluation runs with the two-tab popup (**Cluster Status** live
+lineage labels, evaluation runs with the two-tab popup (**Evaluation Swarm** live
 stream + **Evaluation** report with raw JSON), settings popup + page,
 light/minimal styling.
 
@@ -361,7 +442,7 @@ not as a verdict on the idea; the idea's verdict is the "Final verdict" block.
 structured verdict (`grounded` / `questionable` / `nonsense` + category, summary, blockers, assumptions). It is
 advisory (a failed call does not stop the run), feeds the stop-or-go and final prompts so a `nonsense` idea
 cannot get a plain "Go", lands in the report as `reality_check`, and shows as a banner in the Evaluation tab and
-a `reality-check` event in Cluster Status. The mock mirrors it with a small keyword heuristic.
+a `reality-check` event in Evaluation Swarm. The mock mirrors it with a small keyword heuristic.
 
 **Done (real): Column 3 · Idea Execution** — `frontend/js/api-execution.js` swaps the mock for the real
 `artifactfactory/` service whenever it answers (same origin, or `localhost:8080` from `run.sh` on :8000; the

@@ -1,4 +1,5 @@
 import json
+import mimetypes
 import os
 import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -7,7 +8,7 @@ from urllib.parse import parse_qs, urlparse
 
 from . import mvp
 from .service import Service
-from .web import render_evaluations
+from .web import dashboard_html
 
 # Origins allowed to call this API from a browser (the frontend served on its own
 # port). Override with AF_CORS_ORIGINS (comma-separated).
@@ -194,12 +195,29 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(404, "artifact not found")
             return self._send_json(200, artifact)
 
+        # Everything else that is not an API route is a frontend static asset
+        # (the dashboard page and its shared css/js).
+        if method == "GET" and not path.startswith("/api/") and self._serve_static(path):
+            return
+
         raise ApiError(404, f"no route for {method} {path}")
 
     def _render_home(self) -> str:
-        ideas = self.service.list_ideas()
-        plans_by_idea = {p["idea_id"]: p for p in self.service.list_plans()}
-        return render_evaluations(ideas, plans_by_idea, self._info())
+        return dashboard_html(self.service.config.frontend_dir)
+
+    def _serve_static(self, path: str) -> bool:
+        """Serve a file from the frontend directory (the dashboard's css/js)."""
+        base = os.path.abspath(self.service.config.frontend_dir)
+        rel = path.lstrip("/") or "artifactfactory.html"
+        full = os.path.abspath(os.path.join(base, rel))
+        if not full.startswith(base + os.sep) or not os.path.isfile(full):
+            return False
+        ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+        if ctype.startswith("text/") or ctype.endswith("javascript"):
+            ctype += "; charset=utf-8"
+        with open(full, "rb") as f:
+            self._send_bytes(200, f.read(), ctype)
+        return True
 
     def _post_ideas(self) -> None:
         body = self._read_json()
@@ -223,7 +241,7 @@ class Handler(BaseHTTPRequestHandler):
             "name": "Artifact Factory",
             "version": "0.1.0",
             "routes": [
-                "GET / (HTML dashboard)", "GET /info", "GET /health",
+                "GET / (HTML dashboard, from the frontend)", "GET /info", "GET /health",
                 "POST /ideas", "GET /ideas",
                 "GET /ideas/{id}", "GET /plans", "GET /plans/{id}",
                 "POST /plans/{id}/implement", "GET /jobs", "GET /jobs/{id}",

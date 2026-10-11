@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Artifact Factory · AutoInvestigate</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="factory-page">
+  <header class="app-header" id="app-header"></header>
+
+  <main class="factory-main">
+    <div class="factory-toolbar">
+      <span class="mock-badge" id="factory-status" title="Artifact Factory API status">…</span>
+      <button class="btn small" id="factory-refresh" type="button">Refresh</button>
+    </div>
+    <div id="factory-body"></div>
+    <footer class="factory-footer" id="factory-footer"></footer>
+  </main>
+
+  <div id="info-root"></div>
+  <div id="settings-root"></div>
+  <div id="toast-root"></div>
+
+  <script src="js/util.js"></script>
+  <script src="js/model-info.js"></script>
+  <script src="js/mcp-servers.js"></script>
+  <script src="js/mock-data.js"></script>
+  <script src="js/mock-backend.js"></script>
+  <script src="js/mock-execution.js"></script>
+  <script src="js/api-backend.js"></script>
+  <script src="js/api-execution.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/components/settings.js"></script>
+  <script src="js/components/settingsModal.js"></script>
+  <script src="js/components/infoModal.js"></script>
+  <script src="js/components/toast.js"></script>
+  <script src="js/components/navbar.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/artifactfactory.js"></script>
+</body>
+</html>

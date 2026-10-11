@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from council import settings
 from council.openrouter import BudgetExceeded, RunBudget
+from council.prompts import resolve_consensus
 
 MAX_TURNS_PER_GROUP = 40  # hard stop so a long time-box can never run away on cost
 RUNS_DIR = "logs/runs"
@@ -23,6 +24,8 @@ class Run:
         self.id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S") + "-" + uuid4().hex[:4]
         self.idea = idea.strip()
         self.s = s or settings.load()
+        for g in self.s.get("groups", []):  # resolve 'auto' discussion styles once, so every stage sees a concrete style
+            g["consensus"] = resolve_consensus(g)
         self.budget = RunBudget(self.s["max_cost_usd"])
         self.quick = self.s.get("mode", "quick") == "quick"
         self.reality_check: dict | None = None  # the outside check that runs before the groups (see pipeline)
@@ -77,7 +80,8 @@ class Run:
 
     def _agents_cfg(self, group: dict) -> dict:
         return {a["id"]: {"model": a["model"], "prompt": a["prompt"], "name": a["name"],
-                          "reasoning_effort": a.get("reasoning_effort")} for a in group["agents"]}
+                          "reasoning_effort": a.get("reasoning_effort"),
+                          "mcp_servers": a.get("mcp_servers", [])} for a in group["agents"]}
 
     def _on_open(self, group: dict, purpose: str):
         return lambda channel, members: self.log("slim_group", group=group["id"], channel=channel,

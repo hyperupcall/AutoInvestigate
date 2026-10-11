@@ -51,9 +51,11 @@ services:
       AF_PORT: "8080"
       AF_STORAGE: local
       AF_EVAL_API: http://web:8090   # the evaluation backend, to fetch the run's report
+      AF_FRONTEND_DIR: /app/frontend  # the dashboard page (frontend/artifactfactory.html)
     volumes:
       - ./_artifacts:/app/_artifacts
       - ./_artifactfactory-data:/app/_artifactfactory-data
+      - ${FRONTEND_DIR:-./frontend}:/app/frontend:ro
     restart: unless-stopped
 
   # ------------------------------------------------------- idea evaluation

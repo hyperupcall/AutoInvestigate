@@ -18,6 +18,7 @@ def main(argv=None) -> None:
     parser.add_argument("--storage", choices=["local", "s3"])
     parser.add_argument("--s3-bucket")
     parser.add_argument("--s3-prefix")
+    parser.add_argument("--frontend-dir")
     args = parser.parse_args(argv)
 
     config = Config.from_env()
@@ -35,6 +36,8 @@ def main(argv=None) -> None:
         config.s3_bucket = args.s3_bucket
     if args.s3_prefix is not None:
         config.s3_prefix = args.s3_prefix
+    if args.frontend_dir is not None:
+        config.frontend_dir = args.frontend_dir
 
     serve(config)
 

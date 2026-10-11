@@ -1,0 +1,105 @@
+name: Deploy to Vultr
+
+# Deploys the Docker Compose stack to the Vultr droplet.
+#
+#   * every push to the default branch        -> automatic "pull latest" deploy
+#   * Actions ▸ Deploy to Vultr ▸ Run workflow -> deploy a specific commit / force
+#
+# Required repository secrets (Settings ▸ Secrets and variables ▸ Actions):
+#   VULTR_HOST            droplet IP or hostname
+#   VULTR_USER            SSH user on the droplet
+#   VULTR_SSH_KEY         private key for that user (full PEM/OpenSSH text)
+# Optional secrets:
+#   VULTR_PORT            SSH port (default 22)
+#   VULTR_KNOWN_HOSTS     pinned host key(s); if absent, ssh-keyscan is used
+#   OPENROUTER_API_KEY    only needed to bootstrap .env on a brand-new server
+#   SLIM_SHARED_SECRET    only needed to bootstrap .env on a brand-new server
+# Optional repository variable:
+#   APP_DIR               repo location on the server (default /opt/autoinvestigate)
+#
+# See deploy/README.md for the one-time server setup and the force-deploy recipe.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Commit SHA, branch, or tag to deploy (empty = latest main)"
+        required: false
+        default: ""
+      force:
+        description: "Rebuild and recreate containers even if nothing changed"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Never run two deploys against the same droplet at once.
+concurrency:
+  group: deploy-vultr
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Vultr droplet
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up the SSH key
+        env:
+          SSH_HOST: ${{ secrets.VULTR_HOST }}
+          SSH_PORT: ${{ secrets.VULTR_PORT || '22' }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VULTR_KNOWN_HOSTS }}
+          SSH_KEY: ${{ secrets.VULTR_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts 2>/dev/null || true
+          fi
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Push the .env bootstrap to the server
+        env:
+          SSH_HOST: ${{ secrets.VULTR_HOST }}
+          SSH_USER: ${{ secrets.VULTR_USER }}
+          SSH_PORT: ${{ secrets.VULTR_PORT || '22' }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SLIM_SHARED_SECRET: ${{ secrets.SLIM_SHARED_SECRET }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf 'OPENROUTER_API_KEY=%s\nSLIM_SHARED_SECRET=%s\n' \
+            "$OPENROUTER_API_KEY" "$SLIM_SHARED_SECRET" > "$RUNNER_TEMP/bootstrap.env"
+          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" -o IdentitiesOnly=yes \
+            "$RUNNER_TEMP/bootstrap.env" \
+            "$SSH_USER@$SSH_HOST:/tmp/autoinvestigate-bootstrap.env"
+
+      - name: Deploy over SSH
+        env:
+          SSH_HOST: ${{ secrets.VULTR_HOST }}
+          SSH_USER: ${{ secrets.VULTR_USER }}
+          SSH_PORT: ${{ secrets.VULTR_PORT || '22' }}
+          APP_DIR: ${{ vars.APP_DIR }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+          DEPLOY_REF: ${{ inputs.ref }}
+          DEPLOY_FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$DEPLOY_REF" ]; then args+=("$DEPLOY_REF"); fi
+          if [ "$DEPLOY_FORCE" = "true" ]; then args+=(--force); fi
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" -o IdentitiesOnly=yes \
+            "$SSH_USER@$SSH_HOST" \
+            "APP_DIR='$APP_DIR' BRANCH='$BRANCH' bash -s -- ${args[*]}" \
+            < deploy/remote-deploy.sh

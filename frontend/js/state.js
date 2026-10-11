@@ -58,7 +58,10 @@
     ui: {
       modal: { open: false, runId: null, tab: 'cluster', agentSelection: {} },
       settingsOpen: false,
-      modelInfoOpen: false,
+      infoOpen: false,
+      // Per-run group selection, opened from "Start Deeper Research".
+      //   { open, queueId, selectedGroupIds: [] }
+      runConfig: { open: false, queueId: null, selectedGroupIds: [] },
       toast: null,
     },
   };

@@ -4,12 +4,14 @@
   const store = Hack.store;
 
   function boot() {
+    const header = document.getElementById('app-header');
     const generation = document.getElementById('col-generation');
     const evaluation = document.getElementById('col-evaluation');
     const execution = document.getElementById('col-execution');
     const modalRoot = document.getElementById('modal-root');
     const settingsRoot = document.getElementById('settings-root');
-    const modelInfoRoot = document.getElementById('model-info-root');
+    const infoRoot = document.getElementById('info-root');
+    const runConfigRoot = document.getElementById('run-config-root');
     const toastRoot = document.getElementById('toast-root');
 
     if (!generation || !evaluation || !execution) {
@@ -17,27 +19,25 @@
       return;
     }
 
+    Hack.components.navbar.mount(header);
     Hack.components.generation.mount(generation);
     Hack.components.evaluation.mount(evaluation);
     Hack.components.execution.mount(execution);
     Hack.components.modal.mount(modalRoot);
     Hack.components.settingsModal.mount(settingsRoot);
-    Hack.components.modelInfoModal.mount(modelInfoRoot);
+    Hack.components.infoModal.mount(infoRoot);
+    Hack.components.runConfigModal.mount(runConfigRoot);
     Hack.components.toast.mount(toastRoot);
 
-    const openSettingsBtn = document.getElementById('open-settings');
-    if (openSettingsBtn) openSettingsBtn.addEventListener('click', () => Hack.actions.openSettings());
-
-    const openModelInfoBtn = document.getElementById('open-model-info');
-    if (openModelInfoBtn) openModelInfoBtn.addEventListener('click', () => Hack.actions.openModelInfo());
-
     store.subscribe(() => {
+      Hack.components.navbar.render();
       Hack.components.generation.render();
       Hack.components.evaluation.render();
       Hack.components.execution.render();
       Hack.components.modal.render();
       Hack.components.settingsModal.render();
-      Hack.components.modelInfoModal.render();
+      Hack.components.infoModal.render();
+      Hack.components.runConfigModal.render();
       Hack.components.toast.render();
     });
   }

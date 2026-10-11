@@ -198,8 +198,9 @@
   }
 
   /** Build the full evaluation report for an idea. Synchronous so the UI can
-   *  show the agent cluster immediately, before any events stream in. */
-  function buildReport(ideaText) {
+   *  show the agent cluster immediately, before any events stream in.
+   *  `groupIds` (optional) keeps only those agent groups in the report. */
+  function buildReport(ideaText, groupIds) {
     const report = cloneReport();
     report.generated_at = new Date().toISOString();
     report.run = Object.assign({}, report.run, {
@@ -210,7 +211,7 @@
       finished_at: new Date().toISOString(),
     });
     report.reality_check = realityCheckFor(ideaText);
-    return report;
+    return Hack.util.filterReportGroups(report, groupIds);
   }
 
   /** Flatten the report into the ordered stream of cluster events the UI shows. */
@@ -290,8 +291,8 @@
    * startEvaluation — streams cluster activity, then delivers the final report.
    * Returns a handle with `cancel()` and `durationMs`.
    */
-  function startEvaluation({ ideaText, settings, onEvent, onDone }) {
-    const report = buildReport(ideaText);
+  function startEvaluation({ ideaText, settings, groupIds, onEvent, onDone }) {
+    const report = buildReport(ideaText, groupIds);
     const events = buildScript(report);
     const totalGap = events.reduce((sum, e) => sum + e.gap, 0);
     const targetMs = Math.min(Math.max((settings && settings.deliberationSeconds) || 15, 6), 60) * 1000;

@@ -178,18 +178,31 @@ class HttpTests(unittest.TestCase):
         finally:
             conn.close()
 
-    def test_home_lists_evaluations(self):
-        self._post("/ideas", {"text": "A homomorphic encryption toolkit."})
+    def test_home_serves_the_frontend_dashboard(self):
+        # The dashboard is now a frontend page (frontend/artifactfactory.html);
+        # the daemon serves it and its assets, and the data comes from the JSON API.
         status, content_type, body = self._get_raw("/")
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
-        self.assertIn("A homomorphic encryption toolkit.", body)
+        self.assertIn("Artifact Factory", body)
+        self.assertIn("artifactfactory.js", body)
 
-    def test_home_is_empty_before_any_evaluation(self):
-        status, content_type, body = self._get_raw("/")
+    def test_home_dashboard_assets_are_served(self):
+        status, content_type, _ = self._get_raw("/js/artifactfactory.js")
         self.assertEqual(status, 200)
-        self.assertIn("text/html", content_type)
-        self.assertIn("No evaluations yet", body)
+        self.assertIn("javascript", content_type)
+
+    def test_ideas_route_lists_evaluations(self):
+        self._post("/ideas", {"text": "A homomorphic encryption toolkit."})
+        status, body = self._get("/ideas")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body["ideas"]), 1)
+        self.assertEqual(body["ideas"][0]["text"], "A homomorphic encryption toolkit.")
+
+    def test_ideas_route_is_empty_before_any_evaluation(self):
+        status, body = self._get("/ideas")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["ideas"], [])
 
     def test_info_route_returns_service_json(self):
         status, body = self._get("/info")

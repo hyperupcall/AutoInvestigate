@@ -55,7 +55,7 @@
 
       if (!ex.ideaText) {
         refs.body.appendChild(el('div', { class: 'empty-state' }, [
-          el('div', { class: 'empty-mark', text: '◈' }),
+          el('img', { class: 'empty-mark', src: 'favicon.svg', alt: '', width: 20, height: 20 }),
           el('p', { text: 'No idea selected.' }),
           el('p', { class: 'muted', text: 'Open a research run in Idea Evaluation and press Execute → to send its idea here.' }),
         ]));

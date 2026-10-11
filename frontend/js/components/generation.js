@@ -104,7 +104,7 @@
       const s = store.state;
       if (!s.levels.length) {
         refs.sections.appendChild(el('div', { class: 'empty-state' }, [
-          el('div', { class: 'empty-mark', text: '◈' }),
+          el('img', { class: 'empty-mark', src: 'favicon.svg', alt: '', width: 20, height: 20 }),
           el('p', { text: 'No ideas yet.' }),
           el('p', { class: 'muted', text: 'Type a seed idea above and press Generate.' }),
         ]));

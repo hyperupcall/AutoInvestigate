@@ -1,10 +1,11 @@
 /* components/modal.js — large popup for one research run.
  *
  * Two tabs:
- *   Cluster Status — what is in the agent cluster and what the agents are
- *                    saying, streamed live as the backend emits events.
- *   Evaluation     — the finished evaluation report, shaped exactly like
- *                    evaluation-report.schema.json (plus a raw-JSON view).
+ *   Evaluation Swarm — the agent swarm and a streamed summary of what each
+ *                      agent is thinking, as the backend emits events. Full
+ *                      outputs are one click away (they are not printed whole).
+ *   Evaluation       — the finished evaluation report, shaped exactly like
+ *                      evaluation-report.schema.json (plus a raw-JSON view).
  */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
@@ -16,6 +17,7 @@
   let root = null;
   const selectedAgentByGroup = {}; // groupId -> agentId whose stream is open
   const stickByKey = {};           // scrollKey -> follow the tail? (default true for streams)
+  const expandedThoughts = new Set(); // event keys whose full output is shown
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
   // Caps so a long run cannot grow the DOM without bound (and lag the page).
@@ -24,6 +26,53 @@
   const STREAM_MAX_CHARS = 24000;  // per-agent stream: newest N characters
 
   const isTailKey = (key) => key === 'cluster-log' || key.startsWith('agent-stream:');
+
+  /** A stable key for one streamed event, so an expanded thought stays open
+   *  across the re-renders that happen as new events arrive. */
+  function eventKey(run, ev) {
+    return [run.id, ev.kind, ev.groupId || ev.group, ev.agent_id, ev.round, ev.turn, ev.ts].join(':');
+  }
+
+  /** A short, readable summary of an agent's output — the first sentence or two,
+   *  capped so the swarm stream stays scannable. The full text is one click away. */
+  function summarizeThought(text, max) {
+    const limit = max || 240;
+    const s = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+    if (s.length <= limit) return { summary: s, truncated: false };
+    const slice = s.slice(0, limit);
+    const cut = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '));
+    const summary = cut > limit * 0.5 ? slice.slice(0, cut + 1) : slice.trimEnd() + '…';
+    return { summary, truncated: true };
+  }
+
+  function toggleThought(key) {
+    if (expandedThoughts.has(key)) expandedThoughts.delete(key);
+    else expandedThoughts.add(key);
+  }
+
+  /** The summarized thought for an event, with a toggle to reveal the full output.
+   *  The toggle swaps the two paragraphs in place (no re-render), so expanding an
+   *  older thought does not jump the stream to the bottom. */
+  function renderThought(run, ev) {
+    const key = eventKey(run, ev);
+    const expanded = expandedThoughts.has(key);
+    const { summary, truncated } = summarizeThought(ev.text);
+    if (!truncated) return [el('p', { class: 'event-text', text: summary })];
+
+    const summaryP = el('p', { class: 'event-text', text: summary });
+    const fullP = el('p', { class: 'event-text', text: ev.text });
+    summaryP.style.display = expanded ? 'none' : '';
+    fullP.style.display = expanded ? '' : 'none';
+    const btn = el('button', { class: 'thought-toggle', text: expanded ? 'Show summary' : 'Show full output' });
+    btn.addEventListener('click', () => {
+      const nowExpanded = !expandedThoughts.has(key);
+      toggleThought(key);
+      summaryP.style.display = nowExpanded ? 'none' : '';
+      fullP.style.display = nowExpanded ? '' : 'none';
+      btn.textContent = nowExpanded ? 'Show summary' : 'Show full output';
+    });
+    return [summaryP, fullP, btn];
+  }
 
   function formatCount(n) {
     if (n < 1000) return String(n);
@@ -135,7 +184,7 @@
 
   function renderTabs(active) {
     const tabs = [
-      { id: 'cluster', label: 'Cluster Status' },
+      { id: 'cluster', label: 'Evaluation Swarm' },
       { id: 'evaluation', label: 'Evaluation' },
     ];
     return el('div', { class: 'modal-tabs' }, tabs.map((t) =>
@@ -147,19 +196,18 @@
     ));
   }
 
-  /* ============================ Cluster Status ============================ */
+  /* =========================== Evaluation Swarm =========================== */
   function renderCluster(run, tab) {
     const body = el('div', { class: 'modal-body cluster-body', 'data-scroll-key': 'modal-body:' + tab });
 
     const chars = run.events.reduce((n, ev) => n + ((ev.text || '').length), 0);
     const elapsed = ((run.finishedAt || Date.now()) - run.startedAt) / 1000;
     body.appendChild(el('div', { class: 'cluster-status-bar' }, [
-      el('span', { class: 'muted small', text: run.status === 'running' ? 'Live backend activity' : 'Run finished' }),
       el('span', { class: 'muted small', text: 'Click an agent to read its reasoning' }),
       el('span', { class: 'muted small', text: `${run.events.length} events · ${formatCount(chars)} chars · ${formatDuration(elapsed)}` }),
     ]));
 
-    // The agent cluster as a graph — one circle per agent, click to read its stream.
+    // The agent swarm as a graph — one circle per agent, click to read its stream.
     body.appendChild(renderClusterGraph(run));
 
     // The streamed activity log (newest events only, so it cannot grow forever).
@@ -358,7 +406,7 @@
       if (trimmed) {
         body.appendChild(el('p', { class: 'muted small', text: `${trimmed} older output${trimmed === 1 ? '' : 's'} trimmed to keep this panel fast.` }));
       }
-      kept.forEach((ev) => body.appendChild(renderAgentEvent(ev)));
+      kept.forEach((ev) => body.appendChild(renderAgentEvent(run, ev)));
     }
 
     return el('div', { class: 'agent-stream' }, [head, about, body]);
@@ -378,7 +426,7 @@
     return { kept, trimmed: items.length - kept.length };
   }
 
-  function renderAgentEvent(ev) {
+  function renderAgentEvent(run, ev) {
     if (ev.kind === 'turn') {
       return el('div', { class: 'stream-item kind-thought' }, [
         el('div', { class: 'event-meta' }, [
@@ -387,7 +435,7 @@
           ev.elapsed_seconds != null ? el('span', { class: 'event-role', text: `${ev.elapsed_seconds}s` }) : null,
           el('span', { class: 'event-time', text: formatTime(ev.ts) }),
         ]),
-        el('p', { class: 'event-text', text: ev.text }),
+        ...renderThought(run, ev),
       ]);
     }
     if (ev.kind === 'evaluation') {
@@ -401,7 +449,7 @@
         renderVerdictLine(ev),
         renderScoreChips(ev.template_scores),
         renderRoleScores(ev.role_scores),
-        el('p', { class: 'event-text', text: ev.text }),
+        ...renderThought(run, ev),
       ]);
     }
     return el('div', { class: 'stream-item kind-muted' }, [
@@ -435,7 +483,7 @@
             ev.elapsed_seconds != null ? el('span', { class: 'event-role', text: `${ev.elapsed_seconds}s` }) : null,
             el('span', { class: 'event-time', text: formatTime(ev.ts) }),
           ]),
-          el('p', { class: 'event-text', text: ev.text }),
+          ...renderThought(run, ev),
         ]);
       case 'evaluation':
         return el('div', { class: 'event-row kind-evaluation' }, [
@@ -449,7 +497,7 @@
           renderVerdictLine(ev),
           renderScoreChips(ev.template_scores),
           renderRoleScores(ev.role_scores),
-          el('p', { class: 'event-text', text: ev.text }),
+          ...renderThought(run, ev),
         ]);
       case 'summary':
         return el('div', { class: 'event-row kind-summary' }, [
@@ -498,7 +546,7 @@
       body.appendChild(el('div', { class: 'empty-state small' }, [
         el('div', { class: 'spinner' }),
         el('p', { text: 'Deliberation in progress.' }),
-        el('p', { class: 'muted', text: 'The evaluation report appears here when the run finishes. Switch to “Cluster Status” to watch it live.' }),
+        el('p', { class: 'muted', text: 'The evaluation report appears here when the run finishes. Switch to “Evaluation Swarm” to watch it live.' }),
       ]));
       return body;
     }

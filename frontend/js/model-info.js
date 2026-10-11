@@ -1,6 +1,6 @@
 /* model-info.js — the only models this app may use (see CHEAP_MODELS.md), with
  * their OpenRouter pages and current prices. Single source of truth for the
- * settings dropdown and the "Model info" popup. Prices are USD per 1M tokens. */
+ * settings dropdown and the "Information" popup. Prices are USD per 1M tokens. */
 (function () {
   const Hack = (window.Hack = window.Hack || {});
 

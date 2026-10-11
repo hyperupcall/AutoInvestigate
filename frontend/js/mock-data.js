@@ -13,21 +13,21 @@
       name: 'Professional Research Group',
       blurb: 'Research professionals assessing stage, feasibility and scale-up path.',
       agents: [
-        { id: 'r1', name: 'Dr. Ada Reyes', role: 'Research Stage Analyst', lens: 'stage', model: 'meta-llama/llama-3.1-8b-instruct' },
-        { id: 'r2', name: 'Prof. Kenji Nakamura', role: 'Scalability Assessor', lens: 'scale', model: 'google/gemma-3-4b-it' },
-        { id: 'r3', name: 'Dr. Priya Anand', role: 'Feasibility & Timeline Lead', lens: 'feasibility', model: 'openai/gpt-oss-120b' },
-        { id: 'r4', name: 'Dr. Marcus Webb', role: 'Long-horizon Impact Analyst', lens: 'horizon', model: 'meta-llama/llama-3.1-8b-instruct' },
+        { id: 'r1', name: 'Dr. Ada Reyes', role: 'Research Stage Analyst', lens: 'stage', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['arxiv', 'semantic-scholar', 'thoughtbox'] },
+        { id: 'r2', name: 'Prof. Kenji Nakamura', role: 'Scalability Assessor', lens: 'scale', model: 'google/gemma-3-4b-it', mcp_servers: ['arxiv', 'openalex', 'math-logic'] },
+        { id: 'r3', name: 'Dr. Priya Anand', role: 'Feasibility & Timeline Lead', lens: 'feasibility', model: 'openai/gpt-oss-120b', mcp_servers: ['arxiv', 'paper-search', 'crossref', 'thoughtbox'] },
+        { id: 'r4', name: 'Dr. Marcus Webb', role: 'Long-horizon Impact Analyst', lens: 'horizon', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['semantic-scholar', 'openalex', 'thoughtbox'] },
       ],
     },
     {
-      id: 'pe',
+      id: 'private_equity',
       name: 'Private Equity / Business',
       blurb: 'Partners positioning the idea to maximise returns.',
       agents: [
-        { id: 'p1', name: 'Elena Voss', role: 'Tech Risk Partner', lens: 'techRisk', model: 'openai/gpt-oss-120b' },
-        { id: 'p2', name: 'David Okafor', role: 'Market Partner', lens: 'market', model: 'google/gemma-3-4b-it' },
-        { id: 'p3', name: 'Sofia Marchetti', role: 'Strategic Fit Partner', lens: 'strategicFit', model: 'meta-llama/llama-3.1-8b-instruct' },
-        { id: 'p4', name: 'James Whitfield', role: 'Horizon Partner', lens: 'horizon', model: 'openai/gpt-oss-120b' },
+        { id: 'p1', name: 'Elena Voss', role: 'Tech Risk Partner', lens: 'techRisk', model: 'openai/gpt-oss-120b', mcp_servers: ['arxiv', 'crossref', 'logic-verifier', 'invinoveritas'] },
+        { id: 'p2', name: 'David Okafor', role: 'Market Partner', lens: 'market', model: 'google/gemma-3-4b-it', mcp_servers: ['finance-mcp', 'flatland', 'prereason', 'openalex'] },
+        { id: 'p3', name: 'Sofia Marchetti', role: 'Strategic Fit Partner', lens: 'strategicFit', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['finance-mcp', 'flatland', 'semantic-scholar'] },
+        { id: 'p4', name: 'James Whitfield', role: 'Horizon Partner', lens: 'horizon', model: 'openai/gpt-oss-120b', mcp_servers: ['finance-mcp', 'prereason', 'quorum'] },
       ],
     },
     {
@@ -35,11 +35,11 @@
       name: 'Market Reaction',
       blurb: 'The people you are trying to serve. They rarely agree.',
       agents: [
-        { id: 'm1', name: 'Priya · Power User', role: 'Senior SRE', lens: 'powerUser', model: 'meta-llama/llama-3.1-8b-instruct' },
-        { id: 'm2', name: 'Tom · Free-tier', role: 'Hobbyist Developer', lens: 'freeTier', model: 'google/gemma-3-4b-it' },
-        { id: 'm3', name: 'Karen · Enterprise Buyer', role: 'VP Engineering', lens: 'enterprise', model: 'openai/gpt-oss-120b' },
-        { id: 'm4', name: 'Ahmed · Security Lead', role: 'CISO Office', lens: 'security', model: 'meta-llama/llama-3.1-8b-instruct' },
-        { id: 'm5', name: 'Lena · Founder', role: 'Seed-stage Founder', lens: 'founder', model: 'google/gemma-3-4b-it' },
+        { id: 'm1', name: 'Priya · Power User', role: 'Senior SRE', lens: 'powerUser', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['thoughtbox', 'clear-thought'] },
+        { id: 'm2', name: 'Tom · Free-tier', role: 'Hobbyist Developer', lens: 'freeTier', model: 'google/gemma-3-4b-it', mcp_servers: ['everycalc', 'monsitools', 'clear-thought'] },
+        { id: 'm3', name: 'Karen · Enterprise Buyer', role: 'VP Engineering', lens: 'enterprise', model: 'openai/gpt-oss-120b', mcp_servers: ['invinoveritas', 'decide-runtime', 'securelend'] },
+        { id: 'm4', name: 'Ahmed · Security Lead', role: 'CISO Office', lens: 'security', model: 'meta-llama/llama-3.1-8b-instruct', mcp_servers: ['logic-verifier', 'citation-checker', 'invinoveritas'] },
+        { id: 'm5', name: 'Lena · Founder', role: 'Seed-stage Founder', lens: 'founder', model: 'google/gemma-3-4b-it', mcp_servers: ['finance-mcp', 'everycalc', 'thoughtbox'] },
       ],
     },
   ];
@@ -206,7 +206,7 @@
 
   const SUMMARIES = {
     research: 'The group is cautiously positive on the core mechanism but split on readiness. Two agents see a credible prototype path; two argue the evaluation story is too thin to fund at scale.',
-    pe: 'The partners see a real but narrow opportunity. Tech risk is acceptable, market demand is latent rather than urgent, and strategic fit is strong only if reframed around the network data plane.',
+    private_equity: 'The partners see a real but narrow opportunity. Tech risk is acceptable, market demand is latent rather than urgent, and strategic fit is strong only if reframed around the network data plane.',
     market: 'Reaction is genuinely mixed and does not converge. Power users and founders are enthusiastic; enterprise, security and procurement raise hard blockers that the idea does not yet answer.',
   };
 

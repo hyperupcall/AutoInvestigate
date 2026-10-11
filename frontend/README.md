@@ -28,7 +28,7 @@ python3 -m http.server 8000
 Pages:
 
 - `index.html` — the three-column workspace (Settings opens as a popup)
-- `settings.html` — optional standalone settings page (same settings content)
+- `artifactfactory.html` — the Artifact Factory dashboard (also served by the factory at `GET /`)
 
 ## The three columns
 
@@ -39,6 +39,28 @@ Pages:
 | **3 · Idea Execution** | Turn a chosen idea into artifacts via the Artifact Factory. |
 
 **Settings** is a popup, opened from the **Settings** button in the header (not a sidebar).
+
+### Header (navbar)
+
+The header is a navbar: the brand on the left, the primary links (**Agent View**,
+**Artifact Factory**) in the middle, and the actions (**MOCK BACKEND** badge,
+**Information**, **Settings**) on the right.
+
+It is **one shared component** (`js/components/navbar.js`) mounted on every page, so
+it looks and behaves the same on all routes. The workspace mounts it from `app.js`;
+the other pages mount it (and the popups it opens) from `js/shell.js`. The links open
+in the **same tab**, and the brand links back to the workspace. The backend-served
+live view (`/live`, the **Agent View**) renders the same navbar too — it pulls in
+`css/styles.css` and the shell scripts from this directory, and keeps its own controls
+(past runs, replay speed, Replay, backend Settings) in a toolbar below it.
+
+- **Agent View** opens the site served by the backend (`http://localhost:8090/live`).
+- **Artifact Factory** opens `artifactfactory.html` — the dashboard listing every
+  evaluation the factory was given. The page discovers the factory API itself
+  (`window.AF_API`, same origin, or `localhost:8080`), so the link stays relative.
+- **Information** opens a popup with everything about the app: what it does, which
+  backends are connected, the models it uses (with OpenRouter links and prices) and
+  useful links. The model list lives in `js/model-info.js`.
 
 ### Column 1 — Idea Generation (a level tree)
 
@@ -71,12 +93,13 @@ Pages:
 - Each queued idea has its own **Start Deeper Research** button, which starts the run
   and turns the entry into a run card in the same list.
 - Click a run to open a large popup with two tabs:
-  - **Cluster Status** — each group is drawn as a **graph**: one circle per agent
+  - **Evaluation Swarm** — each group is drawn as a **graph**: one circle per agent
     with the agent's name beside it (the agent currently speaking is highlighted).
-    Clicking a circle shows that agent's output — its discussion turns and
-    evaluations — in a panel under the graph. Below the graphs is the live stream
-    of the whole run: discussion turns, evaluations, summaries, cross-group
-    analysis, the stop-or-go decision and the verdict.
+    Clicking a circle shows that agent's stream — a **summary** of each of its
+    discussion turns and evaluations (the full output is one click away) — in a
+    panel under the graph. Below the graphs is the live stream of the whole run:
+    summarized turns, evaluations, summaries, cross-group analysis, the stop-or-go
+    decision and the verdict.
   - **Evaluation** — the finished report, shaped like
     `evaluation-report.schema.json`: run metadata, pipeline, stop-or-go, final
     verdict, cross-group disagreements/agreements, per-group scores/verdicts/
@@ -85,11 +108,15 @@ Pages:
 
 ### Settings (popup)
 
-Opened from the header **Settings** button. Contains models (generation /
-evaluation / summarizer), deliberation seconds, prompt set, and the group
-perspectives (defaults: Professional Research ×4, Private Equity ×4, Market
-Reaction ×5). API keys are intentionally **not** here — they live on the backend.
-The same content is also available as a standalone page at `settings.html`.
+Opened from the header **Settings** button. It is the **one** place to configure the
+app: when the backend is connected it renders the backend's real settings (the same
+fields as the backend `/settings` page) and saves them with `PUT /api/settings` —
+mode, arXiv sources, the default OpenRouter key, deliberation time, cost cap, web
+search, the per-stage token/effort table, the summarizer / judge / reality-check
+models and keys, the MCP settings, and the group perspectives (name, discussion
+style, arXiv use, and each agent's model, key, reasoning effort, prompt and MCP
+servers). Without a backend it falls back to the in-memory mock settings (models,
+prompts, group perspectives).
 
 ## Real backends
 
@@ -131,7 +158,7 @@ handle.cancel();
 
 Event kinds streamed to `onEvent`: `phase`, `cluster`, `group-start`,
 `round-start`, `turn`, `missed`, `evaluation`, `failed`, `summary`,
-`cross-group`, `stop-go`, `verdict`. The **Cluster Status** tab renders these live;
+`cross-group`, `stop-go`, `verdict`. The **Evaluation Swarm** tab renders these live;
 the **Evaluation** tab renders the final `report`. The report fixture
 (`js/mock-report.js`) is generated from `20261011-014311-b2e9.json` and conforms to
 `evaluation-report.schema.json`.
@@ -141,25 +168,32 @@ the **Evaluation** tab renders the final `report`. The report fixture
 ```
 frontend/
   index.html              three-column workspace
-  settings.html           standalone settings page
+  artifactfactory.html    Artifact Factory dashboard (also served by the factory)
   css/styles.css          all styling
   js/
     util.js               DOM + misc helpers
+    model-info.js         the models used, with OpenRouter links + prices
+    mcp-servers.js        the MCP servers agents can use, and which agent gets which
     mock-data.js          fixtures: groups, archetypes, prompts, templates
     mock-report.js        sample evaluation report (schema-conforming)
     mock-backend.js       mocked evaluation backend (Part 2)
     mock-execution.js     mocked artifact factory (column 3)
     api-backend.js        real evaluation backend client (swaps the mock)
     api-execution.js      real artifact factory client (swaps the mock)
+    artifactfactory.js    the dashboard's data loading + rendering
     state.js              single source of truth + pub/sub
     actions.js            mutations + orchestration
+    shell.js              shared chrome (navbar + popups) for non-workspace pages
     components/
+      navbar.js           the shared app header (navbar)
       generation.js       column 1
       evaluation.js       column 2
       execution.js        column 3 (idea execution)
-      settings.js         settings content (shared)
+      settings.js         the settings form (backend settings when live, mock otherwise)
       settingsModal.js    settings popup
-      modal.js            the two-tab popup (cluster status / evaluation)
+      infoModal.js        "Information" popup (about, connections, models, links)
+      runConfigModal.js   per-run group picker (Start Deeper Research)
+      modal.js            the two-tab popup (evaluation swarm / evaluation)
       toast.js            notifications
     app.js                bootstrap
 ```

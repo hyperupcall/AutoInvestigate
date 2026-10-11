@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AutoInvestiage</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<base href="/">
+<link rel="stylesheet" href="/css/styles.css">
 <style>
 /* AutoInvestigate base + live-view components (see documentation/FRONTEND_STYLE.md) */
 :root{
@@ -13,12 +16,13 @@
   --slim:blue;--slimbg:aliceblue;
 }
 *{box-sizing:border-box}
-body{margin:0;background:whitesmoke;color:black;font:14px/1.5 system-ui,sans-serif}
+html{height:auto}
+body{margin:0;background:white;color:black;font:14px/1.5 system-ui,sans-serif;display:block;height:auto;overflow:auto}
+p{margin:1em 0}
 .wrap{max-width:1500px;margin:0 auto;padding:12px 16px 40px}
-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0 12px;border-bottom:1px solid silver;margin-bottom:12px}
+.live-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 h1{font-size:15px;margin:0;font-weight:600}
 .sub{color:gray;font-size:12px}
-.sp{flex:1}
 a{color:blue}
 select,button,textarea{font:inherit;color:black}
 select{background:white;border:1px solid gray;padding:4px 6px;max-width:360px}
@@ -100,36 +104,49 @@ details.eval .txt{margin-top:8px;font-size:13px}
 .final.done{border:1px solid green}
 .score{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) 26px;gap:6px;align-items:center;font-size:12px;margin-top:4px}
 .bar{height:6px;background:whitesmoke;border:1px solid silver;overflow:hidden}.bar i{display:block;height:100%;background:var(--gc)}
-/* agntcy */
-.slim{margin-top:12px;background:aliceblue;border:1px solid blue;padding:10px 12px;font-size:13px}
-.slim b{color:blue}
-.eps{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-.ep{font-size:11px;border:1px solid silver;background:white;padding:2px 7px;color:gray;font-family:monospace}
-.ep.on{border-color:blue;color:blue;font-weight:600}
 .note{font-size:13px;color:red;margin-top:8px}
 .empty{color:gray;font-size:13px;text-align:center;padding:30px 10px}
 code{font-family:monospace;font-size:12px}
 </style>
 </head>
-<body><div class="wrap">
-<header>
-  <h1>AutoInvestiage</h1>
-  <span class="sub">Three groups of AI agents evaluate an idea over AGNTCY</span>
-  <div class="sp"></div>
+<body>
+<header class="app-header" id="app-header"></header>
+
+<div class="wrap">
+<div class="live-toolbar">
   <select id="runs" title="Open a past evaluation"></select>
   <select id="speed" title="Replay speed"><option value="1">1x</option><option value="2" selected>2x</option><option value="4">4x</option><option value="8">8x</option><option value="0">instant</option></select>
   <button id="replay" title="Play the selected evaluation from the start">Replay</button>
   <a href="/settings">Settings</a>
-</header>
+</div>
 
 <div id="now" class="idle"><div class="dot"></div><div><div id="nowt">No evaluation selected</div><div id="nows">Pick a past evaluation from the list above, or start one from the app.</div></div></div>
 <div class="idea-shown" id="ideaShown"></div>
 <div class="steps" id="steps"></div>
 <div class="cols" id="cols"></div>
 <div class="decide" id="decide"></div>
-<div class="slim" id="slim"></div>
 </div>
 
+<div id="info-root"></div>
+<div id="settings-root"></div>
+<div id="toast-root"></div>
+
+<script src="/js/util.js"></script>
+<script src="/js/model-info.js"></script>
+<script src="/js/mcp-servers.js"></script>
+<script src="/js/mock-data.js"></script>
+<script src="/js/mock-backend.js"></script>
+<script src="/js/mock-execution.js"></script>
+<script src="/js/api-backend.js"></script>
+<script src="/js/api-execution.js"></script>
+<script src="/js/state.js"></script>
+<script src="/js/actions.js"></script>
+<script src="/js/components/settings.js"></script>
+<script src="/js/components/settingsModal.js"></script>
+<script src="/js/components/infoModal.js"></script>
+<script src="/js/components/toast.js"></script>
+<script src="/js/components/navbar.js"></script>
+<script src="/js/shell.js"></script>
 <script>
 const STEPS = [['deliberation_1','Discuss','each group talks it through'],['evaluation_1','Evaluate','every member writes up'],['summary_1','Summarize','pros and cons per group'],
   ['deliberation_2','Discuss again','after reading all summaries'],['evaluation_2','Re-evaluate','scores and verdicts'],['summary_2','Summarize','updated pros and cons'],
@@ -137,7 +154,7 @@ const STEPS = [['deliberation_1','Discuss','each group talks it through'],['eval
 const STAGE_LABEL = {deliberation_1:['Round 1: discussion','members speak one at a time and hear everything said'],evaluation_1:['Round 1: evaluations','each member writes up their view in their own format'],
   summary_1:['Round 1: group summary',''],deliberation_2:['Round 2: discussion','after reading every group\'s summary'],evaluation_2:['Round 2: re-evaluations','with pros, cons and scores'],
   summary_2:['Round 2: group summary',''],deliberation_3:['Extra round: discussion','to settle the open questions'],evaluation_3:['Extra round: evaluations',''],summary_3:['Extra round: group summary','']};
-const MODE = {converge:'aims for a shared view', diverge:'different customers, not expected to agree'};
+const MODE = {converge:'aims for a shared view', diverge:'different customers, not expected to agree', auto:'the backend decides'};
 const PALETTE = ['blue','darkorange','teal','purple','olive','navy','indigo','brown','darkcyan','darkmagenta','darkslateblue','sienna'];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -308,12 +325,6 @@ function render(S) {
   }
   if (S.notes.length && S.end && S.end.status !== 'done') d += `<div class="card"><div class="note">${esc(S.notes.slice(-1)[0])}</div></div>`;
   $('decide').innerHTML = d;
-  // AGNTCY / SLIM
-  const ids = S.groups.flatMap(g => (g.agents || []).map(a => a.id));
-  const on = new Set(S.slimLast ? S.slimLast.members : []);
-  $('slim').innerHTML = `<b>Running on AGNTCY.</b> Each agent is its own SLIM endpoint (<code>council/agents/&lt;id&gt;</code>) and every message is an A2A message on a SLIM group.
-    ${S.slimCount ? ` This evaluation has opened <b>${S.slimCount}</b> SLIM groups${S.slimLast ? `; the latest is channel <code>${esc(S.slimLast.channel.slice(0, 8))}</code> with ${S.slimLast.members.length} members (${esc(S.slimLast.purpose)})` : ''}.` : ''}
-    <div class="eps">${ids.map(i => `<span class="ep ${on.has(i) ? 'on' : ''}">${esc(i)}</span>`).join('')}</div>`;
 }
 
 function show(n) { render(build(n === null ? EV : EV.slice(0, n))); }

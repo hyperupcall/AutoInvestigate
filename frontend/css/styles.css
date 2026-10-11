@@ -28,21 +28,38 @@ a { color: blue; }
 .muted { color: gray; }
 .small { font-size: 12px; }
 
-/* ------------------------------- header ------------------------------- */
+/* ------------------------------- navbar ------------------------------- */
 .app-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 24px;
+  min-height: 56px;
+  padding: 0 16px;
+  background: whitesmoke;
   border-bottom: 1px solid silver;
+  flex: 0 0 auto;
 }
-.brand { display: flex; align-items: center; gap: 8px; }
-.brand-mark { font-size: 18px; }
-.brand-text h1 { font-size: 15px; }
-.brand-text p { font-size: 12px; color: gray; }
-.header-actions { display: flex; align-items: center; gap: 8px; }
-.mock-badge { font-size: 11px; color: gray; border: 1px solid silver; padding: 2px 6px; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+a.brand { color: inherit; text-decoration: none; }
+.brand-mark { width: 20px; height: 20px; }
+.brand-text { min-width: 0; }
+.brand-text h1 { font-size: 15px; line-height: 1.25; }
+.brand-text p { font-size: 11px; line-height: 1.25; color: gray; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app-nav { display: flex; align-items: stretch; align-self: stretch; gap: 2px; }
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  color: black;
+  text-decoration: none;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+}
+.nav-link:hover { background: white; border-bottom-color: gray; }
+.header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.header-actions .btn { background: white; }
+.header-actions .btn:hover { background: gainsboro; }
+.mock-badge { font-size: 11px; color: gray; border: 1px solid silver; padding: 2px 6px; background: white; }
 
 /* ------------------------------- layout ------------------------------- */
 .columns {
@@ -107,7 +124,7 @@ a.btn { text-decoration: none; display: inline-block; }
 }
 
 .field { margin-top: 8px; }
-.field > label { display: block; font-size: 12px; color: gray; margin-bottom: 2px; }
+.field > label { display: block; font-size: 14px; color: dimgray; margin-bottom: 4px; }
 .field.inline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .field.inline > label { margin-bottom: 0; }
 
@@ -168,7 +185,7 @@ a.btn { text-decoration: none; display: inline-block; }
 /* --------------------------- empty states --------------------------- */
 .empty-state { text-align: center; padding: 24px 12px; color: gray; }
 .empty-state.small { padding: 12px; }
-.empty-mark { font-size: 20px; }
+.empty-mark { width: 20px; height: 20px; }
 
 /* --------------------------- evaluation --------------------------- */
 .eval-list { display: flex; flex-direction: column; gap: 8px; }
@@ -217,17 +234,52 @@ a.btn { text-decoration: none; display: inline-block; }
 .exec-artifact-files li { margin: 1px 0; }
 
 /* --------------------------- settings --------------------------- */
-.settings-section { margin-bottom: 16px; }
-.settings-title { font-size: 12px; color: gray; margin-bottom: 6px; }
-.settings-body { display: flex; flex-direction: column; gap: 8px; }
+.settings-section { margin-bottom: 20px; }
+.settings-title { font-size: 18px; font-weight: 600; color: black; margin-bottom: 8px; }
+.settings-body { display: flex; flex-direction: column; gap: 10px; }
+.settings-content { display: flex; flex-direction: column; }
 
-.groups { display: flex; flex-direction: column; gap: 10px; }
-.group-card { border: 1px solid silver; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-.group-head { display: flex; align-items: center; gap: 6px; }
+/* rows of fields side by side */
+.field-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.field-row > .field { flex: 1 1 180px; min-width: 0; }
+
+/* the per-stage token/effort table */
+.settings-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.settings-table th, .settings-table td { text-align: left; padding: 6px; border-bottom: 1px solid gainsboro; }
+.settings-table th { font-size: 13px; color: dimgray; font-weight: 600; }
+
+/* save / reset */
+.settings-actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 12px; border-top: 1px solid silver; }
+.settings-status { font-size: 12px; }
+.settings-status.ok { color: green; }
+.settings-status.err { color: red; }
+
+/* MCP server chips inside the settings form */
+.chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
+.chip { display: inline-flex; align-items: center; gap: 2px; border: 1px solid silver; background: whitesmoke; padding: 1px 4px; font-size: 12px; }
+.chip-x { border: none; background: none; padding: 0 2px; cursor: pointer; color: gray; font-size: 11px; }
+.chip-x:hover { color: red; }
+.mcp-add-row { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; }
+.mcp-add-row .select { width: auto; max-width: 260px; }
+
+/* the editable agent card: name, model, key, effort, prompt, remove */
+.settings-content .agent-card-head {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(170px, 1.4fr) minmax(110px, 1fr) auto auto auto;
+  gap: 8px; align-items: center;
+}
+.settings-content .agent-card-head .text-input, .settings-content .agent-card-head .select { width: 100%; }
+/* consistent control heights so the rows line up */
+.settings-content .text-input, .settings-content .select, .settings-content .num-input { height: 30px; }
+
+.groups { display: flex; flex-direction: column; gap: 12px; }
+.group-card { border: 1px solid silver; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.group-head { display: flex; align-items: center; gap: 8px; }
+.group-head .group-name { flex: 1; min-width: 0; }
 .group-name { font-weight: 600; }
-.group-blurb { font-size: 12px; color: gray; }
-.agents { display: flex; flex-direction: column; gap: 4px; }
-.agent-row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 4px; align-items: center; }
+.group-blurb { font-size: 13px; color: gray; }
+.agents { display: flex; flex-direction: column; gap: 8px; }
+.agent-row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 6px; align-items: center; }
 
 .settings-standalone { flex: 1; padding: 8px; overflow: hidden; display: flex; }
 .settings-standalone .column { max-width: 720px; width: 100%; margin: 0 auto; }
@@ -239,12 +291,60 @@ a.btn { text-decoration: none; display: inline-block; }
   display: grid; place-items: center; padding: 16px;
 }
 .modal {
-  width: min(900px, 100%); height: min(80vh, 720px);
+  width: 90vw; height: 90vh; max-width: 100%; max-height: 100%;
   display: flex; flex-direction: column;
   background: white; border: 1px solid gray;
 }
-.settings-modal { width: min(720px, 100%); }
-.model-info-modal { width: min(640px, 100%); height: auto; max-height: min(80vh, 720px); }
+.settings-modal, .info-modal, .run-config-modal { width: 90vw; height: 90vh; max-width: 100%; max-height: 100%; }
+
+/* Information popup */
+.info-section { margin-bottom: 16px; }
+.info-section:last-child { margin-bottom: 0; }
+.info-section-title { font-size: 13px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid gainsboro; }
+.info-list { list-style: none; margin: 0; padding: 0; }
+.info-list li { padding: 4px 0; border-bottom: 1px solid whitesmoke; }
+.info-list li:last-child { border-bottom: none; }
+.info-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.info-row .info-label { font-weight: 600; }
+.info-status { font-size: 12px; }
+.info-status.live { color: green; }
+.info-status.offline { color: darkorange; }
+
+/* read-only agent rows (Configure Agent Groups) */
+.agent-row.readonly { grid-template-columns: 1fr 1fr auto; }
+.agent-name { font-size: 13px; }
+.agent-role { font-size: 12px; }
+.agent-model { white-space: nowrap; }
+
+/* agent cards with the MCP servers each agent can reach */
+.agent-card { border: 1px solid gainsboro; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+.agent-card-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.agent-card-head .agent-model { margin-left: auto; }
+.agent-mcp { border-top: 1px solid whitesmoke; padding-top: 6px; }
+.mcp-label { display: block; margin-bottom: 2px; }
+.settings-content .mcp-label { font-size: 13px; }
+.mcp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.mcp-item { padding-left: 8px; border-left: 2px solid silver; }
+.mcp-item-head { display: flex; align-items: center; gap: 6px; }
+.mcp-name { font-size: 12px; }
+.mcp-cat { font-size: 10px; }
+.mcp-desc { margin: 1px 0 0; }
+
+.mcp-catalog { display: flex; flex-direction: column; gap: 10px; }
+.mcp-cat-block { border: 1px solid silver; padding: 8px; }
+.mcp-cat-title { font-size: 12px; margin-bottom: 2px; }
+.mcp-catalog-list { list-style: none; margin: 6px 0 0; padding: 0; font-size: 12px; }
+.mcp-catalog-list li { margin: 2px 0; }
+
+/* per-run group picker (Start Deeper Research) */
+.run-config-idea { font-size: 13px; border: 1px solid silver; padding: 8px; margin-bottom: 10px; }
+.run-config-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.run-config-groups { display: flex; flex-direction: column; gap: 6px; }
+.run-config-group { display: flex; align-items: flex-start; gap: 8px; border: 1px solid silver; padding: 8px; cursor: pointer; }
+.run-config-group:hover { background: whitesmoke; }
+.run-config-group-body { flex: 1; min-width: 0; }
+.run-config-group-head { display: flex; align-items: center; gap: 6px; }
+.run-config-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .model-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
 .model-table th, .model-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid silver; vertical-align: top; }
 .model-table th { font-size: 12px; color: gray; font-weight: 600; }
@@ -266,7 +366,7 @@ a.btn { text-decoration: none; display: inline-block; }
 /* thinking log */
 .thinking-status { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .thinking-log {
-  max-height: 420px; overflow-y: auto;
+  max-height: 55vh; overflow-y: auto;
   border: 1px solid silver; padding: 8px;
   font-family: monospace; font-size: 12px;
 }
@@ -280,6 +380,10 @@ a.btn { text-decoration: none; display: inline-block; }
 .event-role, .event-time { font-size: 11px; color: gray; }
 .event-time { margin-left: auto; }
 .event-text { font-family: system-ui, sans-serif; font-size: 12.5px; }
+.thought-toggle {
+  margin-top: 2px; padding: 0; border: none; background: none;
+  color: blue; font-size: 11px; cursor: pointer; text-decoration: underline;
+}
 .event-group { font-weight: 600; }
 .event-kind { font-size: 11px; color: gray; }
 .kind-decision .event-text, .kind-conclusion .event-text { font-weight: 600; }
@@ -331,7 +435,7 @@ a.btn { text-decoration: none; display: inline-block; }
 .verdict-headline { font-weight: 600; margin-bottom: 4px; }
 
 /* ---------------------- report modal (cluster + evaluation) ---------------------- */
-.report-modal { width: min(1100px, 100%); height: min(88vh, 860px); }
+.report-modal { width: 90vw; height: 90vh; max-width: 100%; max-height: 100%; }
 
 .cluster-body { display: flex; flex-direction: column; gap: 10px; }
 .cluster-status-bar { display: flex; align-items: center; justify-content: space-between; }
@@ -454,6 +558,28 @@ a.btn { text-decoration: none; display: inline-block; }
 .toast.ok { border-color: green; }
 .toast.warn { border-color: darkorange; }
 .toast.error { border-color: red; }
+
+/* ----------------------- artifact factory page ----------------------- */
+.factory-main { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
+.factory-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.factory-table { width: 100%; border-collapse: collapse; }
+.factory-table th, .factory-table td {
+  text-align: left; vertical-align: top; padding: 8px;
+  border-bottom: 1px solid gainsboro;
+}
+.factory-table th { font-size: 12px; color: gray; font-weight: 600; border-bottom: 1px solid silver; }
+.factory-table .num { color: gray; white-space: nowrap; text-align: right; }
+.factory-table .title { font-weight: 600; }
+.factory-table .text { white-space: pre-wrap; }
+.factory-table .status { font-size: 12px; }
+.factory-table .status.implemented { color: green; }
+.factory-table .status.failed { color: red; }
+.factory-table .status.implementing { color: darkorange; }
+.factory-footer {
+  margin-top: 12px; padding: 12px 0; color: gray; font-size: 12px;
+  border-top: 1px solid silver;
+}
+.empty { color: gray; padding: 24px 0; }
 
 /* --------------------------- responsive --------------------------- */
 @media (max-width: 1000px) {

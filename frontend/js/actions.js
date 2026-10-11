@@ -218,21 +218,23 @@
     store.notify();
   }
 
-  /** Start the deeper research for a queued idea; it moves to the runs list. */
-  function startQueuedEvaluation(queueId) {
+  /** Start the deeper research for a queued idea; it moves to the runs list.
+   *  `groupIds` (optional) limits the run to those agent groups. */
+  function startQueuedEvaluation(queueId, groupIds) {
     const item = state.evaluation.queue.find((q) => q.id === queueId);
     if (!item) return;
     state.evaluation.queue = state.evaluation.queue.filter((q) => q.id !== queueId);
-    startEvaluation({ ideaId: item.sourceIdeaId, ideaText: item.text });
+    startEvaluation({ ideaId: item.sourceIdeaId, ideaText: item.text, groupIds });
   }
 
-  function startEvaluation({ ideaId, ideaText }) {
+  function startEvaluation({ ideaId, ideaText, groupIds }) {
     const text = ideaText != null ? ideaText : (store.ideaById(ideaId) || {}).text;
     if (!text) return;
+    const selectedGroupIds = Array.isArray(groupIds) && groupIds.length ? groupIds.slice() : null;
 
     // Build the report up front so the agent cluster is visible immediately;
     // the events then stream in and the report is delivered again on done.
-    const report = backend.buildReport(text);
+    const report = backend.buildReport(text, selectedGroupIds);
 
     const run = {
       id: uid('run'),
@@ -258,6 +260,7 @@
 
     run._handle = backend.startEvaluation({
       ideaText: text,
+      groupIds: selectedGroupIds,
       settings: state.settings,
       onEvent(ev) {
         run.events.push(ev);
@@ -428,6 +431,8 @@
   function openSettings() {
     state.ui.settingsOpen = true;
     store.notify();
+    // Pull the latest backend settings so the popup shows what is actually saved.
+    if (Hack.apiBackend && Hack.apiBackend.refreshSettings) Hack.apiBackend.refreshSettings().catch(() => {});
   }
 
   function closeSettings() {
@@ -435,15 +440,55 @@
     store.notify();
   }
 
-  /* --------------------------- model info popup --------------------------- */
-  function openModelInfo() {
-    state.ui.modelInfoOpen = true;
+  /* --------------------------- information popup --------------------------- */
+  function openInfo() {
+    state.ui.infoOpen = true;
     store.notify();
   }
 
-  function closeModelInfo() {
-    state.ui.modelInfoOpen = false;
+  function closeInfo() {
+    state.ui.infoOpen = false;
     store.notify();
+  }
+
+  /* --------------------------- run config popup --------------------------- */
+  /** Open the per-run group picker for a queued idea (all groups selected by default). */
+  function openRunConfig(queueId) {
+    const groups = state.settings.groupPerspectives || [];
+    state.ui.runConfig = { open: true, queueId, selectedGroupIds: groups.map((g) => g.id) };
+    store.notify();
+  }
+
+  function closeRunConfig() {
+    state.ui.runConfig.open = false;
+    store.notify();
+  }
+
+  function toggleRunConfigGroup(groupId) {
+    const rc = state.ui.runConfig;
+    const set = new Set(rc.selectedGroupIds);
+    if (set.has(groupId)) set.delete(groupId);
+    else set.add(groupId);
+    rc.selectedGroupIds = [...set];
+    store.notify();
+  }
+
+  function setAllRunConfigGroups(selected) {
+    const groups = state.settings.groupPerspectives || [];
+    state.ui.runConfig.selectedGroupIds = selected ? groups.map((g) => g.id) : [];
+    store.notify();
+  }
+
+  /** Start the queued run with the groups chosen in the popup. */
+  function confirmRunConfig() {
+    const rc = state.ui.runConfig;
+    if (!rc.open) return;
+    const queueId = rc.queueId;
+    const groupIds = rc.selectedGroupIds.slice();
+    if (!groupIds.length) return; // the popup keeps Start disabled in this case
+    rc.open = false;
+    store.notify();
+    startQueuedEvaluation(queueId, groupIds);
   }
 
   /* ----------------------------- settings ----------------------------- */
@@ -525,8 +570,13 @@
     selectModalAgent,
     openSettings,
     closeSettings,
-    openModelInfo,
-    closeModelInfo,
+    openInfo,
+    closeInfo,
+    openRunConfig,
+    closeRunConfig,
+    toggleRunConfigGroup,
+    setAllRunConfigGroups,
+    confirmRunConfig,
     updateSettings,
     addGroupPerspective,
     removeGroupPerspective,

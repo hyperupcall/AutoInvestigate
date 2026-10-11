@@ -149,6 +149,37 @@
     };
   }
 
+  /**
+   * Keep only the given groups in an evaluation report, dropping the references
+   * to the groups that were left out (endpoints, cross-group items). Used when a
+   * run is started with a subset of the agent groups. A report with no group ids
+   * is returned unchanged, so "all groups" stays the default.
+   */
+  function filterReportGroups(report, groupIds) {
+    if (!report || !Array.isArray(groupIds) || !groupIds.length) return report;
+    const keep = new Set(groupIds);
+    const groups = (report.groups || []).filter((g) => keep.has(g.id));
+    const kept = new Set(groups.map((g) => g.id));
+    const out = Object.assign({}, report, { groups });
+    if (report.agntcy) {
+      out.agntcy = Object.assign({}, report.agntcy, {
+        slim_groups_opened: groups.length,
+        endpoints: groups.flatMap((g) => (g.agents || []).map((a) => `council/agents/${a.id}`)),
+      });
+    }
+    if (report.cross_group) {
+      const allKept = (x) => {
+        const ids = x.group_ids || (x.sides || []).map((s) => s.group_id);
+        return ids.every((id) => kept.has(id));
+      };
+      out.cross_group = {
+        disagreements: (report.cross_group.disagreements || []).filter(allKept),
+        agreements: (report.cross_group.agreements || []).filter(allKept),
+      };
+    }
+    return out;
+  }
+
   /** Preserve focus + scroll while a container is re-rendered. */
   function preserveView(container, renderFn) {
     const active = document.activeElement;
@@ -182,5 +213,6 @@
   Hack.util = {
     uid, el, svgEl, append, clear, escapeHtml, truncate, sleep, wrapText,
     formatTime, timeAgo, hashString, mulberry32, makeRng, preserveView,
+    filterReportGroups,
   };
 })();

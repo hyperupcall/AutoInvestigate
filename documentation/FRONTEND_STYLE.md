@@ -2,8 +2,8 @@
 
 The design system for **AutoInvestigate**'s user interface. This is the shared
 reference for anyone building UI anywhere in this repo — the three-column app in
-`frontend/`, the Artifact Factory dashboard (`artifactfactory/web.py`), and any
-backend-served page.
+`frontend/`, the Artifact Factory dashboard (`frontend/artifactfactory.html`), and
+any backend-served page.
 
 > **Canonical source:** `frontend/css/styles.css`. That file is the reference
 > implementation of every token and recipe below. When this document and the
@@ -86,7 +86,8 @@ Follow this mapping so the same state always looks the same across columns.
 
 | Size | Use |
 | --- | --- |
-| `18px` | `.brand-mark` glyph, `.decision-value`. |
+| `20px` | `.brand-mark` / `.empty-mark` icon. |
+| `18px` | `.decision-value`. |
 | `15px` | Brand `h1`. |
 | `14px` | Column titles (`h2`), modal title, base body. |
 | `13px` | Idea text, card titles, most content values. |
@@ -104,7 +105,7 @@ A small, consistent scale. Prefer these values over arbitrary ones.
 `2 · 4 · 6 · 8 · 10 · 12 · 16 · 24` (px)
 
 Common pairings: `8px` card padding, `10px` column-body and modal-head padding,
-`12px` modal-body and app-header padding, `6–8px` gaps in flex rows, `4px` tight gaps.
+`12px` modal-body padding, `0 16px` app-header padding, `6–8px` gaps in flex rows, `4px` tight gaps.
 
 ### 2.5 Shape and depth
 
@@ -128,12 +129,16 @@ Common pairings: `8px` card padding, `10px` column-body and modal-head padding,
 ```html
 <header class="app-header">
   <div class="brand">
-    <span class="brand-mark">◈</span>
+    <img class="brand-mark" src="favicon.svg" alt="" width="20" height="20" />
     <div class="brand-text">
       <h1>AutoInvestigate</h1>
-      <p>Automated research — generate, refine and stress-test ideas</p>
+      <p>Automated research, ideation, evaluation, and artifact generation.</p>
     </div>
   </div>
+  <nav class="app-nav">
+    <a class="nav-link">Agent View</a>
+    <a class="nav-link">Artifact Factory</a>
+  </nav>
   <div class="header-actions">
     <span class="mock-badge">MOCK BACKEND</span>
     <button class="btn small">Settings</button>
@@ -141,7 +146,11 @@ Common pairings: `8px` card padding, `10px` column-body and modal-head padding,
 </header>
 ```
 
-`display:flex; justify-content:space-between; padding:8px 12px; border-bottom:1px solid silver;`
+A proper navbar: `display:flex; align-items:center; gap:24px; min-height:56px; padding:0 16px;`
+with a `whitesmoke` background and a `1px solid silver` bottom border. The brand sits on the
+left, `.app-nav` holds the primary links (`.nav-link` is a full-height tab with a transparent
+bottom border that turns `gray` on hover), and `.header-actions` is pushed right with
+`margin-left:auto` (its `.btn`s are `white` so they read against the bar).
 
 ### Columns (the workspace body)
 
@@ -259,7 +268,7 @@ muted label.
       <div class="modal-head-actions">…</div>
     </div>
     <div class="modal-tabs">
-      <button class="modal-tab active">Cluster Status</button>
+      <button class="modal-tab active">Evaluation Swarm</button>
       <button class="modal-tab">Evaluation</button>
     </div>
     <div class="modal-body">…</div>
@@ -268,14 +277,15 @@ muted label.
 ```
 
 `.modal-overlay` is `fixed; inset: 0; background: rgba(0,0,0,0.4)`, centered. `.modal`
-is a flex column with a `1px solid gray` frame and a `min(...)` size. Size variants:
-`.settings-modal`, `.model-info-modal`, `.report-modal`.
+is a flex column with a `1px solid gray` frame, sized to `90vw × 90vh` so every
+popup covers 90% of the screen. Size variants: `.settings-modal`, `.model-info-modal`,
+`.report-modal` (all also `90vw × 90vh`).
 
 ### Empty states
 
 ```html
 <div class="empty-state">
-  <div class="empty-mark">◇</div>
+  <img class="empty-mark" src="favicon.svg" alt="" width="20" height="20" />
   <p>Nothing here yet.</p>
 </div>
 ```

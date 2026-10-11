@@ -30,6 +30,7 @@ class ChatResult:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     finish_reason: str | None = None
+    tool_calls: list | None = None
 
 
 class RunBudget:
@@ -57,7 +58,7 @@ def _semaphore() -> asyncio.Semaphore:
     return _sem.setdefault(loop, asyncio.Semaphore(8))
 
 
-def _body(model, messages, max_tokens, effort, temperature, web_results) -> dict:
+def _body(model, messages, max_tokens, effort, temperature, web_results, tools=None) -> dict:
     body = {"model": model, "messages": messages, "max_tokens": max_tokens, "usage": {"include": True}}
     if model.endswith(":online"):  # explicit plugin so the number of search results (cost) is ours to set
         body["model"] = model[: -len(":online")]
@@ -66,12 +67,14 @@ def _body(model, messages, max_tokens, effort, temperature, web_results) -> dict
         body["reasoning"] = {"effort": effort}
     if temperature is not None:
         body["temperature"] = temperature
+    if tools:
+        body["tools"] = tools
     return body
 
 
 async def chat(model: str, messages: list[dict], api_key: str, *, max_tokens: int = 800,
                reasoning_effort: str | None = "low", temperature: float | None = None,
-               web_results: int = 3, budget: RunBudget | None = None,
+               web_results: int = 3, budget: RunBudget | None = None, tools: list | None = None,
                client: httpx.AsyncClient | None = None, retries: int = 4, on_length: str = "retry") -> ChatResult:
     if not api_key:
         raise OpenRouterError("no OpenRouter API key configured")
@@ -82,7 +85,7 @@ async def chat(model: str, messages: list[dict], api_key: str, *, max_tokens: in
         for attempt in range(retries + 1):
             if budget:
                 budget.check()
-            body = _body(model, messages, tokens, effort, temperature, web_results)
+            body = _body(model, messages, tokens, effort, temperature, web_results, tools)
             try:
                 async with _semaphore():
                     r = await client.post(URL, json=body, headers={
@@ -114,18 +117,44 @@ async def chat(model: str, messages: list[dict], api_key: str, *, max_tokens: in
             if budget:
                 budget.add(model, cost)
             text = (choice["message"].get("content") or "").strip()
+            tool_calls = choice["message"].get("tool_calls") or None
             res = ChatResult(text, model, cost, usage.get("prompt_tokens", 0),
-                             usage.get("completion_tokens", 0), choice.get("finish_reason"))
+                             usage.get("completion_tokens", 0), choice.get("finish_reason"), tool_calls)
             if choice.get("finish_reason") == "length" and not widened and (not text or on_length == "retry"):
                 effort, tokens, widened = "none", min(max_tokens * 2, 16000), True  # cut off: retry once with room
                 continue
-            if not text:
+            if not text and not tool_calls:
                 raise OpenRouterError(f"{model}: empty reply (finish_reason={choice.get('finish_reason')})")
             return res
         raise OpenRouterError(f"{model}: gave up after retries")
     finally:
         if own:
             await client.aclose()
+
+
+async def chat_with_tools(model: str, messages: list[dict], api_key: str, tools: list,
+                          run_tool, *, max_tool_calls: int = 2, **kw) -> ChatResult:
+    """Chat, letting the model call tools. `run_tool(name, args)` is awaited for each call and its
+    return value is fed back as the tool result. Costs of every round are summed."""
+    msgs = list(messages)
+    spent = 0.0
+    for _ in range(max_tool_calls + 1):
+        res = await chat(model, msgs, api_key, tools=tools, **kw)
+        spent += res.cost
+        if not res.tool_calls:
+            return ChatResult(res.text, res.model, spent, res.prompt_tokens, res.completion_tokens, res.finish_reason)
+        msgs.append({"role": "assistant", "content": res.text or None, "tool_calls": res.tool_calls})
+        for tc in res.tool_calls:
+            fn = tc.get("function") or {}
+            try:
+                args = json.loads(fn.get("arguments") or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            out = await run_tool(fn.get("name"), args)
+            msgs.append({"role": "tool", "tool_call_id": tc.get("id"), "content": str(out)[:4000]})
+    # Out of tool calls: ask once more without tools so the agent still answers.
+    res = await chat(model, msgs, api_key, **kw)
+    return ChatResult(res.text, res.model, spent + res.cost, res.prompt_tokens, res.completion_tokens, res.finish_reason)
 
 
 def extract_json(text: str):

@@ -52,9 +52,12 @@ python3 artifactfactory/daemon.py
 
 Both print the listening URL (default `http://127.0.0.1:8080`).
 
-Open that URL in a browser for a plain dashboard listing every evaluation (idea)
-the factory has been given, with its plan and artifact status. The frontend's
-header has an **Artifact Factory** button that opens the same page.
+Open that URL in a browser for a dashboard listing every evaluation (idea) the
+factory has been given, with its plan and artifact status. The dashboard is a
+frontend page (`frontend/artifactfactory.html`) that talks to this daemon's JSON
+API, so all frontend code lives in one place; the daemon serves it at `GET /`
+(and its css/js from the frontend directory). The frontend's header has an
+**Artifact Factory** button that opens the same page.
 
 ## Configuration
 
@@ -67,6 +70,7 @@ header has an **Artifact Factory** button that opens the same page.
 | `AF_STORAGE` | `--storage` | `local` | `local` or `s3` |
 | `AF_S3_BUCKET` | `--s3-bucket` | `` | S3 bucket (s3 backend) |
 | `AF_S3_PREFIX` | `--s3-prefix` | `` | Key prefix (s3 backend) |
+| `AF_FRONTEND_DIR` | `--frontend-dir` | `<repo>/frontend` | Where the dashboard page + assets live |
 
 CLI flags override environment variables. The defaults are anchored to the
 project root (the directory containing the `artifactfactory` package), so they
@@ -97,7 +101,7 @@ configured bucket/prefix.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/` | HTML dashboard: every evaluation (idea) the factory was given |
+| GET | `/` | Dashboard page (from the frontend): every evaluation the factory was given |
 | GET | `/info` | Service info + route list (JSON) |
 | GET | `/health` | `{"status": "ok"}` |
 | POST | `/ideas` | Create an idea (and a plan if validated) |

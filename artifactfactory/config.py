@@ -9,6 +9,9 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_DIR)
 
 DEFAULT_DATA_DIR = os.path.join(PROJECT_ROOT, "_artifactfactory-data")
 DEFAULT_ARTIFACTS_DIR = os.path.join(PROJECT_ROOT, "_artifacts")
+# The frontend static site (dashboard page + shared css/js). Mounted read-only
+# into the container at /app/frontend; defaults to <repo>/frontend locally.
+DEFAULT_FRONTEND_DIR = os.path.join(PROJECT_ROOT, "frontend")
 
 
 @dataclass
@@ -20,6 +23,7 @@ class Config:
     storage_backend: str = "local"   # "local" | "s3"
     s3_bucket: str = ""
     s3_prefix: str = ""
+    frontend_dir: str = DEFAULT_FRONTEND_DIR  # where the dashboard page lives
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -31,4 +35,5 @@ class Config:
             storage_backend=os.environ.get("AF_STORAGE", "local"),
             s3_bucket=os.environ.get("AF_S3_BUCKET", ""),
             s3_prefix=os.environ.get("AF_S3_PREFIX", ""),
+            frontend_dir=os.environ.get("AF_FRONTEND_DIR", DEFAULT_FRONTEND_DIR),
         )
