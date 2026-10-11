@@ -481,10 +481,28 @@ a `reality-check` event in Evaluation Swarm. The mock mirrors it with a small ke
 factory allows that origin via `AF_CORS_ORIGINS`). "Execute →" on a research run sends its idea to column 3,
 which creates a plan, implements it and lists the artifacts with download links. Artifact content is still dummy.
 
+**Done (real): Part 1 · the ideation collective** — `website/ideation/` is a long-running daemon (the `ideation`
+service, port 8091) that watches the internet for a tagged watchlist of topics and turns what it finds into ideas.
+It stores everything in **SQLite** (`_ideation-data/ideation.db`, a Docker volume): topics, signals, ideas,
+sessions, events and memory. A **team of three agents works together** (not in competition) — **Idea Generator**
+(researches the idea and finalizes it, or replaces it with a better one), **Builder** (scores how well it can be
+built as an MVP/artifact), **Analyzer** (researches it and judges whether it makes sense or is nonsense) — round
+by round. Each agent's model is configurable in the Ideation View's Settings. Every message has a **large `context`**
+(the background and the text of the websites read), the **idea itself in one sentence**, and **3-4 justification
+bullets**. The **Ideation View** (`website/frontend/ideation.html`, the navbar's **Research and Ideation** link) is
+three columns — **Topics** and **Sessions** side by side (each scrolls on its own) and the main view to their
+right — and draws a session as an agent graph, the same visual language as the Evaluation Swarm, with the selected
+agent's messages beside it. A long **+ Add Topic** button ends the topics list: describe a topic and the AI fills
+in the name, description, tags and keywords (`POST /api/topics/draft`). Settings cover a model and a **Thinking**
+toggle for each agent and for the topic drafter. `website/frontend/js/api-generation.js` connects column 1: the seed box's `generateIdeas` calls
+`POST /api/generate`, and the daemon's ideas load from `GET /api/tree` into the same level tree (abstract at
+level 1, concrete at level 2).
+
 **Not done:**
 
-- **Part 1 backend (idea generation)** — `generateIdeas` is still the mock.
-- **Settings persistence** — currently in-memory only.
+- **Ideation scheduling** — the daemon polls on a fixed interval; there is no per-topic cadence, back-off or
+  signal-retention policy yet.
+- **Settings persistence** — currently in-memory only (the ideation daemon does persist its own settings).
 - **Prompt files** — the spec wants prompts loaded from the filesystem and
   selectable in settings; currently only preset names are mocked.
 

@@ -1,0 +1,863 @@
+/* ideation.js — the Ideation View.
+ *
+ * The page for the ideation collective (website/ideation/). It shows the tagged
+ * watchlist of topics, the refinement sessions, the ideas the team produced, and
+ * the memory. A session is drawn as an agent graph — the same visual language as
+ * the Evaluation Swarm — with the selected agent's messages beside it. Each
+ * message is the large context the agent read, the one-sentence idea, and the
+ * 3-4 bullet points justifying it.
+ *
+ * Where the daemon is looked for:
+ *   - the same origin, when the page is served by the daemon, or
+ *   - http://localhost:8091, when the page is served by the frontend server.
+ *   Override with  window.ID_API = 'http://host:port'  before this script loads.
+ */
+(function () {
+  const info = { base: '', live: false };
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+
+  const state = {
+    topics: [], sessions: [], ideas: [], memory: [], status: null, settings: null,
+    selectedSessionId: null, selectedAgentId: null,
+    session: null, lastSeq: 0, tab: 'session', pollTimer: null,
+    settingsOpen: false, settingsStatus: null,
+    topicModal: { open: false, description: '', draft: null, status: null, busy: false },
+  };
+
+  /* ------------------------------- helpers ------------------------------- */
+  function el(tag, attrs, children) {
+    const node = document.createElement(tag);
+    if (attrs) {
+      for (const key of Object.keys(attrs)) {
+        const value = attrs[key];
+        if (value == null || value === false) continue;
+        if (key === 'class') node.className = value;
+        else if (key === 'text') node.textContent = value;
+        else if (key === 'html') node.innerHTML = value;
+        else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value);
+        else node.setAttribute(key, value);
+      }
+    }
+    append(node, children);
+    return node;
+  }
+
+  function append(node, children) {
+    if (children == null || children === false) return;
+    for (const child of (Array.isArray(children) ? children : [children])) {
+      if (child == null || child === false) continue;
+      node.appendChild(typeof child === 'string' || typeof child === 'number'
+        ? document.createTextNode(String(child)) : child);
+    }
+  }
+
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+  function svg(tag, attrs, children) {
+    const node = document.createElementNS(SVG_NS, tag);
+    if (attrs) {
+      for (const key of Object.keys(attrs)) {
+        const value = attrs[key];
+        if (value == null || value === false) continue;
+        if (key === 'text') node.textContent = value;
+        else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value);
+        else node.setAttribute(key, value);
+      }
+    }
+    append(node, children);
+    return node;
+  }
+
+  function formatTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return isNaN(d) ? '' : d.toLocaleTimeString();
+  }
+
+  function formatCount(n) {
+    if (n < 1000) return String(n);
+    if (n < 1000000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  }
+
+  async function getJSON(path, opts) {
+    const r = await fetch(info.base + path, opts);
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw Object.assign(new Error(body.error || `HTTP ${r.status}`), { status: r.status });
+    return body;
+  }
+  const post = (path, body) => getJSON(path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}),
+  });
+
+  /* ------------------------------- loading ------------------------------- */
+  async function detect() {
+    const candidates = window.ID_API !== undefined ? [window.ID_API] : ['', 'http://localhost:8091'];
+    for (const base of candidates) {
+      try { info.base = base; await getJSON('/health'); info.live = true; break; }
+      catch (e) { info.base = ''; info.live = false; }
+    }
+    await load();
+  }
+
+  async function load() {
+    setStatus();
+    if (!info.live) { renderAll(); return; }
+    try {
+      const [topics, sessions, ideas, memory, status, settings] = await Promise.all([
+        getJSON('/api/topics'), getJSON('/api/sessions'), getJSON('/api/ideas'),
+        getJSON('/api/memory'), getJSON('/api/status'), getJSON('/api/settings'),
+      ]);
+      state.topics = topics.topics || [];
+      state.sessions = sessions.sessions || [];
+      state.ideas = ideas.ideas || [];
+      state.memory = memory.memory || [];
+      state.status = status;
+      state.settings = settings;
+      if (!state.selectedSessionId && state.sessions.length) state.selectedSessionId = state.sessions[0].id;
+    } catch (e) {
+      info.live = false;
+      setStatus();
+    }
+    renderAll();
+    if (state.selectedSessionId) await openSession(state.selectedSessionId, false);
+  }
+
+  function setStatus() {
+    const badge = document.getElementById('ideation-status');
+    if (!badge) return;
+    badge.textContent = info.live ? 'LIVE' : 'OFFLINE';
+    badge.title = info.live ? 'Connected to the ideation daemon' : 'Ideation daemon not reachable';
+    const summary = document.getElementById('ideation-summary');
+    if (summary) {
+      const s = state.status;
+      summary.textContent = s
+        ? `${s.enabled_topics} topics · ${s.signals} signals · ${s.ideas} ideas · ${s.memory} memories · every ${Math.round(s.poll_interval_seconds / 60)}m`
+        : '';
+    }
+  }
+
+  /* ------------------------------ rendering ------------------------------ */
+  function renderAll() {
+    renderTopics();
+    renderSessions();
+    renderTabs();
+    renderDetail();
+    renderSettings();
+    renderTopicModal();
+  }
+
+  function renderTopics() {
+    const host = document.getElementById('ideation-topics');
+    if (!host) return;
+    clear(host);
+    document.getElementById('ideation-topic-count').textContent = state.topics.length ? `${state.topics.length}` : '';
+    if (!state.topics.length) {
+      host.appendChild(el('p', { class: 'empty small', text: info.live ? 'No topics yet.' : 'Daemon offline.' }));
+    } else {
+      for (const t of state.topics) {
+        host.appendChild(el('div', { class: 'ideation-topic' + (t.enabled ? '' : ' off') }, [
+          el('div', { class: 'ideation-topic-head' }, [
+            el('span', { class: 'ideation-topic-name', text: t.name }),
+            el('button', {
+              class: 'mini-btn', text: 'Run session', title: 'Start a refinement session for this topic',
+              onclick: () => runSession(t.id),
+            }),
+          ]),
+          t.description ? el('p', { class: 'ideation-topic-desc muted small', text: t.description }) : null,
+          el('div', { class: 'ideation-tags' }, (t.tags || []).map((tag) => el('span', { class: 'ideation-tag', text: tag }))),
+        ]));
+      }
+    }
+    if (info.live) {
+      host.appendChild(el('button', {
+        class: 'ideation-add-topic', type: 'button', text: '+ Add Topic',
+        title: 'Describe a topic and let the AI fill in the details', onclick: openTopicModal,
+      }));
+    }
+  }
+
+  function renderSessions() {
+    const host = document.getElementById('ideation-sessions');
+    if (!host) return;
+    clear(host);
+    document.getElementById('ideation-session-count').textContent = state.sessions.length ? `${state.sessions.length}` : '';
+    if (!state.sessions.length) {
+      host.appendChild(el('p', { class: 'empty small', text: 'No sessions yet. Run one from a topic.' }));
+      return;
+    }
+    for (const s of state.sessions) {
+      const active = s.id === state.selectedSessionId;
+      host.appendChild(el('div', {
+        class: 'ideation-session' + (active ? ' active' : ''),
+        onclick: () => openSession(s.id, true),
+      }, [
+        el('div', { class: 'ideation-session-head' }, [
+          el('span', { class: 'run-status ' + (s.status === 'done' ? 'done' : s.status === 'running' ? 'running' : 'cancelled') }, [
+            s.status === 'running' ? el('span', { class: 'dot-pulse' }) : null,
+            s.status,
+          ]),
+          el('span', { class: 'muted small', text: s.trigger || '' }),
+        ]),
+        el('div', { class: 'ideation-session-topic', text: s.topic_name || s.topic_id }),
+        el('div', { class: 'muted small', text: (s.started_at || '').replace('T', ' ').slice(0, 19) }),
+      ]));
+    }
+  }
+
+  function renderTabs() {
+    const host = document.getElementById('ideation-tabs');
+    if (!host) return;
+    clear(host);
+    const tabs = [['session', 'Session'], ['ideas', 'Ideas'], ['memory', 'Memory']];
+    for (const [id, label] of tabs) {
+      host.appendChild(el('button', {
+        class: 'modal-tab' + (state.tab === id ? ' active' : ''), text: label,
+        onclick: () => { state.tab = id; renderTabs(); renderDetail(); },
+      }));
+    }
+  }
+
+  function renderDetail() {
+    const host = document.getElementById('ideation-detail-body');
+    if (!host) return;
+    clear(host);
+    if (!info.live) {
+      host.appendChild(el('p', { class: 'empty', text: 'The ideation daemon is not reachable. Start it with `python -m ideation.daemon` (port 8091).' }));
+      return;
+    }
+    if (state.tab === 'ideas') return renderIdeas(host);
+    if (state.tab === 'memory') return renderMemory(host);
+    return renderSession(host);
+  }
+
+  /* ------------------------------- session ------------------------------- */
+  async function openSession(id, scroll) {
+    state.selectedSessionId = id;
+    state.selectedAgentId = null;
+    state.lastSeq = 0;
+    state.session = null;
+    state.tab = 'session';   // clicking a session always shows it in the main view
+    try {
+      const meta = await getJSON(`/api/sessions/${id}`);
+      const ev = await getJSON(`/api/sessions/${id}/events?since=0`);
+      state.session = { meta, events: ev.events || [] };
+      state.lastSeq = state.session.events.reduce((m, e) => Math.max(m, e.seq || 0), 0);
+      const start = state.session.events.find((e) => e.kind === 'session-start');
+      state.session.agents = (start && start.agents) || (meta.report && meta.report.agents) || [];
+      state.session.topic = (start && start.topic) || { name: meta.topic_name };
+      if (meta.status === 'running') startPolling(id);
+    } catch (e) { /* leave empty */ }
+    renderSessions();
+    renderTabs();
+    renderDetail();
+    if (scroll) window.scrollTo({ top: 0 });
+  }
+
+  function startPolling(id) {
+    stopPolling();
+    state.pollTimer = setInterval(async () => {
+      try {
+        const ev = await getJSON(`/api/sessions/${id}/events?since=${state.lastSeq}`);
+        const events = ev.events || [];
+        if (events.length) {
+          state.session.events.push(...events);
+          state.lastSeq = events.reduce((m, e) => Math.max(m, e.seq || 0), state.lastSeq);
+          if (state.tab === 'session') renderDetail();
+        }
+        if (events.some((e) => e.kind === 'done')) {
+          stopPolling();
+          const meta = await getJSON(`/api/sessions/${id}`);
+          state.session.meta = meta;
+          renderSessions();
+          if (state.tab === 'session') renderDetail();
+        }
+      } catch (e) { stopPolling(); }
+    }, 1500);
+  }
+
+  function stopPolling() {
+    if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+  }
+
+  async function runSession(topicId) {
+    try {
+      const session = await post('/api/sessions', { topic_id: topicId });
+      state.sessions.unshift(session);
+      renderSessions();
+      await openSession(session.id, true);
+      state.tab = 'session';
+      renderTabs();
+      renderDetail();
+    } catch (e) {
+      alert('Could not start the session: ' + e.message);
+    }
+  }
+
+  function renderSession(host) {
+    const s = state.session;
+    if (!s || !s.meta) {
+      host.appendChild(el('p', { class: 'empty', text: 'Select a session on the left, or run one from a topic.' }));
+      return;
+    }
+    const events = s.events || [];
+    const turns = events.filter((e) => e.kind === 'turn');
+    const final = events.filter((e) => e.kind === 'final').pop();
+    const running = s.meta.status === 'running';
+
+    host.appendChild(el('div', { class: 'cluster-status-bar' }, [
+      el('span', { class: 'muted small', text: 'Click an agent to read its reasoning' }),
+      el('span', { class: 'muted small', text: `${turns.length} messages · ${s.agents.length} agents · ${running ? 'running' : s.meta.status}` }),
+    ]));
+
+    host.appendChild(renderGraph(s.agents, turns, running));
+
+    if (final) {
+      host.appendChild(el('div', { class: 'ideation-final' }, [
+        el('div', { class: 'ideation-final-head' }, [
+          el('span', { class: 'ideation-kind ' + final.kind, text: final.kind }),
+          final.artifact_type ? el('span', { class: 'ideation-artifact', text: final.artifact_type }) : null,
+          el('span', { class: 'muted small', text: 'Final idea' }),
+        ]),
+        el('p', { class: 'ideation-idea', text: final.idea }),
+        renderJustification(final.justification),
+        renderBuild(final.build),
+        renderAnalysis(final.analysis),
+      ]));
+    }
+
+    // The streamed log of every message, newest last.
+    const log = el('div', { class: 'thinking-log' });
+    for (const ev of events) {
+      const node = renderEvent(ev);
+      if (node) log.appendChild(node);
+    }
+    if (running) {
+      log.appendChild(el('div', { class: 'event-row kind-live' }, [
+        el('span', { class: 'spinner small' }), el('span', { text: 'The team is working…' }),
+      ]));
+    }
+    host.appendChild(log);
+  }
+
+  /* -------------------------------- graph -------------------------------- */
+  function renderGraph(agents, turns, running) {
+    if (!agents.length) return el('div', { class: 'empty-state small' }, [el('p', { class: 'muted', text: 'No agents yet.' })]);
+    const selectedId = state.selectedAgentId || (agents[0] && agents[0].id);
+    const spoken = new Set(turns.map((t) => t.agent_id));
+    const selected = agents.find((a) => a.id === selectedId) || agents[0];
+    const agentTurns = turns.filter((t) => t.agent_id === selected.id);
+
+    return el('div', { class: 'cluster-graph' }, [
+      el('div', { class: 'cluster-group-block' }, [
+        el('div', { class: 'cluster-group-head' }, [
+          el('span', { class: 'cluster-group-name', text: 'Ideation team' }),
+          el('span', { class: 'cluster-style', text: 'collaborative' }),
+          el('span', { class: 'muted small', text: `${agents.length} agents` }),
+        ]),
+        el('div', { class: 'cluster-graph-wrap' }, [
+          renderGroupGraph(agents, selectedId, spoken, running),
+          renderAgentStream(selected, agentTurns),
+        ]),
+      ]),
+    ]);
+  }
+
+  function renderGroupGraph(agents, selectedId, spoken, running) {
+    const n = agents.length;
+    const W = 580, H = 300, cx = W / 2, cy = H / 2, R = 84, r = 22;
+    const nodes = agents.map((a, i) => {
+      const ang = (-90 + (360 / Math.max(n, 1)) * i) * (Math.PI / 180);
+      return { agent: a, ang, x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang) };
+    });
+    const edges = [];
+    for (let i = 0; i < nodes.length; i += 1) {
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const a = nodes[i], b = nodes[j];
+        const touches = a.agent.id === selectedId || b.agent.id === selectedId;
+        const both = spoken.has(a.agent.id) && spoken.has(b.agent.id);
+        edges.push(svg('line', { class: 'graph-edge' + (touches ? ' selected' : both ? ' spoken' : ''), x1: a.x, y1: a.y, x2: b.x, y2: b.y }));
+      }
+    }
+    const nodeEls = nodes.map((node) => {
+      const a = node.agent;
+      const isSel = a.id === selectedId;
+      const cls = 'graph-node' + (isSel ? ' selected' : '') + (spoken.has(a.id) ? ' spoken' : '');
+      const label = labelPlacement(node, r, a.name);
+      return svg('g', { class: cls, onclick: () => { state.selectedAgentId = a.id; renderDetail(); } }, [
+        svg('circle', { class: 'node-circle', cx: node.x, cy: node.y, r }),
+        svg('text', { class: 'node-initials', x: node.x, y: node.y + 4, 'text-anchor': 'middle', text: initials(a.name) }),
+        ...label.lines.map((line, i) => svg('text', {
+          class: 'node-label', x: label.x, y: label.y + i * label.lineHeight, 'text-anchor': label.anchor, text: line,
+        })),
+      ]);
+    });
+    return el('div', { class: 'cluster-graph-canvas' }, [
+      svg('svg', { viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet', role: 'img' }, [
+        svg('g', { class: 'graph-edges' }, edges),
+        svg('g', { class: 'graph-nodes' }, nodeEls),
+      ]),
+    ]);
+  }
+
+  function labelLines(name, maxChars) {
+    const words = String(name || '').split(/\s+/).filter(Boolean);
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      if (!cur) cur = w;
+      else if ((cur + ' ' + w).length <= maxChars) cur += ' ' + w;
+      else { lines.push(cur); cur = w; }
+    }
+    if (cur) lines.push(cur);
+    if (lines.length > 2) {
+      const rest = lines.slice(1).join(' ');
+      lines.length = 1;
+      lines.push(rest.length > maxChars ? rest.slice(0, maxChars - 1).trimEnd() + '…' : rest);
+    }
+    return lines.length ? lines : [''];
+  }
+
+  function labelPlacement(node, r, name) {
+    const cos = Math.cos(node.ang), sin = Math.sin(node.ang);
+    const lines = labelLines(name, 22);
+    const lineHeight = 13;
+    const span = (lines.length - 1) * lineHeight;
+    if (cos > 0.35) return { x: node.x + r + 8, y: node.y + 4 - span / 2, anchor: 'start', lines, lineHeight };
+    if (cos < -0.35) return { x: node.x - r - 8, y: node.y + 4 - span / 2, anchor: 'end', lines, lineHeight };
+    return sin < 0
+      ? { x: node.x, y: node.y - r - 8 - span, anchor: 'middle', lines, lineHeight }
+      : { x: node.x, y: node.y + r + 16, anchor: 'middle', lines, lineHeight };
+  }
+
+  function initials(name) {
+    const words = String(name || '').split(/\s+/).filter(Boolean);
+    if (!words.length) return '?';
+    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+
+  function renderAgentStream(agent, turns) {
+    if (!agent) return el('div', { class: 'agent-stream empty-state small' }, [el('p', { class: 'muted', text: 'No agents.' })]);
+    const chars = turns.reduce((n, t) => n + ((t.context || '').length), 0);
+    const head = el('div', { class: 'agent-stream-head' }, [
+      el('div', { class: 'agent-stream-name', text: agent.name }),
+      el('div', { class: 'agent-stream-model', text: agent.model || '' }),
+      el('div', { class: 'agent-stream-stats muted small', text: `${turns.length} messages · ${formatCount(chars)} chars` }),
+    ]);
+    const about = el('div', { class: 'agent-stream-about' }, [
+      agent.role ? el('p', { class: 'cluster-agent-who muted small', text: agent.role }) : null,
+    ]);
+    const body = el('div', { class: 'agent-stream-body' });
+    if (!turns.length) {
+      body.appendChild(el('p', { class: 'muted small', text: 'This agent has not spoken yet.' }));
+    } else {
+      turns.forEach((t) => body.appendChild(renderTurn(t)));
+    }
+    return el('div', { class: 'agent-stream' }, [head, about, body]);
+  }
+
+  function renderTurn(t) {
+    return el('div', { class: 'stream-item kind-thought' }, [
+      el('div', { class: 'event-meta' }, [
+        el('span', { class: 'event-role', text: t.round ? `Round ${t.round}` : 'Briefing' }),
+        el('span', { class: 'event-role', text: t.model || '' }),
+        el('span', { class: 'event-time', text: formatTime(t.ts) }),
+      ]),
+      el('p', { class: 'ideation-idea', text: t.idea }),
+      renderJustification(t.justification),
+      renderBuild(t.build),
+      renderAnalysis(t.analysis),
+      renderContext(t.context),
+      renderSources(t.sources),
+    ]);
+  }
+
+  function renderJustification(bullets) {
+    if (!bullets || !bullets.length) return null;
+    return el('ul', { class: 'ideation-justification' }, bullets.map((b) => el('li', { text: b })));
+  }
+
+  function renderContext(context) {
+    if (!context) return null;
+    return el('details', { class: 'ideation-context' }, [
+      el('summary', { text: `Context (${formatCount(context.length)} chars)` }),
+      el('p', { class: 'ideation-context-text', text: context }),
+    ]);
+  }
+
+  function renderSources(sources) {
+    if (!sources || !sources.length) return null;
+    return el('div', { class: 'ideation-sources' }, sources.slice(0, 8).map((s) =>
+      el('a', { class: 'ideation-source', href: s.url, target: '_blank', rel: 'noopener', text: s.title || s.url })));
+  }
+
+  function renderScore(score) {
+    if (!score || !Object.keys(score).length) return null;
+    return el('div', { class: 'ideation-score' }, Object.keys(score).map((k) =>
+      el('span', { class: 'ideation-score-chip', text: `${k} ${score[k]}` })));
+  }
+
+  /** The Builder's buildability score. */
+  function renderBuild(build) {
+    if (!build || (build.mvp == null && build.artifact == null)) return null;
+    return el('div', { class: 'ideation-build' }, [
+      build.mvp != null ? el('span', { class: 'ideation-score-chip', text: `MVP ${build.mvp}/10` }) : null,
+      build.artifact != null ? el('span', { class: 'ideation-score-chip', text: `Artifact ${build.artifact}/10` }) : null,
+      build.effort ? el('span', { class: 'ideation-score-chip', text: build.effort }) : null,
+      ...(build.blockers || []).map((b) => el('span', { class: 'ideation-blocker', text: b })),
+    ]);
+  }
+
+  /** The Analyzer's verdict on whether the idea makes sense. */
+  function renderAnalysis(analysis) {
+    if (!analysis || !analysis.verdict) return null;
+    const cls = analysis.verdict === 'makes_sense' ? 'ok' : analysis.verdict === 'nonsense' ? 'bad' : 'warn';
+    return el('div', { class: 'ideation-analysis' }, [
+      el('span', { class: 'ideation-verdict ' + cls, text: String(analysis.verdict).replace(/_/g, ' ') }),
+      analysis.confidence != null ? el('span', { class: 'ideation-score-chip', text: `${analysis.confidence}%` }) : null,
+      ...(analysis.findings || []).slice(0, 4).map((f) => el('span', { class: 'ideation-finding', text: f })),
+      ...(analysis.blockers || []).map((b) => el('span', { class: 'ideation-blocker', text: b })),
+    ]);
+  }
+
+  /* -------------------------------- events -------------------------------- */
+  function renderEvent(ev) {
+    switch (ev.kind) {
+      case 'phase':
+        return el('div', { class: 'phase-divider' }, [el('span', { text: ev.text })]);
+      case 'turn':
+        return el('div', { class: 'event-row kind-turn' }, [
+          el('div', { class: 'event-meta' }, [
+            el('span', { class: 'event-role', text: ev.agent_name || ev.agent_id }),
+            el('span', { class: 'event-role', text: ev.round ? `Round ${ev.round}` : 'Briefing' }),
+            el('span', { class: 'event-time', text: formatTime(ev.ts) }),
+          ]),
+          el('p', { class: 'ideation-idea', text: ev.idea }),
+          renderJustification(ev.justification),
+          renderContext(ev.context),
+        ]);
+      case 'final':
+        return el('div', { class: 'event-row kind-final' }, [
+          el('div', { class: 'event-meta' }, [
+            el('span', { class: 'event-kind', text: 'Final idea' }),
+            el('span', { class: 'ideation-kind ' + ev.kind, text: ev.kind }),
+          ]),
+          el('p', { class: 'ideation-idea', text: ev.idea }),
+          renderBuild(ev.build),
+          renderAnalysis(ev.analysis),
+        ]);
+      case 'memory':
+        return el('div', { class: 'event-row kind-memory' }, [
+          el('span', { class: 'event-kind', text: `Memory · ${ev.kind} · ${ev.importance}` }),
+          el('span', { class: 'event-text', text: ' ' + ev.text }),
+        ]);
+      case 'failed':
+        return el('div', { class: 'event-row kind-muted' }, [
+          el('span', { class: 'event-text', text: `${ev.agent_id} failed${ev.reason ? ' — ' + ev.reason : ''}` }),
+        ]);
+      case 'done':
+        return el('div', { class: 'event-row kind-done' }, [
+          el('span', { class: 'event-text', text: `Session complete · $${(ev.cost || 0).toFixed(4)}` }),
+        ]);
+      default:
+        return null;
+    }
+  }
+
+  /* -------------------------------- ideas -------------------------------- */
+  function renderIdeas(host) {
+    if (!state.ideas.length) {
+      host.appendChild(el('p', { class: 'empty', text: 'No ideas yet. Run a session and the team will produce one.' }));
+      return;
+    }
+    for (const idea of state.ideas) {
+      host.appendChild(el('div', { class: 'ideation-idea-card' }, [
+        el('div', { class: 'ideation-final-head' }, [
+          el('span', { class: 'ideation-kind ' + idea.kind, text: idea.kind }),
+          idea.artifact_type ? el('span', { class: 'ideation-artifact', text: idea.artifact_type }) : null,
+          el('span', { class: 'muted small', text: idea.topic_name || idea.topic_id || '' }),
+          el('span', { class: 'spacer' }),
+          el('span', { class: 'muted small', text: (idea.created_at || '').replace('T', ' ').slice(0, 19) }),
+        ]),
+        el('p', { class: 'ideation-idea', text: idea.text }),
+        renderJustification(idea.justification),
+        renderBuild((idea.score || {}).build),
+        renderAnalysis((idea.score || {}).analysis),
+        renderSources(idea.sources),
+        el('div', { class: 'ideation-tags' }, (idea.tags || []).map((tag) => el('span', { class: 'ideation-tag', text: tag }))),
+      ]));
+    }
+  }
+
+  /* -------------------------------- memory -------------------------------- */
+  function renderMemory(host) {
+    if (!state.memory.length) {
+      host.appendChild(el('p', { class: 'empty', text: 'Nothing remembered yet. Only the very important findings are kept.' }));
+      return;
+    }
+    for (const m of state.memory) {
+      host.appendChild(el('div', { class: 'ideation-memory' }, [
+        el('div', { class: 'event-meta' }, [
+          el('span', { class: 'event-kind', text: m.kind }),
+          el('span', { class: 'event-role', text: `importance ${m.importance}` }),
+          el('span', { class: 'muted small', text: m.topic_id || '' }),
+        ]),
+        el('p', { class: 'event-text', text: m.text }),
+      ]));
+    }
+  }
+
+  /* ------------------------------ add topic ------------------------------ */
+  function splitList(value) {
+    return String(value || '').split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
+  function openTopicModal() {
+    state.topicModal = { open: true, description: '', draft: null, status: null, busy: false };
+    renderTopicModal();
+  }
+
+  function closeTopicModal() {
+    state.topicModal.open = false;
+    renderTopicModal();
+  }
+
+  async function draftTopic() {
+    const tm = state.topicModal;
+    const description = (tm.description || '').trim();
+    if (!description) {
+      tm.status = { ok: false, text: 'Describe the topic first.' };
+      renderTopicModal();
+      return;
+    }
+    tm.busy = true;
+    tm.status = null;
+    renderTopicModal();
+    try {
+      const draft = await post('/api/topics/draft', { description });
+      tm.draft = {
+        name: draft.name || '', description: draft.description || '',
+        tags: (draft.tags || []).join(', '), keywords: (draft.keywords || []).join(', '),
+      };
+      tm.status = { ok: true, text: 'Draft ready — edit anything, then add it.' };
+    } catch (e) {
+      tm.status = { ok: false, text: 'Could not draft: ' + e.message };
+    }
+    tm.busy = false;
+    renderTopicModal();
+  }
+
+  async function addTopic() {
+    const tm = state.topicModal;
+    const d = tm.draft || {};
+    if (!(d.name || '').trim()) {
+      tm.status = { ok: false, text: 'A name is required.' };
+      renderTopicModal();
+      return;
+    }
+    try {
+      await post('/api/topics', {
+        name: d.name.trim(),
+        description: (d.description || '').trim(),
+        tags: splitList(d.tags),
+        keywords: splitList(d.keywords),
+      });
+      closeTopicModal();
+      await load();
+    } catch (e) {
+      tm.status = { ok: false, text: 'Could not add: ' + e.message };
+      renderTopicModal();
+    }
+  }
+
+  function renderTopicModal() {
+    const host = document.getElementById('ideation-topic-root');
+    if (!host) return;
+    clear(host);
+    const tm = state.topicModal;
+    if (!tm || !tm.open) return;
+
+    const draft = tm.draft;
+    const content = el('div', { class: 'settings-content' }, [
+      el('div', { class: 'field' }, [
+        el('label', { text: 'Describe the topic you want to watch' }),
+        el('textarea', {
+          class: 'input-prompt', rows: 3,
+          placeholder: 'e.g. "new ways to run large models on phones and small devices"',
+          value: tm.description,
+          oninput: (e) => { tm.description = e.target.value; },
+        }),
+      ]),
+      el('div', { class: 'settings-actions' }, [
+        el('button', { class: 'btn primary', type: 'button', text: tm.busy ? 'Drafting…' : 'Draft with AI', disabled: tm.busy, onclick: draftTopic }),
+        tm.status ? el('span', { class: 'settings-status ' + (tm.status.ok ? 'ok' : 'err'), text: tm.status.text }) : null,
+      ]),
+      draft ? el('div', { class: 'settings-section' }, [
+        el('h3', { class: 'settings-title', text: 'Topic' }),
+        el('div', { class: 'settings-body' }, [
+          settingsField('Name', el('input', { class: 'text-input', value: draft.name, oninput: (e) => { draft.name = e.target.value; } })),
+          settingsField('Description', el('textarea', { class: 'input-prompt', rows: 2, value: draft.description, oninput: (e) => { draft.description = e.target.value; } })),
+          settingsField('Tags (comma-separated)', el('input', { class: 'text-input', value: draft.tags, oninput: (e) => { draft.tags = e.target.value; } })),
+          settingsField('Keywords (comma-separated)', el('input', { class: 'text-input', value: draft.keywords, oninput: (e) => { draft.keywords = e.target.value; } })),
+        ]),
+      ]) : null,
+      el('div', { class: 'settings-actions' }, [
+        el('button', { class: 'btn primary', type: 'button', text: 'Add topic', disabled: !draft, onclick: addTopic }),
+        el('button', { class: 'btn ghost', type: 'button', text: 'Cancel', onclick: closeTopicModal }),
+      ]),
+    ]);
+
+    const dialog = el('div', { class: 'modal settings-modal', onclick: (e) => e.stopPropagation() }, [
+      el('div', { class: 'modal-head' }, [
+        el('div', { class: 'modal-head-main' }, [
+          el('h3', { class: 'modal-title', text: 'Add Topic' }),
+          el('p', { class: 'muted small', text: 'Describe it; the AI fills in the name, description, tags and keywords.' }),
+        ]),
+        el('button', { class: 'icon-btn', title: 'Close', text: '✕', onclick: closeTopicModal }),
+      ]),
+      el('div', { class: 'modal-body' }, [content]),
+    ]);
+    host.appendChild(el('div', { class: 'modal-overlay', onclick: closeTopicModal }, [dialog]));
+  }
+
+  /* ------------------------------- settings ------------------------------- */
+  function modelSelect(value, onchange) {
+    const models = (Hack.modelInfo && Hack.modelInfo.MODELS) || [];
+    const ids = models.map((m) => m.id);
+    if (value && !ids.includes(value)) ids.unshift(value);
+    return el('select', { class: 'select', onchange: (e) => onchange(e.target.value) },
+      ids.map((id) => {
+        const m = models.find((x) => x.id === id);
+        return el('option', { value: id, text: m ? m.name : id, selected: id === value });
+      }));
+  }
+
+  /** A model dropdown with a "Thinking" toggle beside it. */
+  function modelRow(label, model, thinking, onModel, onThinking) {
+    return el('div', { class: 'field model-row' }, [
+      el('label', { text: label }),
+      el('div', { class: 'model-row-controls' }, [
+        modelSelect(model, onModel),
+        el('label', { class: 'thinking-toggle', title: 'Reasoning / thinking mode' }, [
+          el('input', { type: 'checkbox', checked: !!thinking, onchange: (e) => onThinking(e.target.checked) }),
+          el('span', { text: 'Thinking' }),
+        ]),
+      ]),
+    ]);
+  }
+
+  function settingsSection(title, children) {
+    return el('div', { class: 'settings-section' }, [
+      el('h3', { class: 'settings-title', text: title }),
+      el('div', { class: 'settings-body' }, children),
+    ]);
+  }
+
+  function settingsField(label, node) {
+    return el('div', { class: 'field' }, [el('label', { text: label }), node]);
+  }
+
+  function numberField(label, value, oninput, opts) {
+    return settingsField(label, el('input', Object.assign({
+      type: 'number', class: 'num-input', value,
+      oninput: (e) => oninput(Number(e.target.value)),
+    }, opts || {})));
+  }
+
+  function openSettings() {
+    state.settingsOpen = true;
+    state.settingsStatus = null;
+    renderSettings();
+  }
+
+  function closeSettings() {
+    state.settingsOpen = false;
+    renderSettings();
+  }
+
+  async function saveSettings() {
+    try {
+      const saved = await getJSON('/api/settings', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state.settings),
+      });
+      state.settings = saved;
+      state.settingsStatus = { ok: true, text: 'Saved. Applies to the next session.' };
+    } catch (e) {
+      state.settingsStatus = { ok: false, text: 'Could not save: ' + e.message };
+    }
+    renderSettings();
+  }
+
+  function renderSettings() {
+    const host = document.getElementById('ideation-settings-root');
+    if (!host) return;
+    clear(host);
+    if (!state.settingsOpen || !state.settings) return;
+    const s = state.settings;
+    s.agent_models = s.agent_models || {};
+    s.agent_thinking = s.agent_thinking || {};
+
+    const dialog = el('div', { class: 'modal settings-modal', onclick: (e) => e.stopPropagation() }, [
+      el('div', { class: 'modal-head' }, [
+        el('div', { class: 'modal-head-main' }, [
+          el('h3', { class: 'modal-title', text: 'Ideation settings' }),
+          el('p', { class: 'muted small', text: 'The models the ideation agents use, and how the daemon runs.' }),
+        ]),
+        el('button', { class: 'icon-btn', title: 'Close', text: '✕', onclick: closeSettings }),
+      ]),
+      el('div', { class: 'modal-body' }, [
+        el('div', { class: 'settings-content' }, [
+          settingsSection('Models', [
+            modelRow('Default model (agents without their own)', s.model, s.thinking,
+              (v) => { s.model = v; }, (v) => { s.thinking = v; }),
+            ...(s.agents || []).map((a) => modelRow(a.name + ' — ' + a.role, a.model, a.thinking,
+              (v) => { s.agent_models[a.id] = v; }, (v) => { s.agent_thinking[a.id] = v; })),
+            modelRow('Topic drafting model', s.topic_model || s.model, s.topic_thinking,
+              (v) => { s.topic_model = v; }, (v) => { s.topic_thinking = v; }),
+          ]),
+          settingsSection('Daemon', [
+            numberField('Poll interval (seconds)', s.poll_interval_seconds,
+              (v) => { s.poll_interval_seconds = v; }, { min: 30 }),
+            numberField('Cost cap per session (USD)', s.max_cost_usd,
+              (v) => { s.max_cost_usd = v; }, { min: 0.01, step: 0.01 }),
+            numberField('Refinement rounds', s.rounds,
+              (v) => { s.rounds = v; }, { min: 1, max: 5 }),
+            numberField('Signals per session', s.signals_per_topic,
+              (v) => { s.signals_per_topic = v; }, { min: 1, max: 50 }),
+            settingsField('Start the scheduler with the daemon',
+              el('input', { type: 'checkbox', checked: !!s.autostart, onchange: (e) => { s.autostart = e.target.checked; } })),
+          ]),
+          el('div', { class: 'settings-actions' }, [
+            el('button', { class: 'btn primary', type: 'button', text: 'Save settings', onclick: saveSettings }),
+            state.settingsStatus
+              ? el('span', { class: 'settings-status ' + (state.settingsStatus.ok ? 'ok' : 'err'), text: state.settingsStatus.text })
+              : null,
+          ]),
+        ]),
+      ]),
+    ]);
+    host.appendChild(el('div', { class: 'modal-overlay', onclick: closeSettings }, [dialog]));
+  }
+
+  /* ------------------------------- controls ------------------------------- */
+  const refresh = document.getElementById('ideation-refresh');
+  if (refresh) refresh.addEventListener('click', load);
+  const poll = document.getElementById('ideation-poll');
+  if (poll) poll.addEventListener('click', async () => {
+    poll.disabled = true;
+    try { await post('/api/poll'); await load(); } catch (e) { /* ignore */ }
+    poll.disabled = false;
+  });
+  const settingsBtn = document.getElementById('ideation-settings');
+  if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (state.topicModal.open) closeTopicModal();
+    else if (state.settingsOpen) closeSettings();
+  });
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', detect);
+  else detect();
+})();
