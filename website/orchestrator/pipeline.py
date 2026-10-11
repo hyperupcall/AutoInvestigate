@@ -282,7 +282,7 @@ async def _finish(run: Run, status: str) -> str:
 
 
 def _export(run: Run) -> None:
-    """Every run, finished or not, gets results/<run_id>.json."""
+    """Every run, finished or not, gets council_results/<run_id>.json."""
     try:
         from orchestrator.export import write
         run.log("report", path=write(run.id))

@@ -170,7 +170,6 @@
         field('At most (papers)', numberInput(S.sources.max_papers, (e) => { S.sources.max_papers = Number(e.target.value); }, { min: 1, max: 15 })),
         field('Chosen by model', modelSelect(S.sources.model, (e) => { S.sources.model = e.target.value; })),
       ]),
-      field('Default OpenRouter API key', keyInput(S.openrouter_api_key, (e) => { S.openrouter_api_key = e.target.value; })),
       el('div', { class: 'field-row' }, [
         field('Deliberation seconds (deep mode)', numberInput(S.deliberation_seconds, (e) => { S.deliberation_seconds = Number(e.target.value); }, { min: 5, max: 900 })),
         field('Max cost per evaluation (USD)', numberInput(S.max_cost_usd, (e) => { S.max_cost_usd = Number(e.target.value); }, { min: 0.05, max: 50, step: 0.05 })),

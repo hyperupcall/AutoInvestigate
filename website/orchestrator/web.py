@@ -6,7 +6,7 @@
   GET  /api/runs                          past and current runs, newest first
   GET  /api/runs/<id>/events?since=N      our raw events after index N
   GET  /api/runs/<id>/report              the run's JSON report (schema/evaluation-report.schema.json)
-  GET  /api/results                       results/index.json: every exported run
+  GET  /api/results                       council_results/index.json: every exported run
   GET  /api/ui/runs/<id>/events?since=N   live events in the AutoInvestigate frontend's shape (orchestrator/compat.py)
   GET  /api/settings | PUT /api/settings  settings (keys masked) | save (validated)
   POST /api/settings/reset                back to defaults
@@ -104,7 +104,7 @@ def read_events(run_id: str) -> list[dict]:
 
 
 def report_for(run_id: str) -> dict | None:
-    f = os.path.join("results", f"{os.path.basename(run_id)}.json")
+    f = os.path.join("council_results", f"{os.path.basename(run_id)}.json")
     if os.path.isfile(f):
         with open(f) as fh:
             return json.load(fh)
@@ -231,7 +231,7 @@ class Handler(BaseHTTPRequestHandler):
                                     "status": "running" if live else (end or {}).get("status", "incomplete"),
                                     "current": compat.current(ev)})
         if path == "/api/results":
-            f = os.path.join("results", "index.json")
+            f = os.path.join("council_results", "index.json")
             if not os.path.isfile(f):
                 return self._send(200, {"runs": []})
             with open(f, "rb") as fh:

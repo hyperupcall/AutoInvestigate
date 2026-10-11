@@ -177,6 +177,9 @@ An **Agent View** link opens the site rendered by the backend server (the `web`
 service, `http://localhost:8090/live` — the live view). Its `href` defaults to
 `http://localhost:8090/live` and follows the detected backend (`window.EVAL_API`, same
 origin, or `localhost:8090`) via `Hack.backendInfo`, which `api-backend.js` fills in.
+`Hack.agentViewUrl(runId)` builds the same URL scoped to one run (`/live?run=<id>`);
+each research run in Column 2 carries an **Agent View →** link that opens that run
+directly in the live view (only for real backend runs, which have a `backendRunId`).
 The live view itself now renders **the same shared navbar**: it loads
 `website/frontend/css/styles.css` and the shell scripts from the frontend directory (the
 backend serves them), and its own controls (past runs, replay speed, Replay, backend
@@ -305,7 +308,7 @@ popup then reflects it (it syncs from the backend).
 
 One settings surface. When the backend is connected the popup renders the backend's
 real settings — the same fields as the backend `/settings` page — and saves them with
-`PUT /api/settings`: mode, arXiv sources, the default OpenRouter key, deliberation
+`PUT /api/settings`: mode, arXiv sources, deliberation
 time, cost cap, web search, the per-stage token/effort table, the summarizer / judge /
 final / reality-check models and keys, the MCP settings, the MCP server catalog, and the group
 perspectives (name, discussion style — **automatic** lets the backend pick per group,

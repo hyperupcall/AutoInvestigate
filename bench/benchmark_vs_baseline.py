@@ -11,14 +11,14 @@ good or bad the idea is.
 Needs the stack running (docker compose up -d) and OPENROUTER_API_KEY in the environment or the root .env.
 The council settings are changed for the run and reset to the repo defaults at the end.
 
-  python3 scripts/benchmark_vs_baseline.py                          # the default ideas, Quick mode
-  python3 scripts/benchmark_vs_baseline.py "idea one" "idea two"
-  MODE=deep PARALLEL=2 python3 scripts/benchmark_vs_baseline.py ...  # Deep mode, two councils at a time
+  python3 bench/benchmark_vs_baseline.py                          # the default ideas, Quick mode
+  python3 bench/benchmark_vs_baseline.py "idea one" "idea two"
+  MODE=deep PARALLEL=2 python3 bench/benchmark_vs_baseline.py ...  # Deep mode, two councils at a time
   REUSE_AFTER=<run id> ...       # reuse finished council runs of the same ideas started at or after that run id
   ... --blind                    # no judge: a page with the two reports as "Report A"/"Report B" plus a key file
-  python3 scripts/benchmark_vs_baseline.py --reformat results/benchmark/<stamp>-KEY.json
+  python3 bench/benchmark_vs_baseline.py --reformat bench/results/<stamp>-KEY.json
                                  # rewrite both reports of a --blind run into one identical plain layout
-Writes results/benchmark/<timestamp>.json and .html (or -blind.html and -KEY.json).
+Writes bench/results/<timestamp>.json and .html (or -blind.html and -KEY.json).
 """
 import concurrent.futures as cf
 import html
@@ -35,7 +35,7 @@ from datetime import datetime
 API = os.environ.get("EVAL_API", "http://localhost:8090")
 BASE_MODEL = "openai/gpt-oss-120b"
 JUDGE = "deepseek/deepseek-v4-pro"
-OUT = os.path.join(os.path.dirname(__file__), "..", "results", "benchmark")
+OUT = os.path.join(os.path.dirname(__file__), "results")
 IDEAS = [
     "Homomorphic encryption for privacy-preserving analytics on enterprise customer data, so a cloud provider can run reports without ever seeing the raw data.",
     "Quantum-safe key exchange for enterprise routers, rolled out as a firmware update that adds post-quantum algorithms to existing VPN tunnels.",
@@ -50,7 +50,7 @@ BASELINE_PROMPT = "Please evaluate this idea and write me a report on whether it
 def _key() -> str:
     if os.environ.get("OPENROUTER_API_KEY"):
         return os.environ["OPENROUTER_API_KEY"]
-    env = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+    env = os.path.join(os.path.dirname(__file__), "..", ".env")
     for line in open(env):
         if line.startswith("OPENROUTER_API_KEY="):
             return line.split("=", 1)[1].strip().strip('"\'')
@@ -201,10 +201,10 @@ exist, including ones dated after your training data. Do not treat a paper as fa
 judge whether it is relevant to the idea and whether the report uses it correctly.
 
 Score each report from 1 to 5 on:
-- plausibility: does the idea, as the report presents it, make sense? Even if it is far-fetched, does the report
-  back its claims and recommended actions with evidence? Rate the report's grounding, not whether the idea is good.
-- actionability: could a concrete plan be built from this idea using the hints in the report, and an artifact then
-  be built from that plan?
+- plausibility/sensibility: does it make sense? Even if it is a bit far-fetched, does the report back its claims
+  and recommended actions with evidence? Rate the report's grounding, not whether the idea is good.
+- actionability: can a plan be built from this idea using the hints in the report, and then an artifact be built
+  from that plan?
 - specificity: are the details specific (concrete risks, alternatives, numbers, tests) rather than generic advice?
 
 Do not rate how good or bad the idea is, and do not reward length, formatting or tone; a longer report earns

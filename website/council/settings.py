@@ -111,8 +111,6 @@ def save(new: dict) -> list[str]:
     for derived in ("archetype_library", "mcp_catalog", "mcp_categories"):  # display-only, not stored
         new.pop(derived, None)
     (new.get("mcp") or {}).pop("api_key_env", None)  # display-only: whether .env supplies the key
-    if new.get("openrouter_api_key") == MASK:
-        new["openrouter_api_key"] = old.get("openrouter_api_key", "")
     if (new.get("mcp") or {}).get("api_key") == MASK:
         new.setdefault("mcp", {})["api_key"] = old.get("mcp", {}).get("api_key", "")
     for stage, cfg in new.get("stages", {}).items():
@@ -140,7 +138,6 @@ def _mask(key: str) -> str:
 def public_view(s: dict) -> dict:
     """Settings safe to send to a browser: keys replaced by a mask, plus the archetype library."""
     v = copy.deepcopy(s)
-    v["openrouter_api_key"] = _mask(v.get("openrouter_api_key") or os.getenv("OPENROUTER_API_KEY", ""))
     v.setdefault("mcp", {})["api_key"] = _mask(mcp_key(s))
     v["mcp"]["api_key_env"] = bool(os.getenv(MCP_KEY_ENV, "").strip())  # the key comes from .env
     for cfg in v["stages"].values():
@@ -160,8 +157,8 @@ def public_view(s: dict) -> dict:
 
 
 def resolve_key(own: str, s: dict) -> str:
-    """Per-agent key, else the default key, else the environment."""
-    return own or s.get("openrouter_api_key") or os.getenv("OPENROUTER_API_KEY", "")
+    """Per-agent key, else the environment (.env)."""
+    return own or os.getenv("OPENROUTER_API_KEY", "")
 
 
 def mcp_key(s: dict) -> str:

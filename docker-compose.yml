@@ -20,11 +20,12 @@ name: outshift-research-intelligence
 x-council: &council
   build: ./website
   env_file: .env
+  user: "${HOST_UID:-0}:${HOST_GID:-0}"   # run as you, so files written to the mounted dirs stay owned by you
   volumes:
     - ./website/data:/app/data
-    - ./website/logs:/app/logs
+    - ./logs:/app/logs
     - ./website/prompts:/app/prompts:ro
-    - ./website/results:/app/results
+    - ./website/council_results:/app/council_results
 
 services:
   # ------------------------------------------------------------- frontend
@@ -43,6 +44,7 @@ services:
     build:
       context: ./artifactfactory
     image: outshift/artifactfactory:latest
+    user: "${HOST_UID:-0}:${HOST_GID:-0}"   # files written to _artifacts/ and _artifactfactory-data/ stay owned by you
     ports:
       - "8080:8080"
     env_file: .env   # OPENROUTER_API_KEY: real literature review and experiment repo (artifactfactory/evaluation.py)
@@ -80,7 +82,6 @@ services:
 
   web:
     <<: *council
-    user: "${HOST_UID:-0}:${HOST_GID:-0}"   # files written to logs/ and results/ stay owned by you
     command: python -m orchestrator.web
     ports:
       - "127.0.0.1:8090:8090"
@@ -88,9 +89,9 @@ services:
       - FRONTEND_DIR=/app/frontend
     volumes:
       - ./website/data:/app/data
-      - ./website/logs:/app/logs
+      - ./logs:/app/logs
       - ./website/prompts:/app/prompts:ro
-      - ./website/results:/app/results
+      - ./website/council_results:/app/council_results
       - ${FRONTEND_DIR:-./website/frontend}:/app/frontend:ro
     restart: unless-stopped
     depends_on:

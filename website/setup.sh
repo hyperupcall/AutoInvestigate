@@ -61,7 +61,7 @@ ok "free"
   || ok "no frontend next to this folder; the live view will be the home page"
 
 bold "5/6  Building and starting (the first build takes a few minutes)"
-mkdir -p data logs results
+mkdir -p data ../logs council_results
 dc up -d --build slim agent_host web
 want=$(dc exec -T web python -c "from council import settings; s=settings.load(); print(len({a['id'] for g in s['groups'] for a in g['agents']}))")
 printf '  waiting for %s agents to register on SLIM ' "$want"

@@ -1,4 +1,4 @@
-"""Write results/<run_id>.json (and results/index.json) from a run's event log.
+"""Write council_results/<run_id>.json (and council_results/index.json) from a run's event log.
 
   python -m orchestrator.export 20261011-014311-b2e9      # one run (adds the disagreement analysis if missing)
   python -m orchestrator.export --all --no-analysis        # every finished run, deterministic parts only"""
@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from council import report, settings
 from council.openrouter import RunBudget
 
-RESULTS = "results"
+RESULTS = "council_results"
 RUNS = "logs/runs"
 
 

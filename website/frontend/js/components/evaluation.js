@@ -112,6 +112,13 @@
             class: 'mini-btn', text: 'Execute →', title: 'Send this idea to Idea Execution',
             onclick: (e) => { e.stopPropagation(); actions.sendToExecution({ ideaId: run.ideaId, ideaText: run.ideaText, evaluationRunId: run.backendRunId || null }); },
           }),
+          run.backendRunId
+            ? el('a', {
+                class: 'link-btn', href: Hack.agentViewUrl(run.backendRunId),
+                title: 'Open this run in the full Agent View', text: 'Agent View →',
+                onclick: (e) => e.stopPropagation(),
+              })
+            : null,
           el('span', { class: 'link-btn', text: 'Open →' }),
         ]),
       ]),

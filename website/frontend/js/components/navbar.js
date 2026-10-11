@@ -17,6 +17,7 @@
 
   /** The live view is served by the evaluation backend; follow the detected backend. */
   function agentViewHref() {
+    if (typeof Hack.agentViewUrl === 'function') return Hack.agentViewUrl();
     const info = Hack.backendInfo;
     if (info && info.live) return (info.base || '') + '/live';
     return 'http://localhost:8090/live';

@@ -54,7 +54,7 @@ Create a .gitignore file containing:
     .env
     .venv/
     __pycache__/
-    results/
+    council_results/
 
 ## 5. Understand MCP servers
 

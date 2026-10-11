@@ -91,7 +91,7 @@ Two relevant facts:
 | C3 Specialists | 3 groups, 13 agents, per-metric medians | criteria not weighted into one number | deterministic weighted score in `report.py` |
 | C4 Critic | `critical_reviewer` inside research group; `analysis.py` finds disagreements | no cross-group red-team stage | `prompts/system/critic.md` + `Run.critic()` |
 | C5 Consensus | `stop_or_go` judge + `final` verdict | no transparent weighted score, no next-experiment field | weighted score + `next_experiment` in report |
-| C6 Memory | `results/` is a write-only archive | nothing is read back into new runs | `council/memory.py` (local) or memory MCP |
+| C6 Memory | `council_results/` is a write-only archive | nothing is read back into new runs | `council/memory.py` (local) or memory MCP |
 | C7 GitHub | none | no repo inspection | GitHub MCP via C1 |
 | C8 Sandbox | `artifactfactory/` exists but is separate and dummy | no measured experiment | wire artifactfactory + a sandbox runner |
 | C9 Baseline | `evalreport/` has a baseline | backend has none | `orchestrator/baseline.py` + benchmark harness |
@@ -235,7 +235,7 @@ Two options, in order of effort:
 
 1. **Local store (recommended first).** `council/memory.py` writes a compact record per run
    (idea, verdict, scores, evidence source ids, experiments and their outcomes) to a JSON/SQLite
-   file next to `results/`. `recall(idea)` returns the nearest prior runs by simple keyword overlap
+   file next to `council_results/`. `recall(idea)` returns the nearest prior runs by simple keyword overlap
    and feeds a short "what we learned before" block into the research stage. This is the "learnings
    for the swarm" from `IDEAS.md` and needs no new service.
 2. **Memory MCP server.** Swap the local store for a memory MCP server (C1) once the client exists.

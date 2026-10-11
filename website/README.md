@@ -95,7 +95,7 @@ per server (✕ to remove) and a dropdown to add another. Save, and the next run
    evaluated, the case for and against, an ordered action plan (timeframe/cost/owner), kill criteria, risks with
    mitigations, open questions, and what would change the verdict, plus a per-group verdict with findings and
    scores. Then a disagreement analysis (quotes are checked word for word) and the JSON report in
-   `results/<run_id>.json` (the reality check lands in its `reality_check` field).
+   `council_results/<run_id>.json` (the reality check lands in its `reality_check` field).
 
 The orchestrator only opens SLIM groups, relays commands and records events; it decides nothing.
 

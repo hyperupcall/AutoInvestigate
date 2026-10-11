@@ -224,7 +224,6 @@ def archetype_library() -> list[dict]:
 DEFAULT_SETTINGS = {
     "mode": "quick",                     # quick: about a minute (one pass per round, short write-ups) | deep: about 7 minutes
     "sources": {"enabled": True, "max_papers": 8, "model": "google/gemma-3-4b-it"},  # arXiv papers for groups with use_sources
-    "openrouter_api_key": "",            # default key; blank per-agent keys fall back to this, then to $OPENROUTER_API_KEY
     "deliberation_seconds": 60,          # per deliberation round, per group
     "max_cost_usd": 1.0,                 # a run stops when this is spent
     "web_search_results": 3,             # per search for ":online" models

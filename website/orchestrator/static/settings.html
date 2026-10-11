@@ -53,7 +53,7 @@ pre#msg{font-family:monospace;font-size:12px;color:gray;white-space:pre-wrap;mar
 <p><label><input type="checkbox" id="src_enabled"> Give arXiv papers to the groups marked below</label>
 <label>at most <input type="number" id="src_max" min="1" max="15" style="width:4em"> papers</label>
 <label>chosen by model <input id="src_model" list="models" size="30"></label></p>
-<p><label>Default OpenRouter API key <input type="password" id="openrouter_api_key" size="50" autocomplete="off"></label></p>
+
 <p><label>Deliberation time per round in deep mode, seconds <input type="number" id="deliberation_seconds" min="5" max="900"></label></p>
 <p><label>Maximum cost per evaluation, US dollars <input type="number" id="max_cost_usd" min="0.05" max="50" step="0.05"></label></p>
 <p><label>Web search results per search (for models ending in :online) <input type="number" id="web_search_results" min="0" max="10"></label></p>
@@ -128,8 +128,6 @@ const mcpRow = (a, ai) => {
 
 function render() {
   $('mode').value = S.mode; $('src_enabled').checked = S.sources.enabled; $('src_max').value = S.sources.max_papers; $('src_model').value = S.sources.model;
-  $('openrouter_api_key').value = S.openrouter_api_key;
-  $('openrouter_api_key').placeholder = S.openrouter_api_key ? 'saved (type to replace)' : 'sk-or-...';
   ['deliberation_seconds', 'max_cost_usd', 'web_search_results'].forEach(k => $(k).value = S[k]);
   $('stages').innerHTML = STAGES.map(([k, label]) => `<tr data-stage="${k}"><td>${label}</td>
     <td><input type="number" min="100" max="16000" value="${S.max_tokens[k]}"></td>
@@ -159,7 +157,7 @@ function render() {
       ${g.agents.map((a, ai) => `<tr data-a="${ai}">
         <td>${esc(a.name)}</td>
         <td><input class="amodel" list="models" value="${esc(a.model)}" size="38"></td>
-        <td><input class="akey" type="password" value="${esc(a.api_key)}" placeholder="default key" size="18" autocomplete="off"></td>
+        <td><input class="akey" type="password" value="${esc(a.api_key)}" placeholder="optional" size="18" autocomplete="off"></td>
         <td>${effortSelect(a.reasoning_effort, 'stage default')}</td>
         <td><a href="/api/prompt?path=${encodeURIComponent(a.prompt)}" target="_blank">${esc(a.prompt.split('/').pop())}</a></td>
         <td><button type="button" class="rm">Remove</button></td></tr>` + mcpRow(a, ai)).join('')}
@@ -173,7 +171,6 @@ function render() {
 function collect() {
   S.mode = $('mode').value;
   S.sources = {enabled: $('src_enabled').checked, max_papers: Number($('src_max').value), model: $('src_model').value.trim()};
-  S.openrouter_api_key = $('openrouter_api_key').value;
   ['deliberation_seconds', 'max_cost_usd', 'web_search_results'].forEach(k => S[k] = Number($(k).value));
   document.querySelectorAll('#stages tr').forEach(tr => {
     const k = tr.dataset.stage;

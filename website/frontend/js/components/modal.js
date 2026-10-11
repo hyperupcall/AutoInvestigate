@@ -174,6 +174,12 @@
         el('h3', { class: 'modal-title', text: truncate(run.ideaText, 200) }),
       ]),
       el('div', { class: 'modal-head-actions' }, [
+        run.backendRunId
+          ? el('a', {
+              class: 'btn small', href: Hack.agentViewUrl(run.backendRunId),
+              title: 'Open this run in the full Agent View', text: 'Agent View →',
+            })
+          : null,
         run.status === 'running'
           ? el('button', { class: 'btn small', text: 'Cancel run', title: 'Stop this run', onclick: () => actions.cancelEvaluation(run.id) })
           : null,

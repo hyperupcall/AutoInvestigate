@@ -30,6 +30,14 @@
   const post = (path, body) => getJSON(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const put = (path, body) => getJSON(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
+  /* The live "Agent View" page, served by the evaluation backend. With a run id it opens that
+   * run directly (/live?run=<id>); without one it opens the newest run. Follows the detected
+   * backend, so it works whether the page is served by the backend or by run.sh on another port. */
+  function agentViewUrl(runId) {
+    const base = info.live ? (info.base || '') : 'http://localhost:8090';
+    return base + '/live' + (runId ? '?run=' + encodeURIComponent(runId) : '');
+  }
+
   /* The agent cluster, before any event arrives (same report shape, nothing filled in yet).
    * `groupIds` (optional) keeps only those agent groups. */
   function buildReport(ideaText, groupIds) {
@@ -172,6 +180,7 @@
 
   mock.buildReport = buildReport;
   mock.startEvaluation = startEvaluation;
-  Hack.apiBackend = { detect, loadPastRuns, refreshSettings, saveSettings, resetSettings, info };
+  Hack.agentViewUrl = agentViewUrl;
+  Hack.apiBackend = { detect, loadPastRuns, refreshSettings, saveSettings, resetSettings, agentViewUrl, info };
   window.addEventListener('load', detect);
 })();

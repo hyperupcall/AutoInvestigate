@@ -66,6 +66,6 @@ def test_exported_reports_match_the_schema():
     import json
     import jsonschema
     schema = json.load(open("schema/evaluation-report.schema.json"))
-    files = [f for f in glob.glob("results/*.json") if not f.endswith("index.json")]
+    files = [f for f in glob.glob("council_results/*.json") if not f.endswith("index.json")]
     for f in files:
         jsonschema.validate(json.load(open(f)), schema)

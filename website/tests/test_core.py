@@ -107,20 +107,24 @@ def test_defaults_shape_and_every_prompt_exists():
 def test_settings_mask_roundtrip_and_permissions():
     with tempfile.TemporaryDirectory() as d:
         os.environ["SETTINGS_PATH"] = os.path.join(d, "settings.json")
-        s = default_settings(); s["openrouter_api_key"] = "sk-or-real"; s["groups"][0]["agents"][0]["api_key"] = "sk-agent"
+        old_env = os.environ.get("OPENROUTER_API_KEY")
+        os.environ["OPENROUTER_API_KEY"] = "sk-or-env"
+        s = default_settings(); s["groups"][0]["agents"][0]["api_key"] = "sk-agent"
         assert settings.save(s) == []
         view = settings.public_view(settings.load())
-        assert view["openrouter_api_key"] == settings.MASK and "sk-or-real" not in json.dumps(view)
+        assert "sk-or-env" not in json.dumps(view)
         assert view["groups"][0]["agents"][0]["api_key"] == settings.MASK
         assert settings.save(view | {"deliberation_seconds": 30}) == []  # masked values keep the stored keys
         again = settings.load()
-        assert again["openrouter_api_key"] == "sk-or-real" and again["groups"][0]["agents"][0]["api_key"] == "sk-agent"
+        assert again["groups"][0]["agents"][0]["api_key"] == "sk-agent"
         assert again["deliberation_seconds"] == 30
         assert oct(os.stat(os.environ["SETTINGS_PATH"]).st_mode & 0o777) == "0o600"
-        assert settings.resolve_key("", again) == "sk-or-real" and settings.resolve_key("own", again) == "own"
+        assert settings.resolve_key("", again) == "sk-or-env" and settings.resolve_key("own", again) == "own"
         bad = settings.load(); bad["deliberation_seconds"] = 1
         assert settings.save(bad) and settings.load()["deliberation_seconds"] == 30  # invalid input is not stored
         del os.environ["SETTINGS_PATH"]
+        if old_env is None: os.environ.pop("OPENROUTER_API_KEY", None)
+        else: os.environ["OPENROUTER_API_KEY"] = old_env
 
 
 def test_mcp_key_prefers_env_over_stored():
