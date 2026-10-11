@@ -7,6 +7,8 @@ COPY deliberation ./deliberation
 COPY prompts ./prompts
 COPY agent_host ./agent_host
 COPY orchestrator ./orchestrator
+COPY ideation ./ideation
+COPY docker-entrypoint.py ./docker-entrypoint.py
 COPY tests ./tests
 COPY scripts ./scripts
 COPY schema ./schema

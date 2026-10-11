@@ -169,7 +169,20 @@
     }, [
       el('div', { class: 'idea-check', text: selected ? '✓' : '' }),
       el('div', { class: 'idea-body' }, [
+        idea.kind || idea.topicName
+          ? el('div', { class: 'idea-origin' }, [
+              idea.kind ? el('span', { class: 'ideation-kind ' + idea.kind, text: idea.kind }) : null,
+              idea.topicName ? el('span', { class: 'muted small', text: idea.topicName }) : null,
+            ])
+          : null,
         el('p', { class: 'idea-text', text: idea.text }),
+        idea.justification && idea.justification.length
+          ? el('ul', { class: 'idea-justification' }, idea.justification.map((b) => el('li', { text: b })))
+          : null,
+        idea.sources && idea.sources.length
+          ? el('div', { class: 'idea-sources' }, idea.sources.slice(0, 4).map((s) =>
+              el('a', { class: 'ideation-source', href: s.url, target: '_blank', rel: 'noopener', text: s.title || s.url })))
+          : null,
         el('div', { class: 'idea-meta' }, [
           el('button', {
             class: 'mini-btn', text: 'Evaluate →',

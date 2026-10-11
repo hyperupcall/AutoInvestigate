@@ -17,7 +17,7 @@ implementable ideas. It is a three-stage pipeline, each stage a column in the UI
 
 | Stage | What happens | Backend | Status |
 | --- | --- | --- | --- |
-| **1 · Idea Generation** | Seed an idea, then refine / vary / consolidate it into a tree of ideas. | *(none yet)* | Mocked in the browser |
+| **1 · Idea Generation** | A daemon watches the internet for a tagged watchlist of topics and a team of agents refines what it finds into ideas; the seed box can also iterate ideas on demand. | `website/ideation/` | Real |
 | **2 · Idea Evaluation** | Three groups of AI agents deliberate on one idea and reach a verdict. | `website/` | Real |
 | **3 · Idea Execution** | Turn a chosen idea into tangible artifacts (a prototype, a review, a repo). | `artifactfactory/` | Real |
 
@@ -37,9 +37,11 @@ flowchart TB
         MOCK["mock-backend.js / mock-execution.js<br/>(the swap point)"]
         APIB["api-backend.js"]
         APIE["api-execution.js"]
+        APIG["api-generation.js"]
         UI --> MOCK
         APIB -. "swaps in when live" .-> MOCK
         APIE -. "swaps in when live" .-> MOCK
+        APIG -. "swaps in when live" .-> MOCK
     end
 
     subgraph Eval["website/ — Part 2: Idea Evaluation"]
@@ -56,6 +58,14 @@ flowchart TB
         AGENTS --> DELIB
     end
 
+    subgraph Ideation["website/ideation/ — Part 1: Idea Generation"]
+        ID["daemon.py + api.py :8091"]
+        SCHED["scheduler.py<br/>polls topics on a schedule"]
+        TEAM["agents.py<br/>scout · abstractor · concretizer · refiner · curator"]
+        DB[("SQLite<br/>topics · signals · ideas · memory")]
+        ID --> SCHED --> TEAM --> DB
+    end
+
     subgraph Factory["artifactfactory/ — Part 3: Idea Execution"]
         AF["daemon.py + api.py :8080"]
         BUILD["artifacts.py builders<br/>mvp · literature_review · source_repo"]
@@ -70,10 +80,13 @@ flowchart TB
 
     APIB -->|"REST + polling"| WEB
     APIE -->|"REST"| AF
+    APIG -->|"REST"| ID
     AF -->|"GET report"| WEB
     DELIB --> OR
     DELIB --> AX
     DELIB --> SM
+    TEAM --> OR
+    TEAM --> AX
     BUILD --> OR
 ```
 
@@ -551,6 +564,7 @@ Keys stay on the backend and are masked in every public view.
 | `frontend` | http://localhost:8000 | Static three-column workspace (no build step). |
 | `artifactfactory` | http://localhost:8080 | Artifact Factory REST API — column 3. |
 | `web` (+ `slim`, `agent_host`) | http://localhost:8090 | Evaluation backend — column 2. |
+| `ideation` | http://localhost:8091 | Ideation collective daemon — column 1 (topics, monitoring, idea generation). |
 | `evalreport` | http://localhost:8501 | Streamlit "Outshift Research Intelligence" app. |
 | `slim` | :46357 | The AGNTCY/SLIM bus. |
 
@@ -605,15 +619,18 @@ Keys stay on the backend and are masked in every public view.
 
 ## 12. Status and known gaps
 
-**Real:** Part 2 (evaluation) end to end — the pipeline, the reality check, the
-final report, arXiv sources, MCP tools, the report schema, the live view, the
-settings page. Part 3 (execution) — plans, jobs, the MVP prototype, the
-literature review and the source repository built from a run's report.
+**Real:** Part 1 (ideation) — the daemon, the SQLite store, the topic watchlist,
+the source adapters, the collaborative agent team, the memory, the Ideation View
+and the Part 1 generation contract. Part 2 (evaluation) end to end — the pipeline,
+the reality check, the final report, arXiv sources, MCP tools, the report schema,
+the live view, the settings page. Part 3 (execution) — plans, jobs, the MVP
+prototype, the literature review and the source repository built from a run's
+report.
 
 **Mocked / not done:**
 
-- **Part 1 (idea generation)** — `generateIdeas` is still the browser mock; there
-  is no generation backend yet.
+- **Ideation scheduling** — the daemon polls on a fixed interval; there is no
+  per-topic cadence, back-off or retention policy for the signal firehose yet.
 - **Settings persistence** in the frontend mock is in-memory only (the backend
   settings do persist).
 - **Prompt selection** — prompts are loaded from the filesystem and editable, but
@@ -624,3 +641,131 @@ literature review and the source repository built from a run's report.
 **Open questions** (from `CLAUDE.md`): whether selection should be scoped per
 level; whether the level tree should show parent/child links; and what the
 spec's unspecified "third part" of the backend is.
+
+---
+
+## 13. Part 1 — Idea Generation (`website/ideation/`)
+
+The **ideation collective**: a long-running daemon that watches the internet for a
+tagged watchlist of topics and turns what it finds into ideas. It is the real
+backend for the frontend's first column, and it reuses `deliberation/` as its
+shared library (the OpenRouter client, the prompt loader, settings) exactly as
+`orchestrator/` and `agent_host/` do.
+
+```
+website/ideation/
+  daemon.py       entrypoint (argparse + Config.from_env + serve)
+  api.py          ThreadingHTTPServer: JSON API + the Ideation View page
+  config.py       Config dataclass + from_env (ID_* env vars)
+  store.py        the SQLite store (topics · signals · ideas · sessions · events · memory)
+  topics.py       the default tagged watchlist
+  sources.py      source adapters: arXiv · Hacker News · Reddit · news RSS
+  agents.py       the collaborative team + the message schema
+  memory.py       the curated memory and its retrieval
+  service.py      orchestration: a cycle (poll) and a session (refine)
+  scheduler.py    the background loop that runs cycles
+  prompts/        the agent role prompts + the shared message format
+```
+
+### 13.1 The two loops
+
+- **A cycle** (`Service.run_cycle`) polls every enabled topic's sources, stores
+the new signals (deduplicated by a hash of the URL/title), and runs a session for
+any topic that found something new. The `scheduler.py` thread runs a cycle every
+`poll_interval_seconds` (default 900).
+- **A session** (`Service.run_session`) is the refinement: a team of agents reads a
+topic's newest signals and works **together** — not in competition — to refine them
+into one idea.
+
+### 13.2 The team and the message format
+
+Three agents, each with its own prompt and model: **Idea Generator** (given a
+description of the idea, does extra research and produces a more finalized idea — or
+a completely different one), **Builder** (scores how well the idea can be built as an
+MVP or artifact), and **Analyzer** (researches the idea and judges whether it makes
+sense or is nonsense). They speak in a fixed order, round by round, each building on
+what the others said.
+
+Every message has the same shape, enforced by `agents.validate_message`:
+
+| Field | What it is |
+| --- | --- |
+| `context` | **Large** text: the background, the reasoning, and the text of the websites/signals that were read. |
+| `idea` | The idea itself — **one sentence** only. |
+| `justification` | **3-4** bullet points on why it is a good idea. |
+| `sources` | The links the message drew on. |
+
+The **Builder** adds a `build` score (`mvp`, `artifact`, `effort`, `blockers`); the
+**Analyzer** adds an `analysis` verdict (`makes_sense` / `questionable` / `nonsense`,
+with `confidence`, `findings`, `blockers`). Any agent may add `memory` proposals; only
+those with importance ≥ 7 are promoted (the "VERY IMPORTANT" filter).
+
+### 13.3 The store and the memory
+
+`store.py` is SQLite (one file, `ideation.db`, on a Docker volume) because the
+signal firehose is append-heavy and needs cheap dedup, and because the daemon is
+multi-threaded. Collections: `topics`, `signals`, `ideas`, `sessions`, `events`,
+`memory`. The **memory** is not a log — it holds only the durable, high-signal
+findings, and it is retrieved (by tag/keyword overlap) before a session so the team
+remembers what it learned.
+
+### 13.4 The Ideation View and the frontend
+
+`website/frontend/ideation.html` + `js/ideation.js` is the **Ideation View** (the
+navbar's **Research and Ideation** link, also served by the daemon at `GET /`). It is
+three columns: **Topics** and **Sessions** side by side (each scrolls independently)
+and the **main view** to their right, with **Session / Ideas / Memory** tabs. Clicking
+a session shows it in the main view. A session is drawn as an **agent graph — the same
+visual language as the Evaluation Swarm** — with the selected agent's messages beside
+it (the large context is collapsible, the one-sentence idea and its bullets are shown,
+and the Builder's score and the Analyzer's verdict are rendered as chips). At the end
+of the topics list is a long **+ Add Topic** button: the user describes a topic and
+`POST /api/topics/draft` has a model fill in the name, description, tags and keywords
+(editable before it is added).
+
+`js/api-generation.js` connects the workspace's first column to the daemon: the
+seed box's `generateIdeas` calls `POST /api/generate` (the Part 1 contract), and
+the ideas the daemon has already generated are loaded from `GET /api/tree` into the
+same level tree (`generation.js`) — abstract ideas at level 1, concrete at level 2.
+
+### 13.5 Routes
+
+| Route | Purpose |
+| --- | --- |
+| `GET /` | The Ideation View page. |
+| `GET /info`, `GET /health` | Service info; health. |
+| `GET`/`POST /api/topics`, `PUT`/`DELETE /api/topics/{id}` | The watchlist. |
+| `GET /api/ideas`, `GET /api/ideas/{id}`, `GET /api/tree` | Generated ideas; the level tree. |
+| `GET /api/signals`, `GET /api/memory` | The raw feed; the memory. |
+| `GET`/`POST /api/sessions`, `GET /api/sessions/{id}` | Refinement sessions. |
+| `GET /api/sessions/{id}/events?since=N`, `GET /api/sessions/{id}/report` | The live stream; the report. |
+| `POST /api/generate` | The Part 1 generation contract. |
+| `POST /api/poll`, `GET /api/status` | Run a cycle now; daemon status. |
+| `GET`/`PUT /api/settings` | The daemon's settings (persisted next to the database). |
+
+### 13.6 Configuration
+
+| Env var | Default | Meaning |
+| --- | --- | --- |
+| `ID_HOST`, `ID_PORT` | `127.0.0.1`, `8091` | Bind host and port. |
+| `ID_DATA_DIR` | `<repo>/_ideation-data` | Where `ideation.db` lives (a Docker volume). |
+| `ID_FRONTEND_DIR` | `<repo>/website/frontend` | Where the Ideation View page lives. |
+| `ID_POLL_INTERVAL` | `900` | Seconds between cycles. |
+| `ID_MAX_COST` | `0.50` | Per-session / per-cycle cost cap. |
+| `ID_AUTOSTART` | `1` | Start the scheduler with the daemon. |
+| `ID_MODEL` | `openai/gpt-oss-120b` | Default model for the agents. |
+
+The daemon's settings are editable from the **Settings** button in the Ideation View
+(`GET`/`PUT /api/settings`, persisted to `_ideation-data/settings.json`). They cover a
+**default model** plus a **per-agent model** for each of the three agents (a per-agent
+choice overrides the default), the **topic drafting model** used by **+ Add Topic**, a
+**Thinking** toggle per model (reasoning on/off), and the poll interval, cost cap,
+refinement rounds, signals per session and autostart.
+
+In Docker the daemon is the `ideation` service (built from `./website`, command
+`python -m ideation.daemon`, port `8091`), and `./_ideation-data` is mounted as a
+volume so the database survives a rebuild. Because Docker creates a missing
+bind-mount directory as `root`, the service starts as root and runs
+`website/docker-entrypoint.py`, which chowns the data directory to
+`HOST_UID:HOST_GID` and then drops to that user — so the database is owned by you
+on the host.

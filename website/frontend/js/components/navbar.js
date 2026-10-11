@@ -61,6 +61,7 @@
     ]));
 
     root.appendChild(el('nav', { class: 'app-nav', 'aria-label': 'Primary' }, [
+      navLink('ideation-view', 'Research and Ideation', 'ideation.html', 'The ideation collective: topics, sessions and generated ideas'),
       navLink('agent-view', 'Agent View', agentViewHref(), 'The live view served by the backend'),
       navLink('artifact-factory-view', 'Artifact Factory', 'artifactfactory.html', 'The Artifact Factory dashboard'),
     ]));

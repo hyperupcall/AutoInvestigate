@@ -6,6 +6,7 @@
 #   8000   frontend         static site (no build step)
 #   8080   artifactfactory  REST API (idea execution backend — the frontend's column 3)
 #   8090   web              evaluation backend (idea evaluation — the frontend's column 2)
+#   8091   ideation         ideation collective daemon (topics, monitoring, idea generation)
 #   46357  slim             AGNTCY/SLIM bus (used by the evaluation agents)
 #
 # The evaluation backend (slim / agent_host / web) reads the single root .env
@@ -57,6 +58,35 @@ services:
     volumes:
       - ./_artifacts:/app/_artifacts
       - ./_artifactfactory-data:/app/_artifactfactory-data
+      - ${FRONTEND_DIR:-./website/frontend}:/app/frontend:ro
+    restart: unless-stopped
+
+  # ------------------------------------------------------- idea generation
+  # The ideation collective: a long-running daemon that watches the internet for
+  # signals on a tagged watchlist of topics and turns them into ideas. Its SQLite
+  # database lives on a named volume (./_ideation-data) so it survives a rebuild.
+  ideation:
+    build:
+      context: ./website
+    image: outshift/ideation:latest
+    # The entrypoint starts as root, chowns the data volume to HOST_UID:HOST_GID
+    # (Docker creates a missing bind-mount dir as root), then drops to that user,
+    # so the SQLite database is owned by you on the host.
+    entrypoint: ["python", "/app/docker-entrypoint.py"]
+    command: ["python", "-m", "ideation.daemon"]
+    ports:
+      - "8091:8091"
+    env_file: .env   # OPENROUTER_API_KEY for the ideation agents
+    environment:
+      ID_HOST: 0.0.0.0
+      ID_PORT: "8091"
+      ID_DATA_DIR: /app/_ideation-data   # the SQLite database (a volume)
+      ID_FRONTEND_DIR: /app/frontend     # the Ideation View page (website/frontend/ideation.html)
+      ID_POLL_INTERVAL: "900"
+      HOST_UID: "${HOST_UID:-0}"
+      HOST_GID: "${HOST_GID:-0}"
+    volumes:
+      - ./_ideation-data:/app/_ideation-data
       - ${FRONTEND_DIR:-./website/frontend}:/app/frontend:ro
     restart: unless-stopped
 
